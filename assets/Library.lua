@@ -3312,7 +3312,7 @@ local Library do
                 Items["PaletteDragger"]:Tween(TweenInfo.new(Library.Tween.Time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2New(PaletteValueX, 0, PaletteValueY, 0)})
                 Items["HueDragger"]:Tween(TweenInfo.new(Library.Tween.Time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2New(0, 0, HuePositionY, 0)})
                 Items["AlphaDragger"]:Tween(TweenInfo.new(Library.Tween.Time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2New(AlphaPositionX, 0, 0, 0)})
-                Colorpicker:Update(true, true)
+                Colorpicker:Update(false, true)
             end
             Items["ColorpickerButton"]:Connect("MouseButton1Down", function()
                 Colorpicker:SetOpen(not Colorpicker.IsOpen)
