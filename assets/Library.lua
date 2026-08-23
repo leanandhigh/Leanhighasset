@@ -340,16 +340,40 @@ local Library do
         end
         Tween.GetProperty = function(self, Item)
             Item = Item or self.Item
+            -- Only return properties that are meant to be faded.
+            -- Skip BackgroundTransparency when it is already 1 (layout/spacer frames
+            -- often use white BackgroundColor3 + full transparency — forcing them
+            -- visible is what caused the full white-out).
             if Item:IsA("Frame") then
+                if Item.BackgroundTransparency >= 1 then
+                    return nil
+                end
                 return { "BackgroundTransparency" }
-            elseif Item:IsA("TextLabel") or Item:IsA("TextButton") then
-                return { "TextTransparency", "BackgroundTransparency" }
+            elseif Item:IsA("TextLabel") then
+                return { "TextTransparency" }
+            elseif Item:IsA("TextButton") then
+                local props = { "TextTransparency" }
+                if Item.BackgroundTransparency < 1 then
+                    table.insert(props, "BackgroundTransparency")
+                end
+                return props
             elseif Item:IsA("ImageLabel") or Item:IsA("ImageButton") then
-                return { "BackgroundTransparency", "ImageTransparency" }
+                local props = { "ImageTransparency" }
+                if Item.BackgroundTransparency < 1 then
+                    table.insert(props, "BackgroundTransparency")
+                end
+                return props
             elseif Item:IsA("ScrollingFrame") then
+                if Item.BackgroundTransparency >= 1 then
+                    return { "ScrollBarImageTransparency" }
+                end
                 return { "BackgroundTransparency", "ScrollBarImageTransparency" }
             elseif Item:IsA("TextBox") then
-                return { "TextTransparency", "BackgroundTransparency" }
+                local props = { "TextTransparency" }
+                if Item.BackgroundTransparency < 1 then
+                    table.insert(props, "BackgroundTransparency")
+                end
+                return props
             elseif Item:IsA("UIStroke") then
                 return { "Transparency" }
             end
@@ -368,12 +392,17 @@ local Library do
                 cache = {}
                 TransparencyCache[Item] = cache
             end
+            -- Always store the real original value (including 1). Never force to 0.
             if cache[Property] == nil then
                 local current = Item[Property]
-                -- Store real visible value (ignore if already fully transparent)
-                cache[Property] = (typeof(current) == "number" and current < 1) and current or 0
+                cache[Property] = (typeof(current) == "number") and current or 0
             end
             local Original = cache[Property]
+
+            -- Never force a layout frame (original transparency == 1) to become opaque
+            if Original >= 1 then
+                return
+            end
 
             if Visibility then
                 -- Fade IN: start at 1 → original
