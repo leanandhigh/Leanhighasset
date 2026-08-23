@@ -398,7 +398,7 @@ local Library do
             Library:AddToTheme(self, Properties)
         end
         Instances.ChangeItemTheme = function(self, Properties)
-            if not self.Instance then
+            if not self.Instance or not Library then
                 return
             end
             Library:ChangeItemTheme(self, Properties)
@@ -1735,6 +1735,7 @@ local Library do
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Accent})
                         Library:SafeCall(Callback)
                         task.wait(0.1)
+                        if not Library then return end
                         SubItems["NewButton"]:ChangeItemTheme({BackgroundColor3 = "Element", BorderColor3 = "Border"})
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Element})
                     end)
