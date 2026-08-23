@@ -4994,20 +4994,15 @@ local Library do
             if Window.IsOpen then
                 Root.Visible = true
             end
-            local ToFade = { Root }
-            local function collect(parent, depth)
-                if depth > 2 then return end
-                for _, Child in parent:GetChildren() do
-                    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-                        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
-                        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
-                        or Child:IsA("UIStroke") then
-                        table.insert(ToFade, Child)
-                        collect(Child, depth + 1)
-                    end
-                end
-            end
-            collect(Root, 1)
+			local ToFade = { Root }
+			for _, Child in Root:GetDescendants() do
+			    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
+			        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
+			        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
+			        or Child:IsA("UIStroke") then
+			        table.insert(ToFade, Child)
+			    end
+			end
 
             local NewTween
             for _, Value in ToFade do
