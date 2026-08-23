@@ -177,6 +177,26 @@ local Library do
 	["Blue Planet"] = { SkyboxBk = LPH_ENCSTR("rbxassetid://218955819"), SkyboxDn = LPH_ENCSTR("rbxassetid://218953419"), SkyboxFt = LPH_ENCSTR("rbxassetid://218954524"), SkyboxLf = LPH_ENCSTR("rbxassetid://218958493"), SkyboxRt = LPH_ENCSTR("rbxassetid://218957134"), SkyboxUp = LPH_ENCSTR("rbxassetid://218950090") },
 	["Deep Space 2"] = { SkyboxBk = LPH_ENCSTR("rbxassetid://159248188"), SkyboxDn = LPH_ENCSTR("rbxassetid://159248183"), SkyboxFt = LPH_ENCSTR("rbxassetid://159248187"), SkyboxLf = LPH_ENCSTR("rbxassetid://159248173"), SkyboxRt = LPH_ENCSTR("rbxassetid://159248192"), SkyboxUp = LPH_ENCSTR("rbxassetid://159248176") },
 }
+    function Library:GetSounds()
+        return self.Sounds
+    end
+    function Library:GetChamsAnimations()
+        return self.ChamsAnimations
+    end
+    function Library:GetSkyBoxes()
+        return self.SkyBoxes
+    end
+    function Library:GetAsset(Type)
+        if Type == "Sounds" then
+            return self.Sounds
+        elseif Type == "ChamsAnimations" or Type == "Chams" then
+            return self.ChamsAnimations
+        elseif Type == "SkyBoxes" or Type == "Sky" then
+            return self.SkyBoxes
+        end
+        return nil
+    end
+
     Library.__index = Library
     Library.Sections.__index = Library.Sections
     Library.Pages.__index = Library.Pages
@@ -314,20 +334,39 @@ local Library do
                 return { "Transparency" }
             end
         end
+        -- Cache original transparency so fade-in still works after fade-out
+        local TransparencyCache = setmetatable({}, { __mode = "k" })
+
         Tween.FadeItem = function(self, Item, Property, Visibility, Speed)
             local Item = Item or self.Item
             if not Item or not Item.Parent then
                 return
             end
-            local OldTransparency = Item[Property]
-            local Target = Visibility and OldTransparency or 1
-            Item[Property] = Visibility and 1 or OldTransparency
-            local NewTween = Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
-                [Property] = Target
-            }, true)
-            -- Removed Completed connection + task.wait — they created hundreds of
-            -- Library:Connect entries and were the main cause of tween lag
-            return NewTween
+
+            local cache = TransparencyCache[Item]
+            if not cache then
+                cache = {}
+                TransparencyCache[Item] = cache
+            end
+            if cache[Property] == nil then
+                local current = Item[Property]
+                -- Store real visible value (ignore if already fully transparent)
+                cache[Property] = (typeof(current) == "number" and current < 1) and current or 0
+            end
+            local Original = cache[Property]
+
+            if Visibility then
+                -- Fade IN: start at 1 → original
+                Item[Property] = 1
+                return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
+                    [Property] = Original
+                }, true)
+            else
+                -- Fade OUT: current → 1
+                return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
+                    [Property] = 1
+                }, true)
+            end
         end
         Tween.Get = function(self)
             if not self.Tween then
@@ -4941,19 +4980,28 @@ local Library do
             end
             Window.IsOpen = Bool
             Debounce = true
-            if Window.IsOpen then
-                Items["Window"].Instance.Visible = true
-            end
-            -- Light fade: root + direct visual children only (was full GetDescendants → lag)
             local Root = Items["Window"].Instance
+            if Window.IsOpen then
+                Root.Visible = true
+            end
+
+            -- Collect root + 2 levels of visual children (avoids full GetDescendants lag
+            -- but still covers Side, Content, pages, etc.)
             local ToFade = { Root }
-            for _, Child in Root:GetChildren() do
-                if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-                    or Child:IsA("ImageLabel") or Child:IsA("ImageButton") or Child:IsA("ScrollingFrame")
-                    or Child:IsA("UIStroke") then
-                    table.insert(ToFade, Child)
+            local function collect(parent, depth)
+                if depth > 2 then return end
+                for _, Child in parent:GetChildren() do
+                    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
+                        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
+                        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
+                        or Child:IsA("UIStroke") then
+                        table.insert(ToFade, Child)
+                        collect(Child, depth + 1)
+                    end
                 end
             end
+            collect(Root, 1)
+
             local NewTween
             for _, Value in ToFade do
                 local TransparencyProperty = Tween:GetProperty(Value)
@@ -4968,21 +5016,23 @@ local Library do
                     NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
                 end
             end
-            if NewTween and NewTween.Tween then
-                NewTween.Tween.Completed:Once(function()
-                    Debounce = false
-                    Root.Visible = Window.IsOpen
-                    if Window.IsOpen then
-                        Items["MouseBackground"].Instance.Visible = true
-                        UserInputService.MouseIconEnabled = false
-                    else
-                        Items["MouseBackground"].Instance.Visible = false
-                        UserInputService.MouseIconEnabled = true
-                    end
-                end)
-            else
+
+            local function finish()
                 Debounce = false
                 Root.Visible = Window.IsOpen
+                if Window.IsOpen then
+                    Items["MouseBackground"].Instance.Visible = true
+                    UserInputService.MouseIconEnabled = false
+                else
+                    Items["MouseBackground"].Instance.Visible = false
+                    UserInputService.MouseIconEnabled = true
+                end
+            end
+
+            if NewTween and NewTween.Tween then
+                NewTween.Tween.Completed:Once(finish)
+            else
+                finish()
             end
         end
         Library:Connect(UserInputService.InputBegan, function(Input)
