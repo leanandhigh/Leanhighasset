@@ -191,6 +191,7 @@ local Library do
 	["Matrix"] = {Texture = LPH_ENCSTR("rbxassetid://15097610754"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
 	["EnergyRay"] = {Texture = LPH_ENCSTR("rbxassetid://13832105797"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
 }
+    -- Asset helpers (still live on Library, use these or the tables directly)
     function Library:GetSounds()
         return self.Sounds
     end
@@ -353,6 +354,7 @@ local Library do
                 return { "Transparency" }
             end
         end
+        -- Cache original transparency so fade-in still works after fade-out
         local TransparencyCache = setmetatable({}, { __mode = "k" })
 
         Tween.FadeItem = function(self, Item, Property, Visibility, Speed)
@@ -368,16 +370,19 @@ local Library do
             end
             if cache[Property] == nil then
                 local current = Item[Property]
-                cache[Property] = (typeof(current) == "number" and current > 0 and current < 1) and current or 0
+                -- Store real visible value (ignore if already fully transparent)
+                cache[Property] = (typeof(current) == "number" and current < 1) and current or 0
             end
             local Original = cache[Property]
 
             if Visibility then
+                -- Fade IN: start at 1 → original
                 Item[Property] = 1
                 return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
                     [Property] = Original
                 }, true)
             else
+                -- Fade OUT: current → 1
                 return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
                     [Property] = 1
                 }, true)
@@ -428,6 +433,8 @@ local Library do
             if Visibility == true then
                 Item.Visible = true
             end
+            -- Only fade the root + direct visual children (not the entire deep tree).
+            -- Full GetDescendants() was creating 100-300+ simultaneous tweens → lag.
             local ToFade = { Item }
             for _, Child in Item:GetChildren() do
                 if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
@@ -1326,6 +1333,7 @@ local Library do
                     Items["Liner"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0, 8, 0.5, 0)})
                 end
+                -- Light fade: only root page frame (full descendant fade caused heavy lag)
                 local PageFrame = Items["Page"].Instance
                 local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
                 if NewTween and NewTween.Tween then
@@ -1516,6 +1524,7 @@ local Library do
                     Items["Glow"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0.5, -5, 0.5, 0)})
                 end
+                -- Light fade: only root page frame (full descendant fade caused heavy lag)
                 local PageFrame = Items["Page"].Instance
                 local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
                 if NewTween and NewTween.Tween then
@@ -1776,6 +1785,7 @@ local Library do
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Accent})
                         Library:SafeCall(Callback)
                         task.wait(0.1)
+                        -- Library may have been set to nil by Unload(); skip restore if so
                         if not Library then return end
                         SubItems["NewButton"]:ChangeItemTheme({BackgroundColor3 = "Element", BorderColor3 = "Border"})
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Element})
@@ -4994,20 +5004,23 @@ local Library do
             if Window.IsOpen then
                 Root.Visible = true
             end
-			local ToFade = { Root }
-			local function collect(parent, depth)
-			    if depth > 2 then return end
-			    for _, Child in parent:GetChildren() do
-			        if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-			            or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
-			            or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
-			            or Child:IsA("UIStroke") then
-			            table.insert(ToFade, Child)
-			            collect(Child, depth + 1)
-			        end
-			    end
-			end
-			collect(Root, 1)
+
+            -- Collect root + 2 levels of visual children (avoids full GetDescendants lag
+            -- but still covers Side, Content, pages, etc.)
+            local ToFade = { Root }
+            local function collect(parent, depth)
+                if depth > 2 then return end
+                for _, Child in parent:GetChildren() do
+                    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
+                        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
+                        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
+                        or Child:IsA("UIStroke") then
+                        table.insert(ToFade, Child)
+                        collect(Child, depth + 1)
+                    end
+                end
+            end
+            collect(Root, 1)
 
             local NewTween
             for _, Value in ToFade do
@@ -5622,6 +5635,7 @@ local Library do
 				Glow:Tween(nil, { BackgroundTransparency = 0 })
 				BottomLiner:Tween(nil, { BackgroundTransparency = 0 })
 				TabContent.Instance.Visible = true
+				-- Light fade only (full descendant fade caused lag)
 				local NewTween = Tween:FadeItem(TabContent.Instance, "BackgroundTransparency", true, Library.FadeSpeed or 0.2)
 				if NewTween and NewTween.Tween then
 					NewTween.Tween.Completed:Once(function()
