@@ -128,14 +128,15 @@ local Library do
         Colorpickers = { },
     }
     Library.Sounds = {
-	["RIFK7"] = LPH_ENCSTR("rbxassetid://9102080552"),
-	["Bubble"] = LPH_ENCSTR("rbxassetid://9102092728"),
-	["Minecraft"] = LPH_ENCSTR("rbxassetid://5869422451"),
-	["Cod"] = LPH_ENCSTR("rbxassetid://160432334"),
-	["Bameware"] = LPH_ENCSTR("rbxassetid://6565367558"),
-	["Neverlose"] = LPH_ENCSTR("rbxassetid://6565370984"),
-	["Gamesense"] = LPH_ENCSTR("rbxassetid://4817809188"),
-	["Rust"] = LPH_ENCSTR("rbxassetid://6565371338"),
+	["Minecraft"] = LPH_ENCSTR("rbxassetid://7151570575"),
+	["Neverlose"] = LPH_ENCSTR("rbxassetid://6607204501"),
+	["Bonk"] = LPH_ENCSTR("rbxassetid://3765689841"),
+	["Bat"] = LPH_ENCSTR("rbxassetid://3333907347"),
+	["Laser Beam"] = LPH_ENCSTR("rbxassetid://130791043"),
+	["Gamesense"] = LPH_ENCSTR("rbxassetid://5633695679"),
+	["Fatality"] = LPH_ENCSTR("rbxassetid://6607142036"),
+	["Rust"] = LPH_ENCSTR("rbxassetid://5043539486"),
+	["Bow"] = LPH_ENCSTR("rbxassetid://93158957747276"),
 }
     Library.ChamsAnimations = {
 	["Disabled"] = LPH_ENCSTR("rbxassetid://0"),
@@ -177,6 +178,19 @@ local Library do
 	["Blue Planet"] = { SkyboxBk = LPH_ENCSTR("rbxassetid://218955819"), SkyboxDn = LPH_ENCSTR("rbxassetid://218953419"), SkyboxFt = LPH_ENCSTR("rbxassetid://218954524"), SkyboxLf = LPH_ENCSTR("rbxassetid://218958493"), SkyboxRt = LPH_ENCSTR("rbxassetid://218957134"), SkyboxUp = LPH_ENCSTR("rbxassetid://218950090") },
 	["Deep Space 2"] = { SkyboxBk = LPH_ENCSTR("rbxassetid://159248188"), SkyboxDn = LPH_ENCSTR("rbxassetid://159248183"), SkyboxFt = LPH_ENCSTR("rbxassetid://159248187"), SkyboxLf = LPH_ENCSTR("rbxassetid://159248173"), SkyboxRt = LPH_ENCSTR("rbxassetid://159248192"), SkyboxUp = LPH_ENCSTR("rbxassetid://159248176") },
 }
+    Library.TracerStyles = {
+	["CartoonyEletric"] = {Texture = LPH_ENCSTR("rbxassetid://18722421816"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Obelus"] = {Texture = LPH_ENCSTR("rbxassetid://2382169232"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Lightning"] = {Texture = LPH_ENCSTR("rbxassetid://7151778302"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["DNA"] = {Texture = LPH_ENCSTR("rbxassetid://7071778278"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Wrap, TextureSpeed = 1, Width = 0.3},
+	["Laser"] = {Texture = LPH_ENCSTR("rbxassetid://7136858729"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["AnimeLazer"] = {Texture = LPH_ENCSTR("rbxassetid://17441065350"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Interstellar"] = {Texture = LPH_ENCSTR("rbxassetid://128372145766358"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Arrow"] = {Texture = LPH_ENCSTR("rbxassetid://1274378728"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Minecraft"] = {Texture = LPH_ENCSTR("rbxassetid://152410036"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["Matrix"] = {Texture = LPH_ENCSTR("rbxassetid://15097610754"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+	["EnergyRay"] = {Texture = LPH_ENCSTR("rbxassetid://13832105797"), Segments = 20, TextureLength = 5, TextureMode = Enum.TextureMode.Stretch, TextureSpeed = 1, Width = 0.3},
+}
     function Library:GetSounds()
         return self.Sounds
     end
@@ -186,6 +200,9 @@ local Library do
     function Library:GetSkyBoxes()
         return self.SkyBoxes
     end
+    function Library:GetTracerStyles()
+        return self.TracerStyles
+    end
     function Library:GetAsset(Type)
         if Type == "Sounds" then
             return self.Sounds
@@ -193,6 +210,8 @@ local Library do
             return self.ChamsAnimations
         elseif Type == "SkyBoxes" or Type == "Sky" then
             return self.SkyBoxes
+        elseif Type == "TracerStyles" or Type == "Tracers" or Type == "Tracer" then
+            return self.TracerStyles
         end
         return nil
     end
@@ -334,7 +353,6 @@ local Library do
                 return { "Transparency" }
             end
         end
-        -- Cache original transparency so fade-in still works after fade-out
         local TransparencyCache = setmetatable({}, { __mode = "k" })
 
         Tween.FadeItem = function(self, Item, Property, Visibility, Speed)
@@ -350,19 +368,16 @@ local Library do
             end
             if cache[Property] == nil then
                 local current = Item[Property]
-                -- Store real visible value (ignore if already fully transparent)
                 cache[Property] = (typeof(current) == "number" and current < 1) and current or 0
             end
             local Original = cache[Property]
 
             if Visibility then
-                -- Fade IN: start at 1 → original
                 Item[Property] = 1
                 return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
                     [Property] = Original
                 }, true)
             else
-                -- Fade OUT: current → 1
                 return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
                     [Property] = 1
                 }, true)
@@ -413,8 +428,6 @@ local Library do
             if Visibility == true then
                 Item.Visible = true
             end
-            -- Only fade the root + direct visual children (not the entire deep tree).
-            -- Full GetDescendants() was creating 100-300+ simultaneous tweens → lag.
             local ToFade = { Item }
             for _, Child in Item:GetChildren() do
                 if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
@@ -1313,7 +1326,6 @@ local Library do
                     Items["Liner"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0, 8, 0.5, 0)})
                 end
-                -- Light fade: only root page frame (full descendant fade caused heavy lag)
                 local PageFrame = Items["Page"].Instance
                 local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
                 if NewTween and NewTween.Tween then
@@ -1504,7 +1516,6 @@ local Library do
                     Items["Glow"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0.5, -5, 0.5, 0)})
                 end
-                -- Light fade: only root page frame (full descendant fade caused heavy lag)
                 local PageFrame = Items["Page"].Instance
                 local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
                 if NewTween and NewTween.Tween then
@@ -1765,7 +1776,6 @@ local Library do
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Accent})
                         Library:SafeCall(Callback)
                         task.wait(0.1)
-                        -- Library may have been set to nil by Unload(); skip restore if so
                         if not Library then return end
                         SubItems["NewButton"]:ChangeItemTheme({BackgroundColor3 = "Element", BorderColor3 = "Border"})
                         SubItems["NewButton"]:Tween(nil, {BackgroundColor3 = Library.Theme.Element})
@@ -4984,9 +4994,6 @@ local Library do
             if Window.IsOpen then
                 Root.Visible = true
             end
-
-            -- Collect root + 2 levels of visual children (avoids full GetDescendants lag
-            -- but still covers Side, Content, pages, etc.)
             local ToFade = { Root }
             local function collect(parent, depth)
                 if depth > 2 then return end
@@ -5615,7 +5622,6 @@ local Library do
 				Glow:Tween(nil, { BackgroundTransparency = 0 })
 				BottomLiner:Tween(nil, { BackgroundTransparency = 0 })
 				TabContent.Instance.Visible = true
-				-- Light fade only (full descendant fade caused lag)
 				local NewTween = Tween:FadeItem(TabContent.Instance, "BackgroundTransparency", true, Library.FadeSpeed or 0.2)
 				if NewTween and NewTween.Tween then
 					NewTween.Tween.Completed:Once(function()
