@@ -91,11 +91,11 @@ local Library do
         MenuKeybind = tostring(Enum.KeyCode.RightShift),
         Flags = { },
         Tween = {
-            Time = 0.15,
+            Time = 0.2,
             Style = Enum.EasingStyle.Quad,
             Direction = Enum.EasingDirection.Out
         },
-        FadeSpeed = 0.12,
+        FadeSpeed = 0.2,
         Folders = {
             Directory = LPH_ENCSTR("Lean"),
             Configs = LPH_ENCSTR("Lean/Configs"),
@@ -340,82 +340,34 @@ local Library do
         end
         Tween.GetProperty = function(self, Item)
             Item = Item or self.Item
-            -- Only return properties that are meant to be faded.
-            -- Skip BackgroundTransparency when it is already 1 (layout/spacer frames
-            -- often use white BackgroundColor3 + full transparency — forcing them
-            -- visible is what caused the full white-out).
             if Item:IsA("Frame") then
-                if Item.BackgroundTransparency >= 1 then
-                    return nil
-                end
                 return { "BackgroundTransparency" }
-            elseif Item:IsA("TextLabel") then
-                return { "TextTransparency" }
-            elseif Item:IsA("TextButton") then
-                local props = { "TextTransparency" }
-                if Item.BackgroundTransparency < 1 then
-                    table.insert(props, "BackgroundTransparency")
-                end
-                return props
+            elseif Item:IsA("TextLabel") or Item:IsA("TextButton") then
+                return { "TextTransparency", "BackgroundTransparency" }
             elseif Item:IsA("ImageLabel") or Item:IsA("ImageButton") then
-                local props = { "ImageTransparency" }
-                if Item.BackgroundTransparency < 1 then
-                    table.insert(props, "BackgroundTransparency")
-                end
-                return props
+                return { "BackgroundTransparency", "ImageTransparency" }
             elseif Item:IsA("ScrollingFrame") then
-                if Item.BackgroundTransparency >= 1 then
-                    return { "ScrollBarImageTransparency" }
-                end
                 return { "BackgroundTransparency", "ScrollBarImageTransparency" }
             elseif Item:IsA("TextBox") then
-                local props = { "TextTransparency" }
-                if Item.BackgroundTransparency < 1 then
-                    table.insert(props, "BackgroundTransparency")
-                end
-                return props
+                return { "TextTransparency", "BackgroundTransparency" }
             elseif Item:IsA("UIStroke") then
                 return { "Transparency" }
             end
         end
-        -- Cache original transparency so fade-in still works after fade-out
-        local TransparencyCache = setmetatable({}, { __mode = "k" })
-
         Tween.FadeItem = function(self, Item, Property, Visibility, Speed)
             local Item = Item or self.Item
-            if not Item or not Item.Parent then
-                return
-            end
-
-            local cache = TransparencyCache[Item]
-            if not cache then
-                cache = {}
-                TransparencyCache[Item] = cache
-            end
-            -- Always store the real original value (including 1). Never force to 0.
-            if cache[Property] == nil then
-                local current = Item[Property]
-                cache[Property] = (typeof(current) == "number") and current or 0
-            end
-            local Original = cache[Property]
-
-            -- Never force a layout frame (original transparency == 1) to become opaque
-            if Original >= 1 then
-                return
-            end
-
-            if Visibility then
-                -- Fade IN: start at 1 → original
-                Item[Property] = 1
-                return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
-                    [Property] = Original
-                }, true)
-            else
-                -- Fade OUT: current → 1
-                return Tween:Create(Item, TweenInfo.new(Speed or Library.FadeSpeed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
-                    [Property] = 1
-                }, true)
-            end
+            local OldTransparency = Item[Property]
+            Item[Property] = Visibility and 1 or OldTransparency
+            local NewTween = Tween:Create(Item, TweenInfo.new(Speed or Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction), {
+                [Property] = Visibility and OldTransparency or 1
+            }, true)
+            Library:Connect(NewTween.Tween.Completed, function()
+                if not Visibility then
+                    task.wait()
+                    Item[Property] = OldTransparency
+                end
+            end)
+            return NewTween
         end
         Tween.Get = function(self)
             if not self.Tween then
@@ -462,18 +414,10 @@ local Library do
             if Visibility == true then
                 Item.Visible = true
             end
-            -- Only fade the root + direct visual children (not the entire deep tree).
-            -- Full GetDescendants() was creating 100-300+ simultaneous tweens → lag.
-            local ToFade = { Item }
-            for _, Child in Item:GetChildren() do
-                if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-                    or Child:IsA("ImageLabel") or Child:IsA("ImageButton") or Child:IsA("ScrollingFrame")
-                    or Child:IsA("TextBox") or Child:IsA("UIStroke") then
-                    table.insert(ToFade, Child)
-                end
-            end
+            local Descendants = Item:GetDescendants()
+            TableInsert(Descendants, Item)
             local NewTween
-            for _, Value in ToFade do
+            for Index, Value in Descendants do
                 local TransparencyProperty = Tween:GetProperty(Value)
                 if not TransparencyProperty then
                     continue
@@ -486,7 +430,6 @@ local Library do
                     NewTween = Tween:FadeItem(Value, TransparencyProperty, not Visibility, Speed)
                 end
             end
-            return NewTween
         end
         Instances.AddToTheme = function(self, Properties)
             if not self.Instance then
@@ -1362,16 +1305,8 @@ local Library do
                     Items["Liner"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0, 8, 0.5, 0)})
                 end
-                -- Light fade: only root page frame (full descendant fade caused heavy lag)
-                local PageFrame = Items["Page"].Instance
-                local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
-                if NewTween and NewTween.Tween then
-                    NewTween.Tween.Completed:Once(function()
-                        Debounce = false
-                    end)
-                else
-                    Debounce = false
-                end
+                -- No full-page descendant fade (that was the lag on Window:Page switches)
+                Debounce = false
             end
             Items["Inactive"]:Connect("MouseButton1Down", function()
                 for Index, Value in Data.Window.Pages do
@@ -1553,16 +1488,8 @@ local Library do
                     Items["Glow"]:Tween(nil, {BackgroundTransparency = 1})
                     Items["Text"]:Tween(nil, {Position = UDim2New(0.5, -5, 0.5, 0)})
                 end
-                -- Light fade: only root page frame (full descendant fade caused heavy lag)
-                local PageFrame = Items["Page"].Instance
-                local NewTween = Tween:FadeItem(PageFrame, "BackgroundTransparency", Bool, Data.Window.FadeTime)
-                if NewTween and NewTween.Tween then
-                    NewTween.Tween.Completed:Once(function()
-                        Debounce = false
-                    end)
-                else
-                    Debounce = false
-                end
+                -- No full-page descendant fade (that was the lag on page/subpage switches)
+                Debounce = false
             end
             Items["Inactive"]:Connect("MouseButton1Down", function()
                 for Index, Value in Data.Page.SubPages do
@@ -2223,21 +2150,30 @@ local Library do
                     end
                     Items["Icon"]:Tween(nil, {Rotation = 0})
                 end
-                local Holder = Items["OptionHolder"].Instance
-                local NewTween = Tween:FadeItem(Holder, "BackgroundTransparency", Bool, Library.FadeSpeed)
-                if NewTween and NewTween.Tween then
-                    NewTween.Tween.Completed:Once(function()
-                        Debounce = false
-                        Holder.Visible = Dropdown.IsOpen
-                        task.defer(function()
-                            if not Library then return end
-                            Holder.Parent = not Dropdown.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
-                        end)
-                    end)
-                else
-                    Debounce = false
-                    Holder.Visible = Dropdown.IsOpen
+                local Descendants = Items["OptionHolder"].Instance:GetDescendants()
+                TableInsert(Descendants, Items["OptionHolder"].Instance)
+                local NewTween
+                for Index, Value in Descendants do
+                    local TransparencyProperty = Tween:GetProperty(Value)
+                    if not TransparencyProperty then
+                        continue
+                    end
+                    if type(TransparencyProperty) == "table" then
+                        for _, Property in TransparencyProperty do
+                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
+                        end
+                    else
+                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
+                    end
                 end
+                NewTween.Tween.Completed:Connect(function()
+                    task.spawn(function()
+                        Debounce = false
+                        Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
+                        task.wait(0.2)
+                        Items["OptionHolder"].Instance.Parent = not Dropdown.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
+                    end)
+                end)
             end
             function Dropdown:SetVisibility(Bool)
                 Items["Dropdown"].Instance.Visible = Bool
@@ -3205,21 +3141,30 @@ local Library do
                         RenderStepped = nil
                     end
                 end
-                local Win = Items["ColorpickerWindow"].Instance
-                local NewTween = Tween:FadeItem(Win, "BackgroundTransparency", Bool, Library.FadeSpeed)
-                if NewTween and NewTween.Tween then
-                    NewTween.Tween.Completed:Once(function()
-                        Debounce = false
-                        Win.Visible = Colorpicker.IsOpen
-                        task.defer(function()
-                            if not Library then return end
-                            Win.Parent = not Colorpicker.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
-                        end)
-                    end)
-                else
-                    Debounce = false
-                    Win.Visible = Colorpicker.IsOpen
+                local Descendants = Items["ColorpickerWindow"].Instance:GetDescendants()
+                TableInsert(Descendants, Items["ColorpickerWindow"].Instance)
+                local NewTween
+                for Index, Value in Descendants do
+                    local TransparencyProperty = Tween:GetProperty(Value)
+                    if not TransparencyProperty then
+                        continue
+                    end
+                    if type(TransparencyProperty) == "table" then
+                        for _, Property in TransparencyProperty do
+                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
+                        end
+                    else
+                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
+                    end
                 end
+                NewTween.Tween.Completed:Connect(function()
+                    task.spawn(function()
+                        Debounce = false
+                        Items["ColorpickerWindow"].Instance.Visible = Colorpicker.IsOpen
+                        task.wait(0.2)
+                        Items["ColorpickerWindow"].Instance.Parent = not Colorpicker.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
+                    end)
+                end)
             end
             UpdateSync = function(Bool)
                 if IsSyncToggled and Bool then
@@ -3601,21 +3546,30 @@ local Library do
                         RenderStepped = nil
                     end
                 end
-                local Win = Items["KeybindWindow"].Instance
-                local NewTween = Tween:FadeItem(Win, "BackgroundTransparency", Bool, Library.FadeSpeed)
-                if NewTween and NewTween.Tween then
-                    NewTween.Tween.Completed:Once(function()
-                        Debounce = false
-                        Win.Visible = Keybind.IsOpen
-                        task.defer(function()
-                            if not Library then return end
-                            Win.Parent = not Keybind.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
-                        end)
-                    end)
-                else
-                    Debounce = false
-                    Win.Visible = Keybind.IsOpen
+                local Descendants = Items["KeybindWindow"].Instance:GetDescendants()
+                TableInsert(Descendants, Items["KeybindWindow"].Instance)
+                local NewTween
+                for Index, Value in Descendants do
+                    local TransparencyProperty = Tween:GetProperty(Value)
+                    if not TransparencyProperty then
+                        continue
+                    end
+                    if type(TransparencyProperty) == "table" then
+                        for _, Property in TransparencyProperty do
+                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
+                        end
+                    else
+                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
+                    end
                 end
+                NewTween.Tween.Completed:Connect(function()
+                    task.spawn(function()
+                        Debounce = false
+                        Items["KeybindWindow"].Instance.Visible = Keybind.IsOpen
+                        task.wait(0.2)
+                        Items["KeybindWindow"].Instance.Parent = not Keybind.IsOpen and Library.UnusedHolder.Instance or Library.Holder.Instance
+                    end)
+                end)
             end
             function Keybind:SetMode(Mode)
                 for Index, Value in Modes do
@@ -5029,30 +4983,13 @@ local Library do
             end
             Window.IsOpen = Bool
             Debounce = true
-            local Root = Items["Window"].Instance
             if Window.IsOpen then
-                Root.Visible = true
+                Items["Window"].Instance.Visible = true
             end
-
-            -- Collect root + 2 levels of visual children (avoids full GetDescendants lag
-            -- but still covers Side, Content, pages, etc.)
-            local ToFade = { Root }
-            local function collect(parent, depth)
-                if depth > 2 then return end
-                for _, Child in parent:GetChildren() do
-                    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-                        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
-                        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
-                        or Child:IsA("UIStroke") then
-                        table.insert(ToFade, Child)
-                        collect(Child, depth + 1)
-                    end
-                end
-            end
-            collect(Root, 1)
-
+            local Descendants = Items["Window"].Instance:GetDescendants()
+            TableInsert(Descendants, Items["Window"].Instance)
             local NewTween
-            for _, Value in ToFade do
+            for Index, Value in Descendants do
                 local TransparencyProperty = Tween:GetProperty(Value)
                 if not TransparencyProperty then
                     continue
@@ -5065,10 +5002,9 @@ local Library do
                     NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
                 end
             end
-
-            local function finish()
+            NewTween.Tween.Completed:Connect(function()
                 Debounce = false
-                Root.Visible = Window.IsOpen
+                Items["Window"].Instance.Visible = Window.IsOpen
                 if Window.IsOpen then
                     Items["MouseBackground"].Instance.Visible = true
                     UserInputService.MouseIconEnabled = false
@@ -5076,13 +5012,7 @@ local Library do
                     Items["MouseBackground"].Instance.Visible = false
                     UserInputService.MouseIconEnabled = true
                 end
-            end
-
-            if NewTween and NewTween.Tween then
-                NewTween.Tween.Completed:Once(finish)
-            else
-                finish()
-            end
+            end)
         end
         Library:Connect(UserInputService.InputBegan, function(Input)
             if tostring(Input.KeyCode) == Library.MenuKeybind or tostring(Input.UserInputType) == Library.MenuKeybind then
@@ -5664,15 +5594,23 @@ local Library do
 				Glow:Tween(nil, { BackgroundTransparency = 0 })
 				BottomLiner:Tween(nil, { BackgroundTransparency = 0 })
 				TabContent.Instance.Visible = true
-				-- Light fade only (full descendant fade caused lag)
-				local NewTween = Tween:FadeItem(TabContent.Instance, "BackgroundTransparency", true, Library.FadeSpeed or 0.2)
-				if NewTween and NewTween.Tween then
-					NewTween.Tween.Completed:Once(function()
-						Debounce = false
-					end)
-				else
-					Debounce = false
+				local AllInstances = TabContent.Instance:GetDescendants()
+				TableInsert(AllInstances, TabContent.Instance)
+				local NewTween
+				for _, Value in AllInstances do
+					local TransparencyProperty = Tween:GetProperty(Value)
+					if not TransparencyProperty then continue end
+					if type(TransparencyProperty) == "table" then
+						for _, Property in TransparencyProperty do
+							NewTween = Tween:FadeItem(Value, Property, true, Library.FadeTime or 0.2)
+						end
+					else
+						NewTween = Tween:FadeItem(Value, TransparencyProperty, true, Library.FadeTime or 0.2)
+					end
 				end
+				Library:Connect((NewTween or Glow).Tween.Completed, function()
+					Debounce = false
+				end)
 			end
 			function Tab:Hide()
 				TabContent.Instance.Visible = false
