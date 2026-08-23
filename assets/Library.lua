@@ -368,7 +368,7 @@ local Library do
             end
             if cache[Property] == nil then
                 local current = Item[Property]
-                cache[Property] = (typeof(current) == "number" and current < 1) and current or 0
+                cache[Property] = (typeof(current) == "number" and current > 0 and current < 1) and current or 0
             end
             local Original = cache[Property]
 
@@ -4995,14 +4995,19 @@ local Library do
                 Root.Visible = true
             end
 			local ToFade = { Root }
-			for _, Child in Root:GetDescendants() do
-			    if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
-			        or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
-			        or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
-			        or Child:IsA("UIStroke") then
-			        table.insert(ToFade, Child)
+			local function collect(parent, depth)
+			    if depth > 2 then return end
+			    for _, Child in parent:GetChildren() do
+			        if Child:IsA("Frame") or Child:IsA("TextLabel") or Child:IsA("TextButton")
+			            or Child:IsA("ImageLabel") or Child:IsA("ImageButton")
+			            or Child:IsA("ScrollingFrame") or Child:IsA("TextBox")
+			            or Child:IsA("UIStroke") then
+			            table.insert(ToFade, Child)
+			            collect(Child, depth + 1)
+			        end
 			    end
 			end
+			collect(Root, 1)
 
             local NewTween
             for _, Value in ToFade do
