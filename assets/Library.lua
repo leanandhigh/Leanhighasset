@@ -4656,7 +4656,7 @@ local Library do
 	            AnchorPoint = Vector2New(0, 1),
 	            Size = UDim2New(0, 0, 0, 15),
 	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -55),
+	            Position = UDim2New(0, 75, 1, -58),
 	            BorderSizePixel = 0,
 	            AutomaticSize = Enum.AutomaticSize.X,
 	            TextXAlignment = Enum.TextXAlignment.Left,
@@ -4674,7 +4674,7 @@ local Library do
 	            AnchorPoint = Vector2New(0, 1),
 	            Size = UDim2New(0, 0, 0, 15),
 	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -40),
+	            Position = UDim2New(0, 75, 1, -43),
 	            BorderSizePixel = 0,
 	            AutomaticSize = Enum.AutomaticSize.X,
 	            TextXAlignment = Enum.TextXAlignment.Left,
@@ -4716,7 +4716,7 @@ local Library do
 	                AnchorPoint = Vector2New(0, 1),
 	                Size = UDim2New(0, 0, 0, 15),
 	                BackgroundTransparency = 1,
-	                Position = UDim2New(0, 75, 1, -25),
+	                Position = UDim2New(0, 75, 1, -28),
 	                BorderSizePixel = 0,
 	                AutomaticSize = Enum.AutomaticSize.X,
 	                TextXAlignment = Enum.TextXAlignment.Left,
@@ -4728,7 +4728,7 @@ local Library do
 	                Parent = Items["InventoryViewer"].Instance,
 	                Name = "\0",
 	                AnchorPoint = Vector2New(0, 1),
-	                Position = UDim2New(0, 75, 1, -10),
+	                Position = UDim2New(0, 75, 1, -12),
 	                BorderColor3 = FromRGB(42, 49, 45),
 	                Size = UDim2New(1, -91, 0, 8),
 	                BorderSizePixel = 2,
@@ -4757,6 +4757,23 @@ local Library do
 	            }):AddToTheme({Color = function()
 	                return RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, Library.Theme.Gradient)}
 	            end})
+	            Items["HealthText"] = Instances:Create("TextLabel", {
+	                Parent = Items["HealthBarBackground"].Instance,
+	                Name = "\0",
+	                FontFace = Library.Font,
+	                TextColor3 = FromRGB(235, 235, 235),
+	                BorderColor3 = FromRGB(0, 0, 0),
+	                Text = "100",
+	                AnchorPoint = Vector2New(0.5, 0.5),
+	                Size = UDim2New(1, 0, 1, 0),
+	                BackgroundTransparency = 1,
+	                Position = UDim2New(0.5, 0, 0.4, 0),
+	                BorderSizePixel = 0,
+	                ZIndex = 2,
+	                TextSize = 12,
+	                BackgroundColor3 = FromRGB(255, 255, 255)
+	            })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
+	            Items["HealthText"]:TextBorder()
 	            UpdateInventorySize()
 	        end
 	        MaxValue = MaxValue or 100
@@ -4765,6 +4782,7 @@ local Library do
 	            TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
 	            {Size = UDim2New(HealthPercent, 0, 1, 0)}
 	        )
+	        Items["HealthText"].Instance.Text = tostring(math.floor(Value))
 	    end
 	
 	    function Viewer:SetPlayerDistance(Value)
