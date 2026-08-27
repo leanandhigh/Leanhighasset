@@ -4628,63 +4628,7 @@ local Library do
 	            PaddingRight = UDimNew(0, 8),
 	            PaddingBottom = UDimNew(0, 4)
 	        })
-	        Items["PlayerAvatar"] = Instances:Create("ImageLabel", {
-	            Parent = Items["InventoryViewer"].Instance,
-	            Name = "\0",
-	            BorderColor3 = FromRGB(42, 49, 45),
-	            AnchorPoint = Vector2New(0, 1),
-	            Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
-	            Position = UDim2New(0, 8, 1, -8),
-	            Size = UDim2New(0, 60, 0, 60),
-	            BorderSizePixel = 2,
-	            BackgroundColor3 = FromRGB(14, 17, 15)
-	        })  Items["PlayerAvatar"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
-	        Instances:Create("UIStroke", {
-	            Parent = Items["PlayerAvatar"].Instance,
-	            Name = "\0",
-	            Color = FromRGB(12, 12, 12),
-	            LineJoinMode = Enum.LineJoinMode.Miter,
-	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	        }):AddToTheme({Color = "Outline"})
-	        Items["PlayerDistance"] = Instances:Create("TextLabel", {
-	            Parent = Items["InventoryViewer"].Instance,
-	            Name = "\0",
-	            FontFace = Library.Font,
-	            TextColor3 = FromRGB(235, 235, 235),
-	            BorderColor3 = FromRGB(0, 0, 0),
-	            Text = "Distance: 0 meters",
-	            AnchorPoint = Vector2New(0, 1),
-	            Size = UDim2New(0, 0, 0, 15),
-	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -58),
-	            BorderSizePixel = 0,
-	            AutomaticSize = Enum.AutomaticSize.X,
-	            TextXAlignment = Enum.TextXAlignment.Left,
-	            TextSize = 12,
-	            BackgroundColor3 = FromRGB(255, 255, 255)
-	        })  Items["PlayerDistance"]:AddToTheme({TextColor3 = "Text"})
-	        Items["PlayerDistance"]:TextBorder()
-	        Items["VisibleLabel"] = Instances:Create("TextLabel", {
-	            Parent = Items["InventoryViewer"].Instance,
-	            Name = "\0",
-	            FontFace = Library.Font,
-	            TextColor3 = FromRGB(235, 235, 235),
-	            BorderColor3 = FromRGB(0, 0, 0),
-	            Text = "Not visible",
-	            AnchorPoint = Vector2New(0, 1),
-	            Size = UDim2New(0, 0, 0, 15),
-	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -43),
-	            BorderSizePixel = 0,
-	            AutomaticSize = Enum.AutomaticSize.X,
-	            TextXAlignment = Enum.TextXAlignment.Left,
-	            TextSize = 12,
-	            BackgroundColor3 = FromRGB(255, 255, 255)
-	        })  Items["VisibleLabel"]:AddToTheme({TextColor3 = "Text"})
-	        Items["VisibleLabel"]:TextBorder()
 	    end
-	
-	    local HealthCreated = false
 	
 	    local function UpdateInventorySize()
 	        Library:Thread(function()
@@ -4694,7 +4638,7 @@ local Library do
 	                ToolsHeight = 20
 	            end
 	            local FinalWidth = 304
-	            local TotalHeight = 27 + ToolsHeight + 8 + 68
+	            local TotalHeight = 27 + ToolsHeight + 12
 	            Tween:Create(
 	                Items["InventoryViewer"],
 	                TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
@@ -4703,99 +4647,7 @@ local Library do
 	        end)
 	    end
 	
-	    function Viewer:SetPlayerHealth(Value, MaxValue)
-	        if not HealthCreated then
-	            HealthCreated = true
-	            Items["HealthLabel"] = Instances:Create("TextLabel", {
-	                Parent = Items["InventoryViewer"].Instance,
-	                Name = "\0",
-	                FontFace = Library.Font,
-	                TextColor3 = FromRGB(235, 235, 235),
-	                BorderColor3 = FromRGB(0, 0, 0),
-	                Text = "Health:",
-	                AnchorPoint = Vector2New(0, 1),
-	                Size = UDim2New(0, 0, 0, 15),
-	                BackgroundTransparency = 1,
-	                Position = UDim2New(0, 75, 1, -28),
-	                BorderSizePixel = 0,
-	                AutomaticSize = Enum.AutomaticSize.X,
-	                TextXAlignment = Enum.TextXAlignment.Left,
-	                TextSize = 12,
-	                BackgroundColor3 = FromRGB(255, 255, 255)
-	            })  Items["HealthLabel"]:AddToTheme({TextColor3 = "Text"})
-	            Items["HealthLabel"]:TextBorder()
-	            Items["HealthBarBackground"] = Instances:Create("Frame", {
-	                Parent = Items["InventoryViewer"].Instance,
-	                Name = "\0",
-	                AnchorPoint = Vector2New(0, 1),
-	                Position = UDim2New(0, 75, 1, -12),
-	                BorderColor3 = FromRGB(42, 49, 45),
-	                Size = UDim2New(1, -91, 0, 8),
-	                BorderSizePixel = 2,
-	                BackgroundColor3 = FromRGB(20, 24, 21)
-	            })  Items["HealthBarBackground"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Outline"})
-	            Instances:Create("UIStroke", {
-	                Parent = Items["HealthBarBackground"].Instance,
-	                Name = "\0",
-	                Color = FromRGB(12, 12, 12),
-	                LineJoinMode = Enum.LineJoinMode.Miter,
-	                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	            }):AddToTheme({Color = "Border"})
-	            Items["HealthBar"] = Instances:Create("Frame", {
-	                Parent = Items["HealthBarBackground"].Instance,
-	                Name = "\0",
-	                BorderColor3 = FromRGB(0, 0, 0),
-	                Size = UDim2New(1, 0, 1, 0),
-	                BorderSizePixel = 0,
-	                BackgroundColor3 = FromRGB(202, 243, 255)
-	            })  Items["HealthBar"]:AddToTheme({BackgroundColor3 = "Accent"})
-	            Instances:Create("UIGradient", {
-	                Parent = Items["HealthBar"].Instance,
-	                Name = "\0",
-	                Rotation = -165,
-	                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(208, 208, 208))}
-	            }):AddToTheme({Color = function()
-	                return RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, Library.Theme.Gradient)}
-	            end})
-	            Items["HealthText"] = Instances:Create("TextLabel", {
-	                Parent = Items["HealthBarBackground"].Instance,
-	                Name = "\0",
-	                FontFace = Library.Font,
-	                TextColor3 = FromRGB(235, 235, 235),
-	                BorderColor3 = FromRGB(0, 0, 0),
-	                Text = "100",
-	                AnchorPoint = Vector2New(0.5, 0.5),
-	                Size = UDim2New(1, 0, 1, 0),
-	                BackgroundTransparency = 1,
-	                Position = UDim2New(0.5, 0, 0.4, 0),
-	                BorderSizePixel = 0,
-	                ZIndex = 2,
-	                TextSize = 12,
-	                BackgroundColor3 = FromRGB(255, 255, 255)
-	            })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
-	            Items["HealthText"]:TextBorder()
-	            UpdateInventorySize()
-	        end
-	        MaxValue = MaxValue or 100
-	        local HealthPercent = math.clamp(Value / MaxValue, 0, 1)
-	        Items["HealthBar"]:Tween(
-	            TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
-	            {Size = UDim2New(HealthPercent, 0, 1, 0)}
-	        )
-	        Items["HealthText"].Instance.Text = tostring(math.floor(Value))
-	    end
-	
-	    function Viewer:SetPlayerDistance(Value)
-	        Items["PlayerDistance"].Instance.Text = "Distance: " .. tostring(Value) .. " meters"
-	    end
-	
-	    function Viewer:SetVisibleLabel(Value)
-	        Items["VisibleLabel"].Instance.Text = Value
-	    end
-	
 	    function Viewer:SetPlayer(Value)
-	        local PlayerAvatar, _ = Players:GetUserThumbnailAsync(Value.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-	        Items["PlayerAvatar"].Instance.Image = PlayerAvatar
 	        Items["Title"].Instance.Text = Value.Name .. "'s Inventory"
 	    end
 	
