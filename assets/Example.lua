@@ -352,8 +352,6 @@ do
 end
 
 local inv = Library:InventoryViewer()
-inv:SetPlayerHealth(100)
-inv:SetPlayerDistance(100)
 inv:SetPlayer(game.Players.LocalPlayer)
 inv:AddTool("gun1", 0)
 inv:AddTool("gun1", 0)
