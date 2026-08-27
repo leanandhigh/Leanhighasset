@@ -4553,308 +4553,320 @@ local Library do
             end)
         end)
     end
-    Library.InventoryViewer = function(self)
-        local Viewer = { }
-        Viewer.Items = { }
-        local Items = { } do
-            Items["InventoryViewer"] = Instances:Create("Frame", {
-                Parent = Library.Holder.Instance,
-                Name = "\0",
-                AnchorPoint = Vector2New(1, 0.5),
-                Position = UDim2New(1, -12, 0.5, 0),
-                BorderColor3 = FromRGB(12, 12, 12),
-                Size = UDim2New(0, 312, 0, 108),
-                BorderSizePixel = 2,
-                BackgroundColor3 = FromRGB(14, 17, 15)
-            })  Items["InventoryViewer"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
-            Items["InventoryViewer"]:MakeDraggable()
-            Instances:Create("UIStroke", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                Color = FromRGB(42, 49, 45),
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            }):AddToTheme({Color = "Outline"})
-            Items["Title"] = Instances:Create("TextLabel", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(235, 235, 235),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "Inventory",
-                Size = UDim2New(0, 0, 0, 15),
-                BackgroundTransparency = 1,
-                Position = UDim2New(0, 8, 0, 4),
-                BorderSizePixel = 0,
-                AutomaticSize = Enum.AutomaticSize.X,
-                TextSize = 12,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["Title"]:AddToTheme({TextColor3 = "Text"})
-            Items["Tools"] = Instances:Create("Frame", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                Position = UDim2New(0, 8, 0, 27),
-                BorderColor3 = FromRGB(42, 49, 45),
-                Size = UDim2New(1, -16, 0, 0),
-                BorderSizePixel = 2,
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = FromRGB(20, 24, 21)
-            })  Items["Tools"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
-            Instances:Create("UIStroke", {
-                Parent = Items["Tools"].Instance,
-                Name = "\0",
-                Color = FromRGB(12, 12, 12),
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            }):AddToTheme({Color = "Border"})
-            Items["Holder"] = Instances:Create("Frame", {
-                Parent = Items["Tools"].Instance,
-                Name = "\0",
-                BorderColor3 = FromRGB(0, 0, 0),
-                BackgroundTransparency = 1,
-                Size = UDim2New(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })
-            Instances:Create("UIGridLayout", {
-                Parent = Items["Holder"].Instance,
-                Name = "\0",
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                CellSize = UDim2New(0, 65, 0, 65),
-                CellPadding = UDim2New(0, 4, 0, 4)
-            })
-            Instances:Create("UIPadding", {
-                Parent = Items["Holder"].Instance,
-                Name = "\0",
-                PaddingTop = UDimNew(0, 4),
-                PaddingLeft = UDimNew(0, 8),
-                PaddingRight = UDimNew(0, 8),
-                PaddingBottom = UDimNew(0, 4)
-            })
-            Items["PlayerAvatar"] = Instances:Create("ImageLabel", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                BorderColor3 = FromRGB(42, 49, 45),
-                AnchorPoint = Vector2New(0, 1),
-                Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
-                Position = UDim2New(0, 8, 1, -8),
-                Size = UDim2New(0, 60, 0, 60),
-                BorderSizePixel = 2,
-                BackgroundColor3 = FromRGB(14, 17, 15)
-            })  Items["PlayerAvatar"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
-            Instances:Create("UIStroke", {
-                Parent = Items["PlayerAvatar"].Instance,
-                Name = "\0",
-                Color = FromRGB(12, 12, 12),
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            }):AddToTheme({Color = "Outline"})
-            Items["HealthBarBackground"] = Instances:Create("Frame", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                AnchorPoint = Vector2New(0, 1),
-                Position = UDim2New(0, 75, 1, -55),
-                BorderColor3 = FromRGB(42, 49, 45),
-                Size = UDim2New(1, -91, 0, 8),
-                BorderSizePixel = 2,
-                BackgroundColor3 = FromRGB(20, 24, 21)
-            })  Items["HealthBarBackground"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Outline"})
-            Instances:Create("UIStroke", {
-                Parent = Items["HealthBarBackground"].Instance,
-                Name = "\0",
-                Color = FromRGB(12, 12, 12),
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            }):AddToTheme({Color = "Border"})
-            Items["HealthBar"] = Instances:Create("Frame", {
-                Parent = Items["HealthBarBackground"].Instance,
-                Name = "\0",
-                BorderColor3 = FromRGB(0, 0, 0),
-                Size = UDim2New(1, 0, 1, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(202, 243, 255)
-            })  Items["HealthBar"]:AddToTheme({BackgroundColor3 = "Accent"})
-            Instances:Create("UIGradient", {
-                Parent = Items["HealthBar"].Instance,
-                Name = "\0",
-                Rotation = -165,
-                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(208, 208, 208))}
-            }):AddToTheme({Color = function()
-                return RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, Library.Theme.Gradient)}
-            end})
-            Items["HealthText"] = Instances:Create("TextLabel", {
-                Parent = Items["HealthBarBackground"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(235, 235, 235),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "100",
-                AnchorPoint = Vector2New(0.5, 0.5),
-                Size = UDim2New(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                Position = UDim2New(0.5, 0, 0.4, 0),
-                BorderSizePixel = 0,
-                ZIndex = 2,
-                TextSize = 12,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
-            Items["HealthText"]:TextBorder()
-            Items["PlayerDistance"] = Instances:Create("TextLabel", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(235, 235, 235),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "Distance:  meters",
-                AnchorPoint = Vector2New(0, 1),
-                Size = UDim2New(0, 0, 0, 15),
-                BackgroundTransparency = 1,
-                Position = UDim2New(0, 75, 1, -38),
-                BorderSizePixel = 0,
-                AutomaticSize = Enum.AutomaticSize.X,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextSize = 12,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["PlayerDistance"]:AddToTheme({TextColor3 = "Text"})
-            Items["PlayerDistance"]:TextBorder()
-            Items["VisibleLabel"] = Instances:Create("TextLabel", {
-                Parent = Items["InventoryViewer"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(235, 235, 235),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "Not visible",
-                AnchorPoint = Vector2New(0, 1),
-                Size = UDim2New(0, 0, 0, 15),
-                BackgroundTransparency = 1,
-                Position = UDim2New(0, 75, 1, -23),
-                BorderSizePixel = 0,
-                AutomaticSize = Enum.AutomaticSize.X,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextSize = 12,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["VisibleLabel"]:AddToTheme({TextColor3 = "Text"})
-            Items["VisibleLabel"]:TextBorder()
-        end
-        local function UpdateInventorySize()
-            Library:Thread(function()
-                task.wait()
-                local ToolsHeight = Items["Tools"].Instance.AbsoluteSize.Y
-                if ToolsHeight < 20 then
-                    ToolsHeight = 20
-                end
-                local FinalWidth = 304
-                local TotalHeight = 27 + ToolsHeight + 8 + 68
-                Tween:Create(
-                    Items["InventoryViewer"],
-                    TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
-                    {Size = UDim2New(0, FinalWidth, 0, TotalHeight)}
-                )
-            end)
-        end
-        function Viewer:SetPlayerHealth(Value, MaxValue)
-            MaxValue = MaxValue or 100
-            local HealthPercent = math.clamp(Value / MaxValue, 0, 1)
-            Items["HealthBar"]:Tween(
-                TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
-                {Size = UDim2New(HealthPercent, 0, 1, 0)}
-            )
-            Items["HealthText"].Instance.Text = tostring(math.floor(Value))
-        end
-        function Viewer:SetPlayerDistance(Value)
-            Items["PlayerDistance"].Instance.Text = "Distance: "..tostring(Value).." meters"
-        end
-        function Viewer:SetVisibleLabel(Value)
-            Items["VisibleLabel"].Instance.Text = Value
-        end
-        function Viewer:SetPlayer(Value)
-            local PlayerAvatar, _ = Players:GetUserThumbnailAsync(Value.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-            Items["PlayerAvatar"].Instance.Image = PlayerAvatar
-            Items["Title"].Instance.Text = Value.Name .. "'s Inventory"
-        end
-        function Viewer:AddTool(Name, Image)
-            local NewItem = { }
-            local SubItems = { } do
-                SubItems["Item"] = Instances:Create("Frame", {
-                    Parent = Items["Holder"].Instance,
-                    Name = "\0",
-                    BorderColor3 = FromRGB(12, 12, 12),
-                    Size = UDim2New(0, 100, 0, 100),
-                    BorderSizePixel = 2,
-                    BackgroundColor3 = FromRGB(20, 24, 21),
-                    BackgroundTransparency = 1
-                })  SubItems["Item"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Border"})
-                local ItemStroke = Instances:Create("UIStroke", {
-                    Parent = SubItems["Item"].Instance,
-                    Name = "\0",
-                    Color = FromRGB(42, 49, 45),
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    Transparency = 1
-                })  ItemStroke:AddToTheme({Color = "Outline"})
-                SubItems["Image"] = Instances:Create("ImageLabel", {
-                    Parent = SubItems["Item"].Instance,
-                    Name = "\0",
-                    ImageColor3 = FromRGB(202, 243, 255),
-                    ScaleType = Enum.ScaleType.Fit,
-                    BorderColor3 = FromRGB(0, 0, 0),
-                    AnchorPoint = Vector2New(0.5, 0),
-                    Image = "rbxassetid://"..Image,
-                    BackgroundTransparency = 1,
-                    Position = UDim2New(0.5, 0, 0, 4),
-                    Size = UDim2New(0, 48, 0, 48),
-                    BorderSizePixel = 0,
-                    ImageTransparency = 1,
-                    BackgroundColor3 = FromRGB(255, 255, 255)
-                }) SubItems["Image"].Instance.ImageColor3 = Color3.new(1, 1, 1)
-                SubItems["NameLabel"] = Instances:Create("TextLabel", {
-                    Parent = SubItems["Item"].Instance,
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextColor3 = FromRGB(235, 235, 235),
-                    BorderColor3 = FromRGB(0, 0, 0),
-                    Text = Name,
-                    AnchorPoint = Vector2New(0.5, 1),
-                    Size = UDim2New(1, -4, 0, 12),
-                    BackgroundTransparency = 1,
-                    Position = UDim2New(0.5, 0, 1, -2),
-                    BorderSizePixel = 0,
-                    TextSize = 12,
-                    TextTransparency = 1,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    BackgroundColor3 = FromRGB(255, 255, 255)
-                })  SubItems["NameLabel"]:AddToTheme({TextColor3 = "Text"})
-                local NameStroke = SubItems["NameLabel"]:TextBorder()
-                NameStroke.Instance.Transparency = 1
-                Library:Thread(function()
-                    task.wait(0.05)
-                    SubItems["Item"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0})
-                    ItemStroke:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
-                    SubItems["Image"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0})
-                    SubItems["NameLabel"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0})
-                    NameStroke:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0.6})
-                end)
-            end
-            function NewItem:Remove()
-                SubItems["Item"]:Clean()
-                UpdateInventorySize()
-            end
-            table.insert(Viewer.Items, NewItem)
-            UpdateInventorySize()
-            return NewItem
-        end
-        function Viewer:RemoveAllTools()
-            for i = #Viewer.Items, 1, -1 do
-                Viewer.Items[i]:Remove()
-            end
-            table.clear(Viewer.Items)
-        end
-        function Viewer:SetVisible(state)
-            Items["InventoryViewer"].Instance.Visible = state == true
-        end
-        return Viewer
-    end
+	Library.InventoryViewer = function(self)
+	    local Viewer = { }
+	    Viewer.Items = { }
+	    local Items = { } do
+	        Items["InventoryViewer"] = Instances:Create("Frame", {
+	            Parent = Library.Holder.Instance,
+	            Name = "\0",
+	            AnchorPoint = Vector2New(1, 0.5),
+	            Position = UDim2New(1, -12, 0.5, 0),
+	            BorderColor3 = FromRGB(12, 12, 12),
+	            Size = UDim2New(0, 312, 0, 108),
+	            BorderSizePixel = 2,
+	            BackgroundColor3 = FromRGB(14, 17, 15)
+	        })  Items["InventoryViewer"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
+	        Items["InventoryViewer"]:MakeDraggable()
+	        Instances:Create("UIStroke", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            Color = FromRGB(42, 49, 45),
+	            LineJoinMode = Enum.LineJoinMode.Miter,
+	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	        }):AddToTheme({Color = "Outline"})
+	        Items["Title"] = Instances:Create("TextLabel", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            FontFace = Library.Font,
+	            TextColor3 = FromRGB(235, 235, 235),
+	            BorderColor3 = FromRGB(0, 0, 0),
+	            Text = "Inventory",
+	            Size = UDim2New(0, 0, 0, 15),
+	            BackgroundTransparency = 1,
+	            Position = UDim2New(0, 8, 0, 4),
+	            BorderSizePixel = 0,
+	            AutomaticSize = Enum.AutomaticSize.X,
+	            TextSize = 12,
+	            BackgroundColor3 = FromRGB(255, 255, 255)
+	        })  Items["Title"]:AddToTheme({TextColor3 = "Text"})
+	        Items["Tools"] = Instances:Create("Frame", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            Position = UDim2New(0, 8, 0, 27),
+	            BorderColor3 = FromRGB(42, 49, 45),
+	            Size = UDim2New(1, -16, 0, 0),
+	            BorderSizePixel = 2,
+	            AutomaticSize = Enum.AutomaticSize.Y,
+	            BackgroundColor3 = FromRGB(20, 24, 21)
+	        })  Items["Tools"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
+	        Instances:Create("UIStroke", {
+	            Parent = Items["Tools"].Instance,
+	            Name = "\0",
+	            Color = FromRGB(12, 12, 12),
+	            LineJoinMode = Enum.LineJoinMode.Miter,
+	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	        }):AddToTheme({Color = "Border"})
+	        Items["Holder"] = Instances:Create("Frame", {
+	            Parent = Items["Tools"].Instance,
+	            Name = "\0",
+	            BorderColor3 = FromRGB(0, 0, 0),
+	            BackgroundTransparency = 1,
+	            Size = UDim2New(1, 0, 0, 0),
+	            AutomaticSize = Enum.AutomaticSize.Y,
+	            BorderSizePixel = 0,
+	            BackgroundColor3 = FromRGB(255, 255, 255)
+	        })
+	        Instances:Create("UIGridLayout", {
+	            Parent = Items["Holder"].Instance,
+	            Name = "\0",
+	            SortOrder = Enum.SortOrder.LayoutOrder,
+	            CellSize = UDim2New(0, 65, 0, 65),
+	            CellPadding = UDim2New(0, 4, 0, 4)
+	        })
+	        Instances:Create("UIPadding", {
+	            Parent = Items["Holder"].Instance,
+	            Name = "\0",
+	            PaddingTop = UDimNew(0, 4),
+	            PaddingLeft = UDimNew(0, 8),
+	            PaddingRight = UDimNew(0, 8),
+	            PaddingBottom = UDimNew(0, 4)
+	        })
+	        Items["PlayerAvatar"] = Instances:Create("ImageLabel", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            BorderColor3 = FromRGB(42, 49, 45),
+	            AnchorPoint = Vector2New(0, 1),
+	            Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
+	            Position = UDim2New(0, 8, 1, -8),
+	            Size = UDim2New(0, 60, 0, 60),
+	            BorderSizePixel = 2,
+	            BackgroundColor3 = FromRGB(14, 17, 15)
+	        })  Items["PlayerAvatar"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
+	        Instances:Create("UIStroke", {
+	            Parent = Items["PlayerAvatar"].Instance,
+	            Name = "\0",
+	            Color = FromRGB(12, 12, 12),
+	            LineJoinMode = Enum.LineJoinMode.Miter,
+	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	        }):AddToTheme({Color = "Outline"})
+	        
+	        -- Health Bar (Initially hidden)
+	        Items["HealthBarBackground"] = Instances:Create("Frame", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            AnchorPoint = Vector2New(0, 1),
+	            Position = UDim2New(0, 75, 1, -50),
+	            BorderColor3 = FromRGB(42, 49, 45),
+	            Size = UDim2New(1, -91, 0, 8),
+	            BorderSizePixel = 2,
+	            Visible = false,
+	            BackgroundColor3 = FromRGB(20, 24, 21)
+	        })  Items["HealthBarBackground"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Outline"})
+	        Instances:Create("UIStroke", {
+	            Parent = Items["HealthBarBackground"].Instance,
+	            Name = "\0",
+	            Color = FromRGB(12, 12, 12),
+	            LineJoinMode = Enum.LineJoinMode.Miter,
+	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	        }):AddToTheme({Color = "Border"})
+	        Items["HealthBar"] = Instances:Create("Frame", {
+	            Parent = Items["HealthBarBackground"].Instance,
+	            Name = "\0",
+	            BorderColor3 = FromRGB(0, 0, 0),
+	            Size = UDim2New(1, 0, 1, 0),
+	            BorderSizePixel = 0,
+	            BackgroundColor3 = FromRGB(202, 243, 255)
+	        })  Items["HealthBar"]:AddToTheme({BackgroundColor3 = "Accent"})
+	        Instances:Create("UIGradient", {
+	            Parent = Items["HealthBar"].Instance,
+	            Name = "\0",
+	            Rotation = -165,
+	            Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(208, 208, 208))}
+	        }):AddToTheme({Color = function()
+	            return RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, Library.Theme.Gradient)}
+	        end})
+	        Items["HealthText"] = Instances:Create("TextLabel", {
+	            Parent = Items["HealthBarBackground"].Instance,
+	            Name = "\0",
+	            FontFace = Library.Font,
+	            TextColor3 = FromRGB(235, 235, 235),
+	            BorderColor3 = FromRGB(0, 0, 0),
+	            Text = "100",
+	            AnchorPoint = Vector2New(0.5, 0.5),
+	            Size = UDim2New(1, 0, 1, 0),
+	            BackgroundTransparency = 1,
+	            Position = UDim2New(0.5, 0, 0.4, 0),
+	            BorderSizePixel = 0,
+	            ZIndex = 2,
+	            TextSize = 12,
+	            BackgroundColor3 = FromRGB(255, 255, 255)
+	        })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
+	        Items["HealthText"]:TextBorder()
+	
+	        -- Distance Label (Adjusts position based on health bar visibility)
+	        Items["PlayerDistance"] = Instances:Create("TextLabel", {
+	            Parent = Items["InventoryViewer"].Instance,
+	            Name = "\0",
+	            FontFace = Library.Font,
+	            TextColor3 = FromRGB(235, 235, 235),
+	            BorderColor3 = FromRGB(0, 0, 0),
+	            Text = "Distance: 0 meters (Not visible)",
+	            AnchorPoint = Vector2New(0, 0.5),
+	            Size = UDim2New(0, 0, 0, 15),
+	            BackgroundTransparency = 1,
+	            Position = UDim2New(0, 75, 1, -38),
+	            BorderSizePixel = 0,
+	            AutomaticSize = Enum.AutomaticSize.X,
+	            TextXAlignment = Enum.TextXAlignment.Left,
+	            TextSize = 12,
+	            BackgroundColor3 = FromRGB(255, 255, 255)
+	        })  Items["PlayerDistance"]:AddToTheme({TextColor3 = "Text"})
+	        Items["PlayerDistance"]:TextBorder()
+	    end
+	
+	    local currentDistance = 0
+	    local currentVisible = "Not visible"
+	
+	    local function UpdateDistanceText()
+	        Items["PlayerDistance"].Instance.Text = string.format("Distance: %s meters (%s)", tostring(currentDistance), tostring(currentVisible))
+	    end
+	
+	    local function UpdateLayout()
+	        local isHealthVisible = Items["HealthBarBackground"].Instance.Visible
+	        if isHealthVisible then
+	            Items["PlayerDistance"].Instance.Position = UDim2New(0, 75, 1, -26)
+	        else
+	            Items["PlayerDistance"].Instance.Position = UDim2New(0, 75, 1, -38)
+	        end
+	    end
+	
+	    local function UpdateInventorySize()
+	        Library:Thread(function()
+	            task.wait()
+	            local ToolsHeight = Items["Tools"].Instance.AbsoluteSize.Y
+	            if ToolsHeight < 20 then
+	                ToolsHeight = 20
+	            end
+	            local FinalWidth = 304
+	            local TotalHeight = 27 + ToolsHeight + 8 + 68
+	            Tween:Create(
+	                Items["InventoryViewer"],
+	                TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
+	                {Size = UDim2New(0, FinalWidth, 0, TotalHeight)}
+	            )
+	        end)
+	    end
+	
+	    function Viewer:SetPlayerHealth(Value, MaxValue)
+	        Items["HealthBarBackground"].Instance.Visible = true
+	        UpdateLayout()
+	        
+	        MaxValue = MaxValue or 100
+	        local HealthPercent = math.clamp(Value / MaxValue, 0, 1)
+	        Items["HealthBar"]:Tween(
+	            TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
+	            {Size = UDim2New(HealthPercent, 0, 1, 0)}
+	        )
+	        Items["HealthText"].Instance.Text = tostring(math.floor(Value))
+	    end
+	    function Viewer:SetPlayerDistance(Value)
+	        currentDistance = Value
+	        UpdateDistanceText()
+	    end
+	    function Viewer:SetVisibleLabel(Value)
+	        currentVisible = Value
+	        UpdateDistanceText()
+	    end
+	    function Viewer:SetPlayer(Value)
+	        local PlayerAvatar, _ = Players:GetUserThumbnailAsync(Value.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+	        Items["PlayerAvatar"].Instance.Image = PlayerAvatar
+	        Items["Title"].Instance.Text = Value.Name .. "'s Inventory"
+	    end
+	    function Viewer:AddTool(Name, Image)
+	        local NewItem = { }
+	        local SubItems = { } do
+	            SubItems["Item"] = Instances:Create("Frame", {
+	                Parent = Items["Holder"].Instance,
+	                Name = "\0",
+	                BorderColor3 = FromRGB(12, 12, 12),
+	                Size = UDim2New(0, 100, 0, 100),
+	                BorderSizePixel = 2,
+	                BackgroundColor3 = FromRGB(20, 24, 21),
+	                BackgroundTransparency = 1
+	            })  SubItems["Item"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Border"})
+	            local ItemStroke = Instances:Create("UIStroke", {
+	                Parent = SubItems["Item"].Instance,
+	                Name = "\0",
+	                Color = FromRGB(42, 49, 45),
+	                LineJoinMode = Enum.LineJoinMode.Miter,
+	                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	                Transparency = 1
+	            })  ItemStroke:AddToTheme({Color = "Outline"})
+	            SubItems["Image"] = Instances:Create("ImageLabel", {
+	                Parent = SubItems["Item"].Instance,
+	                Name = "\0",
+	                ImageColor3 = FromRGB(202, 243, 255),
+	                ScaleType = Enum.ScaleType.Fit,
+	                BorderColor3 = FromRGB(0, 0, 0),
+	                AnchorPoint = Vector2New(0.5, 0),
+	                Image = "rbxassetid://"..Image,
+	                BackgroundTransparency = 1,
+	                Position = UDim2New(0.5, 0, 0, 4),
+	                Size = UDim2New(0, 48, 0, 48),
+	                BorderSizePixel = 0,
+	                ImageTransparency = 1,
+	                BackgroundColor3 = FromRGB(255, 255, 255)
+	            }) SubItems["Image"].Instance.ImageColor3 = Color3.new(1, 1, 1)
+	            SubItems["NameLabel"] = Instances:Create("TextLabel", {
+	                Parent = SubItems["Item"].Instance,
+	                Name = "\0",
+	                FontFace = Library.Font,
+	                TextColor3 = FromRGB(235, 235, 235),
+	                BorderColor3 = FromRGB(0, 0, 0),
+	                Text = Name,
+	                AnchorPoint = Vector2New(0.5, 1),
+	                Size = UDim2New(1, -4, 0, 12),
+	                BackgroundTransparency = 1,
+	                Position = UDim2New(0.5, 0, 1, -2),
+	                BorderSizePixel = 0,
+	                TextSize = 12,
+	                TextTransparency = 1,
+	                TextTruncate = Enum.TextTruncate.AtEnd,
+	                BackgroundColor3 = FromRGB(255, 255, 255)
+	            })  SubItems["NameLabel"]:AddToTheme({TextColor3 = "Text"})
+	            local NameStroke = SubItems["NameLabel"]:TextBorder()
+	            NameStroke.Instance.Transparency = 1
+	            Library:Thread(function()
+	                task.wait(0.05)
+	                SubItems["Item"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0})
+	                ItemStroke:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
+	                SubItems["Image"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0})
+	                SubItems["NameLabel"]:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0})
+	                NameStroke:Tween(TweenInfo.new(Library.FadeSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0.6})
+	            end)
+	        end
+	        function NewItem:Remove()
+	            SubItems["Item"]:Clean()
+	            UpdateInventorySize()
+	        end
+	        table.insert(Viewer.Items, NewItem)
+	        UpdateInventorySize()
+	        return NewItem
+	    end
+	    function Viewer:RemoveAllTools()
+	        for i = #Viewer.Items, 1, -1 do
+	            Viewer.Items[i]:Remove()
+	        end
+	        table.clear(Viewer.Items)
+	    end
+	    function Viewer:SetVisible(state)
+	        Items["InventoryViewer"].Instance.Visible = state == true
+	    end
+	    
+	    UpdateLayout()
+	    return Viewer
+	end
     Library.Window = function(self, Data)
         Data = Data or { }
         local Window = {
