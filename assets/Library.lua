@@ -4623,10 +4623,10 @@ local Library do
 	        Instances:Create("UIPadding", {
 	            Parent = Items["Holder"].Instance,
 	            Name = "\0",
-	            PaddingTop = UDimNew(0, 6),
-	            PaddingLeft = UDimNew(0, 6),
-	            PaddingRight = UDimNew(0, 6),
-	            PaddingBottom = UDimNew(0, 6)
+	            PaddingTop = UDimNew(0, 4),
+	            PaddingLeft = UDimNew(0, 8),
+	            PaddingRight = UDimNew(0, 8),
+	            PaddingBottom = UDimNew(0, 4)
 	        })
 	        Items["PlayerAvatar"] = Instances:Create("ImageLabel", {
 	            Parent = Items["InventoryViewer"].Instance,
@@ -4656,7 +4656,7 @@ local Library do
 	            AnchorPoint = Vector2New(0, 1),
 	            Size = UDim2New(0, 0, 0, 15),
 	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -30),
+	            Position = UDim2New(0, 75, 1, -55),
 	            BorderSizePixel = 0,
 	            AutomaticSize = Enum.AutomaticSize.X,
 	            TextXAlignment = Enum.TextXAlignment.Left,
@@ -4682,8 +4682,7 @@ local Library do
 	                ToolsHeight = 20
 	            end
 	            local FinalWidth = 304
-	            local BottomHeight = 76
-	            local TotalHeight = 27 + ToolsHeight + 12 + BottomHeight
+	            local TotalHeight = 27 + ToolsHeight + 8 + 68
 	            Tween:Create(
 	                Items["InventoryViewer"],
 	                TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
