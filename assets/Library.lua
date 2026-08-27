@@ -4650,15 +4650,29 @@ local Library do
 	            LineJoinMode = Enum.LineJoinMode.Miter,
 	            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	        }):AddToTheme({Color = "Outline"})
-	        
-	        -- Health Bar (Initially hidden)
-	        Items["HealthBarBackground"] = Instances:Create("Frame", {
+	        Items["InfoContainer"] = Instances:Create("Frame", {
 	            Parent = Items["InventoryViewer"].Instance,
 	            Name = "\0",
 	            AnchorPoint = Vector2New(0, 1),
-	            Position = UDim2New(0, 75, 1, -50),
+	            Position = UDim2New(0, 76, 1, -8),
+	            Size = UDim2New(1, -84, 0, 60),
+	            BackgroundTransparency = 1,
+	            BorderSizePixel = 0
+	        })
+	        Instances:Create("UIListLayout", {
+	            Parent = Items["InfoContainer"].Instance,
+	            Name = "\0",
+	            SortOrder = Enum.SortOrder.LayoutOrder,
+	            FillDirection = Enum.FillDirection.Vertical,
+	            VerticalAlignment = Enum.VerticalAlignment.Center,
+	            Padding = UDimNew(0, 6)
+	        })
+	        Items["HealthBarBackground"] = Instances:Create("Frame", {
+	            Parent = Items["InfoContainer"].Instance,
+	            Name = "\0",
+	            LayoutOrder = 1,
 	            BorderColor3 = FromRGB(42, 49, 45),
-	            Size = UDim2New(1, -91, 0, 8),
+	            Size = UDim2New(1, 0, 0, 12),
 	            BorderSizePixel = 2,
 	            Visible = false,
 	            BackgroundColor3 = FromRGB(20, 24, 21)
@@ -4696,28 +4710,24 @@ local Library do
 	            AnchorPoint = Vector2New(0.5, 0.5),
 	            Size = UDim2New(1, 0, 1, 0),
 	            BackgroundTransparency = 1,
-	            Position = UDim2New(0.5, 0, 0.4, 0),
+	            Position = UDim2New(0.5, 0, 0.5, 0),
 	            BorderSizePixel = 0,
 	            ZIndex = 2,
-	            TextSize = 12,
+	            TextSize = 11,
 	            BackgroundColor3 = FromRGB(255, 255, 255)
 	        })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
 	        Items["HealthText"]:TextBorder()
-	
-	        -- Distance Label (Adjusts position based on health bar visibility)
 	        Items["PlayerDistance"] = Instances:Create("TextLabel", {
-	            Parent = Items["InventoryViewer"].Instance,
+	            Parent = Items["InfoContainer"].Instance,
 	            Name = "\0",
+	            LayoutOrder = 2,
 	            FontFace = Library.Font,
 	            TextColor3 = FromRGB(235, 235, 235),
 	            BorderColor3 = FromRGB(0, 0, 0),
 	            Text = "Distance: 0 meters (Not visible)",
-	            AnchorPoint = Vector2New(0, 0.5),
-	            Size = UDim2New(0, 0, 0, 15),
+	            Size = UDim2New(1, 0, 0, 14),
 	            BackgroundTransparency = 1,
-	            Position = UDim2New(0, 75, 1, -38),
 	            BorderSizePixel = 0,
-	            AutomaticSize = Enum.AutomaticSize.X,
 	            TextXAlignment = Enum.TextXAlignment.Left,
 	            TextSize = 12,
 	            BackgroundColor3 = FromRGB(255, 255, 255)
@@ -4730,15 +4740,6 @@ local Library do
 	
 	    local function UpdateDistanceText()
 	        Items["PlayerDistance"].Instance.Text = string.format("Distance: %s meters (%s)", tostring(currentDistance), tostring(currentVisible))
-	    end
-	
-	    local function UpdateLayout()
-	        local isHealthVisible = Items["HealthBarBackground"].Instance.Visible
-	        if isHealthVisible then
-	            Items["PlayerDistance"].Instance.Position = UDim2New(0, 75, 1, -26)
-	        else
-	            Items["PlayerDistance"].Instance.Position = UDim2New(0, 75, 1, -38)
-	        end
 	    end
 	
 	    local function UpdateInventorySize()
@@ -4760,7 +4761,6 @@ local Library do
 	
 	    function Viewer:SetPlayerHealth(Value, MaxValue)
 	        Items["HealthBarBackground"].Instance.Visible = true
-	        UpdateLayout()
 	        
 	        MaxValue = MaxValue or 100
 	        local HealthPercent = math.clamp(Value / MaxValue, 0, 1)
@@ -4864,7 +4864,6 @@ local Library do
 	        Items["InventoryViewer"].Instance.Visible = state == true
 	    end
 	    
-	    UpdateLayout()
 	    return Viewer
 	end
     Library.Window = function(self, Data)
