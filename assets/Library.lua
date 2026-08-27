@@ -4623,10 +4623,10 @@ local Library do
 	        Instances:Create("UIPadding", {
 	            Parent = Items["Holder"].Instance,
 	            Name = "\0",
-	            PaddingTop = UDimNew(0, 4),
-	            PaddingLeft = UDimNew(0, 8),
-	            PaddingRight = UDimNew(0, 8),
-	            PaddingBottom = UDimNew(0, 4)
+	            PaddingTop = UDimNew(0, 6),
+	            PaddingLeft = UDimNew(0, 6),
+	            PaddingRight = UDimNew(0, 6),
+	            PaddingBottom = UDimNew(0, 6)
 	        })
 	        Items["PlayerAvatar"] = Instances:Create("ImageLabel", {
 	            Parent = Items["InventoryViewer"].Instance,
@@ -4665,6 +4665,7 @@ local Library do
 	        })  Items["PlayerInfo"]:AddToTheme({TextColor3 = "Text"})
 	        Items["PlayerInfo"]:TextBorder()
 	    end
+	
 	    local CurrentDistance = 0
 	    local CurrentVisible = "Not visible"
 	    local HealthCreated = false
@@ -4681,8 +4682,8 @@ local Library do
 	                ToolsHeight = 20
 	            end
 	            local FinalWidth = 304
-	            local BottomHeight = HealthCreated and 68 or 52
-	            local TotalHeight = 27 + ToolsHeight + 8 + BottomHeight
+	            local BottomHeight = 76
+	            local TotalHeight = 27 + ToolsHeight + 12 + BottomHeight
 	            Tween:Create(
 	                Items["InventoryViewer"],
 	                TweenInfo.new(Library.Tween.Time, Library.Tween.Style, Library.Tween.Direction),
@@ -4694,7 +4695,6 @@ local Library do
 	    function Viewer:SetPlayerHealth(Value, MaxValue)
 	        if not HealthCreated then
 	            HealthCreated = true
-	
 	            Items["HealthBarBackground"] = Instances:Create("Frame", {
 	                Parent = Items["InventoryViewer"].Instance,
 	                Name = "\0",
@@ -4712,7 +4712,6 @@ local Library do
 	                LineJoinMode = Enum.LineJoinMode.Miter,
 	                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	            }):AddToTheme({Color = "Border"})
-	
 	            Items["HealthBar"] = Instances:Create("Frame", {
 	                Parent = Items["HealthBarBackground"].Instance,
 	                Name = "\0",
@@ -4729,7 +4728,6 @@ local Library do
 	            }):AddToTheme({Color = function()
 	                return RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, Library.Theme.Gradient)}
 	            end})
-	
 	            Items["HealthText"] = Instances:Create("TextLabel", {
 	                Parent = Items["HealthBarBackground"].Instance,
 	                Name = "\0",
@@ -4750,7 +4748,6 @@ local Library do
 	            Items["PlayerInfo"].Instance.Position = UDim2New(0, 75, 1, -38)
 	            UpdateInventorySize()
 	        end
-	
 	        MaxValue = MaxValue or 100
 	        local HealthPercent = math.clamp(Value / MaxValue, 0, 1)
 	        Items["HealthBar"]:Tween(
