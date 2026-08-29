@@ -92,6 +92,7 @@ getgenv().Library = {
 			['Name'] = {
                 ['Enabled'] = true,
 				['Color'] = Color3.fromRGB(255, 255, 255),
+				['Type'] = 'DisplayName',
 			},
 
 			['Distance'] = {
@@ -131,10 +132,18 @@ getgenv().Library = {
 
 			['ShowName'] = true,
 			['ShowDistance'] = true,
+			['ShowWeapon'] = true,
 			['ShowHealth'] = false,
 
 			['Blink'] = false,
 			['BlinkSpeed'] = 4,
+		},
+
+		['Skeleton'] = {
+			['Enabled'] = false,
+			['Color'] = Color3.fromRGB(255, 255, 255),
+			['Thickness'] = 1.5,
+			['Transparency'] = 0,
 		},
 	}
 }
@@ -368,17 +377,30 @@ function Library:InitEsp(Data)
     local Objects = Data.Objects
 
     do
-        Objects["OOVArrow"] = self:CreateObjects("ImageLabel", {
-            Parent = self.Holder,
-            Image = "rbxassetid://3944680095",
-            BackgroundTransparency = 1,
+        local function CreateDrawing(Type, Props)
+            local Obj = Drawing.new(Type)
+            for k, v in pairs(Props or {}) do
+                Obj[k] = v
+            end
+            return Obj
+        end
+
+        Objects["OOVArrow"] = CreateDrawing("Triangle", {
             Visible = false,
-            Size = DimOffset(20, 20),
-            AnchorPoint = NewVector2(0.5, 0.5),
-            ZIndex = 50,
-            ImageColor3 = Table['OOV']['Color'],
-            Rotation = 0,
-            ScaleType = Enum.ScaleType.Fit,
+            Filled = true,
+            Thickness = 1,
+            Color = Table['OOV']['Color'],
+            Transparency = 1,
+            ZIndex = 3,
+        })
+
+        Objects["OOVArrowOutline"] = CreateDrawing("Triangle", {
+            Visible = false,
+            Filled = false,
+            Thickness = 2,
+            Color = Color3.fromRGB(0, 0, 0),
+            Transparency = 1,
+            ZIndex = 2,
         })
 
         Objects["OOVName"] = self:CreateObjects("TextLabel", {
@@ -388,7 +410,7 @@ function Library:InitEsp(Data)
             TextColor3 = Table['OOV']['Color'],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Center,
-            TextYAlignment = Enum.TextYAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Bottom,
             BackgroundTransparency = 1,
             Visible = false,
             AutomaticSize = Enum.AutomaticSize.XY,
@@ -410,7 +432,7 @@ function Library:InitEsp(Data)
             TextColor3 = Table['OOV']['Color'],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Center,
-            TextYAlignment = Enum.TextYAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Top,
             BackgroundTransparency = 1,
             Visible = false,
             AutomaticSize = Enum.AutomaticSize.XY,
@@ -424,6 +446,65 @@ function Library:InitEsp(Data)
             Thickness = 1,
             LineJoinMode = Enum.LineJoinMode.Miter,
         })
+
+        Objects["OOVWeapon"] = self:CreateObjects("TextLabel", {
+            Parent = self.Holder,
+            FontFace = Library.SmallestPixel,
+            TextSize = 10,
+            TextColor3 = Table['OOV']['Color'],
+            Text = "",
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            BackgroundTransparency = 1,
+            Visible = false,
+            AutomaticSize = Enum.AutomaticSize.XY,
+            AnchorPoint = NewVector2(0.5, 0),
+            ZIndex = 51,
+        })
+
+        self:CreateObjects("UIStroke", {
+            Parent = Objects["OOVWeapon"],
+            Color = Color3.fromRGB(0, 0, 0),
+            Thickness = 1,
+            LineJoinMode = Enum.LineJoinMode.Miter,
+        })
+
+        Objects["Skeleton"] = {}
+        local SkeletonJoints = {
+            {"Head", "UpperTorso"},
+            {"UpperTorso", "LowerTorso"},
+            {"UpperTorso", "LeftUpperArm"},
+            {"LeftUpperArm", "LeftLowerArm"},
+            {"LeftLowerArm", "LeftHand"},
+            {"UpperTorso", "RightUpperArm"},
+            {"RightUpperArm", "RightLowerArm"},
+            {"RightLowerArm", "RightHand"},
+            {"LowerTorso", "LeftUpperLeg"},
+            {"LeftUpperLeg", "LeftLowerLeg"},
+            {"LeftLowerLeg", "LeftFoot"},
+            {"LowerTorso", "RightUpperLeg"},
+            {"RightUpperLeg", "RightLowerLeg"},
+            {"RightLowerLeg", "RightFoot"},
+            {"Head", "Torso"},
+            {"Torso", "Left Arm"},
+            {"Torso", "Right Arm"},
+            {"Torso", "Left Leg"},
+            {"Torso", "Right Leg"},
+        }
+
+        for i = 1, #SkeletonJoints do
+            Objects["Skeleton"][i] = {
+                Line = CreateDrawing("Line", {
+                    Visible = false,
+                    Thickness = Table['Skeleton']['Thickness'],
+                    Color = Table['Skeleton']['Color'],
+                    Transparency = 1 - Table['Skeleton']['Transparency'],
+                    ZIndex = 1,
+                }),
+                From = SkeletonJoints[i][1],
+                To = SkeletonJoints[i][2],
+            }
+        end
     end
 
     do
@@ -1419,6 +1500,14 @@ function Library:RemoveTarget(Player)
         Data['Objects']['TargetHolder']:Destroy();
     end;
 
+    if Data['Objects']['OOVArrow'] then pcall(function() Data['Objects']['OOVArrow']:Remove() end) end
+    if Data['Objects']['OOVArrowOutline'] then pcall(function() Data['Objects']['OOVArrowOutline']:Remove() end) end
+    if Data['Objects']['Skeleton'] then
+        for _, bone in ipairs(Data['Objects']['Skeleton']) do
+            pcall(function() bone.Line:Remove() end)
+        end
+    end
+
     Clear(Data['Objects']);
     self:ClearChamsForPlayer(Player)
     self['Cache'][Player] = nil;
@@ -1428,14 +1517,18 @@ function Library:Update(Player, Data)
     local Objects = Data['Objects']
 
     local function HideOOV()
-        if Objects['OOVArrow'] and Objects['OOVArrow'].Visible then
-            Objects['OOVArrow'].Visible = false
-        end
-        if Objects['OOVName'] and Objects['OOVName'].Visible then
-            Objects['OOVName'].Visible = false
-        end
-        if Objects['OOVDistance'] and Objects['OOVDistance'].Visible then
-            Objects['OOVDistance'].Visible = false
+        if Objects['OOVArrow'] then Objects['OOVArrow'].Visible = false end
+        if Objects['OOVArrowOutline'] then Objects['OOVArrowOutline'].Visible = false end
+        if Objects['OOVName'] then Objects['OOVName'].Visible = false end
+        if Objects['OOVDistance'] then Objects['OOVDistance'].Visible = false end
+        if Objects['OOVWeapon'] then Objects['OOVWeapon'].Visible = false end
+    end
+
+    local function HideSkeleton()
+        if Objects['Skeleton'] then
+            for _, bone in ipairs(Objects['Skeleton']) do
+                bone.Line.Visible = false
+            end
         end
     end
 
@@ -1444,6 +1537,7 @@ function Library:Update(Player, Data)
             Objects['TargetHolder'].Visible = false
         end
         HideOOV()
+        HideSkeleton()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1453,6 +1547,7 @@ function Library:Update(Player, Data)
             Objects['TargetHolder'].Visible = false
         end
         HideOOV()
+        HideSkeleton()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1465,6 +1560,7 @@ function Library:Update(Player, Data)
             Objects['TargetHolder'].Visible = false
         end
         HideOOV()
+        HideSkeleton()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1476,6 +1572,8 @@ function Library:Update(Player, Data)
             Objects['TargetHolder'].Visible = false
         end
 
+        HideSkeleton()
+
         local OOV = Table['OOV']
         if OOV['Enabled'] then
             local Viewport = Camera.ViewportSize
@@ -1483,7 +1581,6 @@ function Library:Update(Player, Data)
 
             local Relative = Camera.CFrame:PointToObjectSpace(RootPos)
             local Angle = math.atan2(Relative.Z, Relative.X)
-
             local Direction = NewVector2(math.cos(Angle), math.sin(Angle))
 
             local Radius
@@ -1503,46 +1600,73 @@ function Library:Update(Player, Data)
             end
 
             local Edge = math.min(Viewport.X, Viewport.Y) * Radius
-            local Point = ScreenCenter + (Direction * Edge)
+            local Tip = ScreenCenter + (Direction * Edge)
+            Tip = NewVector2(Clamp(Tip.X, Size, Viewport.X - Size), Clamp(Tip.Y, Size, Viewport.Y - Size))
 
-            Point = NewVector2(
-                Clamp(Point.X, Size, Viewport.X - Size),
-                Clamp(Point.Y, Size, Viewport.Y - Size)
-            )
+            local Perp = NewVector2(-Direction.Y, Direction.X)
+            local BaseCenter = Tip - (Direction * Size)
+            local PointB = BaseCenter + (Perp * (Size * 0.55))
+            local PointC = BaseCenter - (Perp * (Size * 0.55))
 
-            local Alpha = 0
+            local Alpha = 1
             if OOV['Blink'] then
                 Alpha = (math.sin(os.clock() * OOV['BlinkSpeed']) + 1) * 0.5
             end
 
             local Arrow = Objects['OOVArrow']
-            Arrow.Position = DimOffset(Point.X, Point.Y)
-            Arrow.Size = DimOffset(Size, Size)
-            Arrow.Rotation = math.deg(Angle) + 90
-            Arrow.ImageColor3 = OOV['Color']
-            Arrow.ImageTransparency = Alpha
+            Arrow.PointA = Tip
+            Arrow.PointB = PointB
+            Arrow.PointC = PointC
+            Arrow.Color = OOV['Color']
+            Arrow.Transparency = Alpha
             Arrow.Visible = true
 
+            local Outline = Objects['OOVArrowOutline']
+            Outline.PointA = Tip
+            Outline.PointB = PointB
+            Outline.PointC = PointC
+            Outline.Color = Color3.fromRGB(0, 0, 0)
+            Outline.Transparency = Alpha
+            Outline.Visible = true
+
+            local CenterY = (Tip.Y + PointB.Y + PointC.Y) / 3
+            local CenterX = (Tip.X + PointB.X + PointC.X) / 3
+
             if OOV['ShowName'] then
+                local NameText = (Table['Texts']['Name']['Type'] == 'Name') and Player.Name or Player.DisplayName
                 local Name = Objects['OOVName']
-                Name.Text = Player.DisplayName
+                Name.Text = NameText
                 Name.TextColor3 = OOV['Color']
-                Name.TextTransparency = Alpha
-                Name.Position = DimOffset(Point.X, Point.Y - (Size * 0.5) - 4)
+                Name.TextTransparency = 1 - Alpha
+                Name.Position = DimOffset(CenterX, CenterY - Size - 2)
                 Name.Visible = true
             else
                 Objects['OOVName'].Visible = false
             end
 
+            local OffsetY = Size + 4
+
             if OOV['ShowDistance'] then
                 local Dist = Objects['OOVDistance']
                 Dist.Text = Format('%dst', Distance)
                 Dist.TextColor3 = OOV['Color']
-                Dist.TextTransparency = Alpha
-                Dist.Position = DimOffset(Point.X, Point.Y + (Size * 0.5) + 4)
+                Dist.TextTransparency = 1 - Alpha
+                Dist.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Dist.Visible = true
+                OffsetY = OffsetY + 12
             else
                 Objects['OOVDistance'].Visible = false
+            end
+
+            if OOV['ShowWeapon'] then
+                local Weapon = Objects['OOVWeapon']
+                Weapon.Text = Data['CurrentTool'] or 'none'
+                Weapon.TextColor3 = OOV['Color']
+                Weapon.TextTransparency = 1 - Alpha
+                Weapon.Position = DimOffset(CenterX, CenterY + OffsetY)
+                Weapon.Visible = true
+            else
+                Objects['OOVWeapon'].Visible = false
             end
         else
             HideOOV()
@@ -1689,11 +1813,11 @@ function Library:Update(Player, Data)
             Objects['TargetName'].Visible = true
         end
 
-        local DisplayName = Player.DisplayName
+        local NameText = (TextsCfg['Name']['Type'] == 'Name') and Player.Name or Player.DisplayName
 
-        if Data['LastDisplayName'] ~= DisplayName then
-            Objects['TargetName'].Text = DisplayName
-            Data['LastDisplayName'] = DisplayName
+        if Data['LastDisplayName'] ~= NameText then
+            Objects['TargetName'].Text = NameText
+            Data['LastDisplayName'] = NameText
         end
 
         local NameColor = TextsCfg['Name']['Color']
@@ -1886,6 +2010,35 @@ function Library:Update(Player, Data)
         end
     end
 
+    local SkelCfg = Table['Skeleton']
+    if SkelCfg['Enabled'] and Data['Character'] and Objects['Skeleton'] then
+        local Char = Data['Character']
+        for _, bone in ipairs(Objects['Skeleton']) do
+            local PartA = Char:FindFirstChild(bone.From)
+            local PartB = Char:FindFirstChild(bone.To)
+
+            if PartA and PartB and PartA:IsA('BasePart') and PartB:IsA('BasePart') then
+                local PosA, OnA = WorldToViewportPoint(Camera, PartA.Position)
+                local PosB, OnB = WorldToViewportPoint(Camera, PartB.Position)
+
+                if OnA and OnB and PosA.Z > 0 and PosB.Z > 0 then
+                    bone.Line.From = NewVector2(PosA.X, PosA.Y)
+                    bone.Line.To = NewVector2(PosB.X, PosB.Y)
+                    bone.Line.Color = SkelCfg['Color']
+                    bone.Line.Thickness = SkelCfg['Thickness']
+                    bone.Line.Transparency = 1 - SkelCfg['Transparency']
+                    bone.Line.Visible = true
+                else
+                    bone.Line.Visible = false
+                end
+            else
+                bone.Line.Visible = false
+            end
+        end
+    else
+        HideSkeleton()
+    end
+
     self:UpdateChams(Player, Data)
 end
 
@@ -1893,17 +2046,18 @@ do
     Library:CreateThreads('Renderer', RunService.RenderStepped, function()
         if not Table['Enabled'] then
             for _, Data in Library['Cache'] do
-                if Data['Objects']['TargetHolder'].Visible then
+                if Data['Objects']['TargetHolder'] then
                     Data['Objects']['TargetHolder'].Visible = false
                 end
-                if Data['Objects']['OOVArrow'] then
-                    Data['Objects']['OOVArrow'].Visible = false
-                end
-                if Data['Objects']['OOVName'] then
-                    Data['Objects']['OOVName'].Visible = false
-                end
-                if Data['Objects']['OOVDistance'] then
-                    Data['Objects']['OOVDistance'].Visible = false
+                if Data['Objects']['OOVArrow'] then Data['Objects']['OOVArrow'].Visible = false end
+                if Data['Objects']['OOVArrowOutline'] then Data['Objects']['OOVArrowOutline'].Visible = false end
+                if Data['Objects']['OOVName'] then Data['Objects']['OOVName'].Visible = false end
+                if Data['Objects']['OOVDistance'] then Data['Objects']['OOVDistance'].Visible = false end
+                if Data['Objects']['OOVWeapon'] then Data['Objects']['OOVWeapon'].Visible = false end
+                if Data['Objects']['Skeleton'] then
+                    for _, bone in ipairs(Data['Objects']['Skeleton']) do
+                        bone.Line.Visible = false
+                    end
                 end
             end
             for Player, list in pairs(Library.PlayerChams) do
