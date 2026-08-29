@@ -112,6 +112,7 @@ getgenv().Library = {
         OOV = {
             Enabled = true,
             Color = Color3.fromRGB(0, 255, 255),
+            Style = "Concave",
             Size = 18,
             DynamicSize = true,
             MinSize = 12,
@@ -120,6 +121,7 @@ getgenv().Library = {
             DynamicRadius = true,
             MinRadius = 0.18,
             MaxRadius = 0.42,
+            Limit = 150,
             ShowName = true,
             ShowDistance = true,
             ShowWeapon = true,
@@ -360,19 +362,14 @@ function Library:DestroyDrawings(Objects)
     if not Objects then
         return
     end
-    if Objects.OOVArrow then
-        pcall(function()
-            Objects.OOVArrow.Visible = false
-            Objects.OOVArrow:Remove()
-        end)
-        Objects.OOVArrow = nil
-    end
-    if Objects.OOVArrowOutline then
-        pcall(function()
-            Objects.OOVArrowOutline.Visible = false
-            Objects.OOVArrowOutline:Remove()
-        end)
-        Objects.OOVArrowOutline = nil
+    for _, key in ipairs({"OOVArrow", "OOVArrowOutline", "OOVQuad", "OOVQuadOutline"}) do
+        if Objects[key] then
+            pcall(function()
+                Objects[key].Visible = false
+                Objects[key]:Remove()
+            end)
+            Objects[key] = nil
+        end
     end
     if Objects.Skeleton then
         for _, bone in ipairs(Objects.Skeleton) do
@@ -398,6 +395,12 @@ function Library:HideAllVisuals(Data)
     end
     if Objects.OOVArrowOutline then
         Objects.OOVArrowOutline.Visible = false
+    end
+    if Objects.OOVQuad then
+        Objects.OOVQuad.Visible = false
+    end
+    if Objects.OOVQuadOutline then
+        Objects.OOVQuadOutline.Visible = false
     end
     if Objects.OOVName then
         Objects.OOVName.Visible = false
@@ -434,6 +437,24 @@ function Library:InitEsp(Data)
     })
 
     Objects.OOVArrowOutline = CreateDrawing("Triangle", {
+        Visible = false,
+        Filled = false,
+        Thickness = 2,
+        Color = Color3.fromRGB(0, 0, 0),
+        Transparency = 1,
+        ZIndex = 2,
+    })
+
+    Objects.OOVQuad = CreateDrawing("Quad", {
+        Visible = false,
+        Filled = true,
+        Thickness = 1,
+        Color = Table.OOV.Color,
+        Transparency = 1,
+        ZIndex = 3,
+    })
+
+    Objects.OOVQuadOutline = CreateDrawing("Quad", {
         Visible = false,
         Filled = false,
         Thickness = 2,
@@ -1449,16 +1470,18 @@ function Library:Update(Player, Data)
         end
 
         local OOV = Table.OOV
-        if OOV.Enabled then
+        if OOV.Enabled and Distance <= (OOV.Limit or Table.Distance) then
             local Viewport = Camera.ViewportSize
             local ScreenCenter = NewVector2(Viewport.X * 0.5, Viewport.Y * 0.5)
+
             local Relative = Camera.CFrame:PointToObjectSpace(RootPos)
-            local Angle = math.atan2(Relative.Z, Relative.X)
+            local Angle = math.atan2(-Relative.Y, Relative.X)
             local Direction = NewVector2(math.cos(Angle), math.sin(Angle))
 
+            local LimitDist = OOV.Limit or 150
             local Radius
             if OOV.DynamicRadius then
-                local t = Clamp(Distance / 150, 0, 1)
+                local t = Clamp(Distance / LimitDist, 0, 1)
                 Radius = OOV.MinRadius + (OOV.MaxRadius - OOV.MinRadius) * t
             else
                 Radius = OOV.Radius
@@ -1466,7 +1489,7 @@ function Library:Update(Player, Data)
 
             local Size
             if OOV.DynamicSize then
-                local t = Clamp(Distance / 150, 0, 1)
+                local t = Clamp(Distance / LimitDist, 0, 1)
                 Size = OOV.MaxSize - (OOV.MaxSize - OOV.MinSize) * t
             else
                 Size = OOV.Size
@@ -1476,34 +1499,74 @@ function Library:Update(Player, Data)
             local Tip = ScreenCenter + (Direction * Edge)
             Tip = NewVector2(Clamp(Tip.X, Size, Viewport.X - Size), Clamp(Tip.Y, Size, Viewport.Y - Size))
 
-            local Perp = NewVector2(-Direction.Y, Direction.X)
-            local BaseCenter = Tip - (Direction * Size)
-            local PointB = BaseCenter + (Perp * (Size * 0.55))
-            local PointC = BaseCenter - (Perp * (Size * 0.55))
+            local function Rotate(dir, rad)
+                local c, s = math.cos(rad), math.sin(rad)
+                return NewVector2(dir.X * c - dir.Y * s, dir.X * s + dir.Y * c)
+            end
 
             local Alpha = 1
             if OOV.Blink then
                 Alpha = (math.sin(os.clock() * OOV.BlinkSpeed) + 1) * 0.5
             end
 
-            local Arrow = Objects.OOVArrow
-            Arrow.PointA = Tip
-            Arrow.PointB = PointB
-            Arrow.PointC = PointC
-            Arrow.Color = OOV.Color
-            Arrow.Transparency = Alpha
-            Arrow.Visible = true
+            local CenterX, CenterY
 
-            local Outline = Objects.OOVArrowOutline
-            Outline.PointA = Tip
-            Outline.PointB = PointB
-            Outline.PointC = PointC
-            Outline.Color = Color3.fromRGB(0, 0, 0)
-            Outline.Transparency = Alpha
-            Outline.Visible = true
+            if OOV.Style == "Concave" then
+                local PointB = Tip - Rotate(Direction, 0.45) * Size
+                local PointC = Tip - Rotate(Direction, -0.45) * Size
+                local PointD = Tip - Direction * (Size / 1.6)
 
-            local CenterX = (Tip.X + PointB.X + PointC.X) / 3
-            local CenterY = (Tip.Y + PointB.Y + PointC.Y) / 3
+                Objects.OOVArrow.Visible = false
+                Objects.OOVArrowOutline.Visible = false
+
+                local Quad = Objects.OOVQuad
+                Quad.PointA = Tip
+                Quad.PointB = PointB
+                Quad.PointC = PointD
+                Quad.PointD = PointC
+                Quad.Color = OOV.Color
+                Quad.Transparency = Alpha
+                Quad.Visible = true
+
+                local QuadOutline = Objects.OOVQuadOutline
+                QuadOutline.PointA = Tip
+                QuadOutline.PointB = PointB
+                QuadOutline.PointC = PointD
+                QuadOutline.PointD = PointC
+                QuadOutline.Color = Color3.fromRGB(0, 0, 0)
+                QuadOutline.Transparency = Alpha
+                QuadOutline.Visible = true
+
+                CenterX = (Tip.X + PointB.X + PointC.X + PointD.X) / 4
+                CenterY = (Tip.Y + PointB.Y + PointC.Y + PointD.Y) / 4
+            else
+                local Perp = NewVector2(-Direction.Y, Direction.X)
+                local BaseCenter = Tip - (Direction * Size)
+                local PointB = BaseCenter + (Perp * (Size * 0.55))
+                local PointC = BaseCenter - (Perp * (Size * 0.55))
+
+                Objects.OOVQuad.Visible = false
+                Objects.OOVQuadOutline.Visible = false
+
+                local Arrow = Objects.OOVArrow
+                Arrow.PointA = Tip
+                Arrow.PointB = PointB
+                Arrow.PointC = PointC
+                Arrow.Color = OOV.Color
+                Arrow.Transparency = Alpha
+                Arrow.Visible = true
+
+                local Outline = Objects.OOVArrowOutline
+                Outline.PointA = Tip
+                Outline.PointB = PointB
+                Outline.PointC = PointC
+                Outline.Color = Color3.fromRGB(0, 0, 0)
+                Outline.Transparency = Alpha
+                Outline.Visible = true
+
+                CenterX = (Tip.X + PointB.X + PointC.X) / 3
+                CenterY = (Tip.Y + PointB.Y + PointC.Y) / 3
+            end
 
             if OOV.ShowName then
                 local NameText = (Table.Texts.Name.Type == "Name") and Player.Name or Player.DisplayName
@@ -1578,6 +1641,12 @@ function Library:Update(Player, Data)
     end
     if Objects.OOVArrowOutline then
         Objects.OOVArrowOutline.Visible = false
+    end
+    if Objects.OOVQuad then
+        Objects.OOVQuad.Visible = false
+    end
+    if Objects.OOVQuadOutline then
+        Objects.OOVQuadOutline.Visible = false
     end
     if Objects.OOVName then
         Objects.OOVName.Visible = false
