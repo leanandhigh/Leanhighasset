@@ -1522,10 +1522,12 @@ function Library:Update(Player, Data)
                 Alpha = (math.sin(os.clock() * OOV.BlinkSpeed) + 1) * 0.5
             end
 
+            local Out = Direction
             local PointTip = Tip
-            local PointTail = Tip - Direction * Size
-            local PointL = Tip - Rotate(Direction, 1.05) * (Size * 0.42)
-            local PointR = Tip - Rotate(Direction, -1.05) * (Size * 0.42)
+            local PointTail = Tip - Out * Size
+            local Wing = Size * 0.5
+            local PointL = PointTip - Out * (Size * 0.35) + Rotate(Out, 1.35) * Wing
+            local PointR = PointTip - Out * (Size * 0.35) + Rotate(Out, -1.35) * Wing
 
             Objects.OOVArrow.Visible = false
             Objects.OOVArrowOutline.Visible = false
@@ -1551,13 +1553,13 @@ function Library:Update(Player, Data)
                 Objects.OOVName.Text = NameText
                 Objects.OOVName.TextColor3 = OOV.Color
                 Objects.OOVName.TextTransparency = 1 - Alpha
-                Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size * 0.55 - 1)
+                Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size * 0.95 - 6)
                 Objects.OOVName.Visible = true
             else
                 Objects.OOVName.Visible = false
             end
 
-            local OffsetY = Size * 0.55 + 2
+            local OffsetY = Size * 0.95 + 8
 
             if OOV.ShowDistance then
                 Objects.OOVDistance.TextSize = 9
@@ -1566,7 +1568,7 @@ function Library:Update(Player, Data)
                 Objects.OOVDistance.TextTransparency = 1 - Alpha
                 Objects.OOVDistance.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVDistance.Visible = true
-                OffsetY = OffsetY + 10
+                OffsetY = OffsetY + 14
             else
                 Objects.OOVDistance.Visible = false
             end
@@ -1590,7 +1592,7 @@ function Library:Update(Player, Data)
 
                 Objects.OOVHealthOutline.Size = DimOffset(3, BarH)
                 Objects.OOVHealthOutline.AnchorPoint = NewVector2(1, 0.5)
-                Objects.OOVHealthOutline.Position = DimOffset(CenterX - Size * 0.55 - 4, CenterY)
+                Objects.OOVHealthOutline.Position = DimOffset(CenterX - Size * 0.95 - 10, CenterY)
                 Objects.OOVHealthOutline.BackgroundTransparency = 1 - Alpha
                 Objects.OOVHealthBar.Size = Dim2(1, 0, Ratio, 0)
                 Objects.OOVHealthBar.BackgroundTransparency = 1 - Alpha
@@ -1604,7 +1606,7 @@ function Library:Update(Player, Data)
                 Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                 Objects.OOVHealthText.TextTransparency = 1 - Alpha
                 Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.55 - 8, CenterY + (BarH * 0.5) - (BarH * Ratio))
+                Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.95 - 14, CenterY + (BarH * 0.5) - (BarH * Ratio))
                 Objects.OOVHealthText.Visible = true
             else
                 Objects.OOVHealthOutline.Visible = false
