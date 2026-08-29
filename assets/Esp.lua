@@ -112,6 +112,7 @@ getgenv().Library = {
         OOV = {
             Enabled = true,
             Color = Color3.fromRGB(0, 255, 255),
+            Shape = "Chevron",
             Size = 18,
             DynamicSize = true,
             MinSize = 12,
@@ -120,7 +121,7 @@ getgenv().Library = {
             DynamicRadius = true,
             MinRadius = 0.18,
             MaxRadius = 0.42,
-            Limit = 150,
+            Limit = 6,
             ShowName = true,
             ShowDistance = true,
             ShowWeapon = true,
@@ -1469,7 +1470,8 @@ function Library:Update(Player, Data)
         end
 
         local OOV = Table.OOV
-        if OOV.Enabled and Distance <= (OOV.Limit or Table.Distance) then
+        local oovAllowed = Library.OOVAllowed and Library.OOVAllowed[Player]
+        if OOV.Enabled and oovAllowed then
             local Viewport = Camera.ViewportSize
             local cx, cy = Viewport.X * 0.5, Viewport.Y * 0.5
 
@@ -1487,8 +1489,8 @@ function Library:Update(Player, Data)
             end
             local Direction = NewVector2(dx / len, dy / len)
 
-            local LimitDist = math.max(OOV.Limit or 150, 1)
-            local t = Clamp(Distance / LimitDist, 0, 1)
+            local DynamicRange = 150
+            local t = Clamp(Distance / DynamicRange, 0, 1)
 
             local Radius
             if OOV.DynamicRadius == true then
@@ -1521,11 +1523,12 @@ function Library:Update(Player, Data)
             end
 
             local PointC = Tip
-            local PointB = Tip - Rotate(Direction, 0.55) * Size
-            local PointD = Tip - Rotate(Direction, -0.55) * Size
-            local PointA = Tip - Direction * (Size * 0.42)
+            local PointB = Tip - Rotate(Direction, 0.7) * (Size * 0.55)
+            local PointD = Tip - Rotate(Direction, -0.7) * (Size * 0.55)
+            local PointA = Tip - Direction * Size
 
             Objects.OOVQuad.Visible = false
+            Objects.OOVQuadOutline.Visible = false
 
             local Fill1 = Objects.OOVArrow
             Fill1.PointA = PointB
@@ -1545,17 +1548,6 @@ function Library:Update(Player, Data)
             Fill2.Color = OOV.Color
             Fill2.Transparency = Alpha
             Fill2.Visible = true
-
-            local QuadOutline = Objects.OOVQuadOutline
-            QuadOutline.PointA = PointB
-            QuadOutline.PointB = PointC
-            QuadOutline.PointC = PointD
-            QuadOutline.PointD = PointA
-            QuadOutline.Filled = false
-            QuadOutline.Thickness = 2
-            QuadOutline.Color = Color3.fromRGB(0, 0, 0)
-            QuadOutline.Transparency = Alpha
-            QuadOutline.Visible = true
 
             local CenterX = (PointA.X + PointB.X + PointC.X + PointD.X) * 0.25
             local CenterY = (PointA.Y + PointB.Y + PointC.Y + PointD.Y) * 0.25
@@ -1600,8 +1592,12 @@ function Library:Update(Player, Data)
                 local Ratio = Clamp(Health / MaxHealth, 0, 1)
                 local BarH = math.max(Size * 1.4, 16)
 
+                local BarX = CenterX - Size - 8
+                local BarTop = CenterY - BarH * 0.5
+
                 Objects.OOVHealthOutline.Size = DimOffset(3, BarH)
-                Objects.OOVHealthOutline.Position = DimOffset(CenterX - Size - 6, CenterY)
+                Objects.OOVHealthOutline.AnchorPoint = NewVector2(1, 0)
+                Objects.OOVHealthOutline.Position = DimOffset(BarX, BarTop)
                 Objects.OOVHealthOutline.BackgroundTransparency = 1 - Alpha
                 Objects.OOVHealthBar.Size = Dim2(1, 0, Ratio, 0)
                 Objects.OOVHealthBar.BackgroundTransparency = 1 - Alpha
@@ -1614,7 +1610,8 @@ function Library:Update(Player, Data)
 
                 Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                 Objects.OOVHealthText.TextTransparency = 1 - Alpha
-                Objects.OOVHealthText.Position = DimOffset(CenterX - Size - 10, CenterY + (BarH * 0.5) - (BarH * Ratio))
+                Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0)
+                Objects.OOVHealthText.Position = DimOffset(BarX - 4, BarTop)
                 Objects.OOVHealthText.Visible = true
             else
                 Objects.OOVHealthOutline.Visible = false
@@ -1995,6 +1992,28 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
     end
     Updates = Now
     CameraPosition = Camera.CFrame.Position
+
+    local OOVCandidates = {}
+    for Player, Data in Library.Cache do
+        if Player.Parent and Data.RootPart and Data.Alive then
+            local dist = (CameraPosition - Data.RootPart.Position).Magnitude
+            if dist <= Table.Distance then
+                local _, onScreen = WorldToViewportPoint(Camera, Data.RootPart.Position)
+                if not onScreen then
+                    OOVCandidates[#OOVCandidates + 1] = {Player = Player, Dist = dist}
+                end
+            end
+        end
+    end
+    table.sort(OOVCandidates, function(a, b)
+        return a.Dist < b.Dist
+    end)
+    local allowed = {}
+    local maxArrows = math.max(Table.OOV.Limit or 6, 0)
+    for i = 1, math.min(#OOVCandidates, maxArrows) do
+        allowed[OOVCandidates[i].Player] = true
+    end
+    Library.OOVAllowed = allowed
 
     for Player, Data in Library.Cache do
         if not Player.Parent then
