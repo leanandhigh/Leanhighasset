@@ -142,8 +142,8 @@ getgenv().Library = {
             ShowName = true,
             ShowDistance = true,
             ShowWeapon = true,
-            ShowHealth = true,
-            ShowHealthText = true,
+             = true,
+            Text = true,
             Blink = false,
             BlinkSpeed = 4,
         },
@@ -1656,7 +1656,7 @@ function Library:Update(Player, Data)
                 Objects.OOVWeapon.Visible = false
             end
 
-            if OOV.ShowHealth then
+            if OOV. then
                 local Health = Data.Health or 0
                 local MaxHealth = Data.MaxHealth or 100
                 local Ratio = Clamp(Health / MaxHealth, 0, 1)
@@ -1681,7 +1681,7 @@ function Library:Update(Player, Data)
                     Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                     Objects.OOVHealthText.TextTransparency = 1 - Alpha
                     Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio) + 1)
+                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio) + 0.5)
                     Objects.OOVHealthText.Visible = true
                 else
                     Objects.OOVHealthText.Visible = false
