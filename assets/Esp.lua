@@ -1487,10 +1487,22 @@ function Library:Update(Player, Data)
             end
             local Direction = NewVector2(dx / len, dy / len)
 
-            local LimitDist = OOV.Limit or 150
+            local LimitDist = math.max(OOV.Limit or 150, 1)
             local t = Clamp(Distance / LimitDist, 0, 1)
-            local Radius = OOV.DynamicRadius and (OOV.MinRadius + (OOV.MaxRadius - OOV.MinRadius) * t) or OOV.Radius
-            local Size = OOV.DynamicSize and (OOV.MaxSize - (OOV.MaxSize - OOV.MinSize) * t) or OOV.Size
+
+            local Radius
+            if OOV.DynamicRadius == true then
+                Radius = OOV.MinRadius + (OOV.MaxRadius - OOV.MinRadius) * t
+            else
+                Radius = OOV.Radius
+            end
+
+            local Size
+            if OOV.DynamicSize == true then
+                Size = OOV.MaxSize - (OOV.MaxSize - OOV.MinSize) * t
+            else
+                Size = OOV.Size
+            end
 
             local Edge = math.min(Viewport.X, Viewport.Y) * Radius
             local Tip = NewVector2(
@@ -1513,23 +1525,34 @@ function Library:Update(Player, Data)
             local PointD = Tip - Rotate(Direction, -0.55) * Size
             local PointA = Tip - Direction * (Size * 0.42)
 
-            Objects.OOVArrow.Visible = false
-            Objects.OOVArrowOutline.Visible = false
+            Objects.OOVQuad.Visible = false
 
-            local Quad = Objects.OOVQuad
-            Quad.PointA = PointB
-            Quad.PointB = PointC
-            Quad.PointC = PointD
-            Quad.PointD = PointA
-            Quad.Color = OOV.Color
-            Quad.Transparency = Alpha
-            Quad.Visible = true
+            local Fill1 = Objects.OOVArrow
+            Fill1.PointA = PointB
+            Fill1.PointB = PointC
+            Fill1.PointC = PointA
+            Fill1.Filled = true
+            Fill1.Color = OOV.Color
+            Fill1.Transparency = Alpha
+            Fill1.Visible = true
+
+            local Fill2 = Objects.OOVArrowOutline
+            Fill2.PointA = PointA
+            Fill2.PointB = PointC
+            Fill2.PointC = PointD
+            Fill2.Filled = true
+            Fill2.Thickness = 1
+            Fill2.Color = OOV.Color
+            Fill2.Transparency = Alpha
+            Fill2.Visible = true
 
             local QuadOutline = Objects.OOVQuadOutline
             QuadOutline.PointA = PointB
             QuadOutline.PointB = PointC
             QuadOutline.PointC = PointD
             QuadOutline.PointD = PointA
+            QuadOutline.Filled = false
+            QuadOutline.Thickness = 2
             QuadOutline.Color = Color3.fromRGB(0, 0, 0)
             QuadOutline.Transparency = Alpha
             QuadOutline.Visible = true
