@@ -370,51 +370,58 @@ function Library:InitEsp(Data)
     do
         Objects["OOVArrow"] = self:CreateObjects("ImageLabel", {
             Parent = self.Holder,
-            Image = "rbxassetid://7072718332",
+            Image = "rbxassetid://3944680095",
             BackgroundTransparency = 1,
             Visible = false,
-            Size = DimOffset(18, 18),
+            Size = DimOffset(20, 20),
             AnchorPoint = NewVector2(0.5, 0.5),
-            ZIndex = 20,
+            ZIndex = 50,
             ImageColor3 = Table['OOV']['Color'],
             Rotation = 0,
+            ScaleType = Enum.ScaleType.Fit,
         })
 
         Objects["OOVName"] = self:CreateObjects("TextLabel", {
             Parent = self.Holder,
             FontFace = Library.SmallestPixel,
-            TextSize = 10,
+            TextSize = 11,
             TextColor3 = Table['OOV']['Color'],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
             BackgroundTransparency = 1,
             Visible = false,
             AutomaticSize = Enum.AutomaticSize.XY,
-            ZIndex = 21,
+            AnchorPoint = NewVector2(0.5, 1),
+            ZIndex = 51,
         })
 
         self:CreateObjects("UIStroke", {
             Parent = Objects["OOVName"],
             Color = Color3.fromRGB(0, 0, 0),
+            Thickness = 1,
             LineJoinMode = Enum.LineJoinMode.Miter,
         })
 
         Objects["OOVDistance"] = self:CreateObjects("TextLabel", {
             Parent = self.Holder,
             FontFace = Library.SmallestPixel,
-            TextSize = 9,
+            TextSize = 10,
             TextColor3 = Table['OOV']['Color'],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
             BackgroundTransparency = 1,
             Visible = false,
             AutomaticSize = Enum.AutomaticSize.XY,
-            ZIndex = 21,
+            AnchorPoint = NewVector2(0.5, 0),
+            ZIndex = 51,
         })
 
         self:CreateObjects("UIStroke", {
             Parent = Objects["OOVDistance"],
             Color = Color3.fromRGB(0, 0, 0),
+            Thickness = 1,
             LineJoinMode = Enum.LineJoinMode.Miter,
         })
     end
@@ -1472,10 +1479,10 @@ function Library:Update(Player, Data)
         local OOV = Table['OOV']
         if OOV['Enabled'] then
             local Viewport = Camera.ViewportSize
-            local ScreenCenter = NewVector2(Viewport.X / 2, Viewport.Y / 2)
+            local ScreenCenter = NewVector2(Viewport.X * 0.5, Viewport.Y * 0.5)
 
             local Relative = Camera.CFrame:PointToObjectSpace(RootPos)
-            local Angle = math.atan2(-Relative.Y, Relative.X)
+            local Angle = math.atan2(Relative.Z, Relative.X)
 
             local Direction = NewVector2(math.cos(Angle), math.sin(Angle))
 
@@ -1495,37 +1502,45 @@ function Library:Update(Player, Data)
                 Size = OOV['Size']
             end
 
-            local Point = (Direction * (math.min(Viewport.X, Viewport.Y) * Radius)) + ScreenCenter
+            local Edge = math.min(Viewport.X, Viewport.Y) * Radius
+            local Point = ScreenCenter + (Direction * Edge)
+
+            Point = NewVector2(
+                Clamp(Point.X, Size, Viewport.X - Size),
+                Clamp(Point.Y, Size, Viewport.Y - Size)
+            )
+
+            local Alpha = 0
+            if OOV['Blink'] then
+                Alpha = (math.sin(os.clock() * OOV['BlinkSpeed']) + 1) * 0.5
+            end
 
             local Arrow = Objects['OOVArrow']
             Arrow.Position = DimOffset(Point.X, Point.Y)
             Arrow.Size = DimOffset(Size, Size)
             Arrow.Rotation = math.deg(Angle) + 90
             Arrow.ImageColor3 = OOV['Color']
-
-            local Alpha = 0
-            if OOV['Blink'] then
-                Alpha = (math.sin(os.clock() * OOV['BlinkSpeed']) + 1) / 2
-            end
             Arrow.ImageTransparency = Alpha
             Arrow.Visible = true
 
             if OOV['ShowName'] then
-                Objects['OOVName'].Text = Player.DisplayName
-                Objects['OOVName'].TextColor3 = OOV['Color']
-                Objects['OOVName'].TextTransparency = Alpha
-                Objects['OOVName'].Position = DimOffset(Point.X, Point.Y - Size - 8)
-                Objects['OOVName'].Visible = true
+                local Name = Objects['OOVName']
+                Name.Text = Player.DisplayName
+                Name.TextColor3 = OOV['Color']
+                Name.TextTransparency = Alpha
+                Name.Position = DimOffset(Point.X, Point.Y - (Size * 0.5) - 4)
+                Name.Visible = true
             else
                 Objects['OOVName'].Visible = false
             end
 
             if OOV['ShowDistance'] then
-                Objects['OOVDistance'].Text = Format('%dst', Distance)
-                Objects['OOVDistance'].TextColor3 = OOV['Color']
-                Objects['OOVDistance'].TextTransparency = Alpha
-                Objects['OOVDistance'].Position = DimOffset(Point.X, Point.Y + Size + 4)
-                Objects['OOVDistance'].Visible = true
+                local Dist = Objects['OOVDistance']
+                Dist.Text = Format('%dst', Distance)
+                Dist.TextColor3 = OOV['Color']
+                Dist.TextTransparency = Alpha
+                Dist.Position = DimOffset(Point.X, Point.Y + (Size * 0.5) + 4)
+                Dist.Visible = true
             else
                 Objects['OOVDistance'].Visible = false
             end
