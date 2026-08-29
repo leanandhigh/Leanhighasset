@@ -307,10 +307,10 @@ function Library:UpdateChams(Player, Data)
 		local Size = Part.Size
 
 		if IsHead then
-			adorn.Height = Size.Y + 0.35
-			adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
+		    adorn.Height = Size.Y + 0.35
+		    adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
 		else
-			adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
+		    adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
 		end
 
 		adorn.Adornee = Part
