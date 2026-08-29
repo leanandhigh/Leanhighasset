@@ -1658,11 +1658,10 @@ function Library:Update(Player, Data)
                 Objects.OOVHealthOutline.Visible = true
 
                 if OOV.ShowHealthText then
-                    local FillTopY = BarY - (BarH * 0.5) + (BarH * (1 - Ratio))
                     Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                     Objects.OOVHealthText.TextTransparency = 1 - Alpha
-                    Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0)
-                    Objects.OOVHealthText.Position = DimOffset(BarX - 4, FillTopY)
+                    Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
+                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio) - 2)
                     Objects.OOVHealthText.Visible = true
                 else
                     Objects.OOVHealthText.Visible = false
