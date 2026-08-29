@@ -100,6 +100,22 @@ getgenv().Library = {
             },
         },
 
+        Flags = {
+            Enabled = true,
+            List = {
+                Walking = {
+                    Enabled = true,
+                    Text = "Walking",
+                    Color = Color3.fromRGB(255, 0, 0),
+                },
+                Jumping = {
+                    Enabled = true,
+                    Text = "Jumping",
+                    Color = Color3.fromRGB(255, 0, 0),
+                },
+            },
+        },
+
         Chams = {
             Enabled = true,
             FillColor = Color3.fromRGB(255, 255, 255),
@@ -1305,43 +1321,77 @@ function Library:AddTarget(Player)
         Objects.WalkFlag.Visible = false
         Objects.JumpFlag.Visible = false
 
+        local function FlagCfg(key)
+            local flags = Table.Flags
+            if not flags or not flags.Enabled then
+                return nil
+            end
+            local list = flags.List
+            if type(list) ~= "table" then
+                return nil
+            end
+            local cfg = list[key]
+            if type(cfg) ~= "table" or not cfg.Enabled then
+                return nil
+            end
+            return cfg
+        end
+
+        local function ApplyFlagLabel(label, key)
+            local cfg = FlagCfg(key)
+            if not cfg then
+                label.Visible = false
+                return false
+            end
+            label.Text = cfg.Text or key
+            if typeof(cfg.Color) == "Color3" then
+                label.TextColor3 = cfg.Color
+            end
+            return true
+        end
+
+        local function RefreshOrders()
+            local order = 1
+            if Data.WalkActive and FlagCfg("Walking") then
+                Objects.WalkFlag.LayoutOrder = order
+                order = order + 1
+            end
+            if Data.JumpActive and FlagCfg("Jumping") then
+                Objects.JumpFlag.LayoutOrder = order
+            end
+        end
+
         Data.Conns.MoveDir = Humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
             local Walking = Humanoid.MoveDirection ~= ZeroVector3
             if Walking and not Data.WalkActive then
                 Data.WalkActive = true
-                if Data.JumpActive then
-                    Objects.WalkFlag.LayoutOrder = 2
+                if ApplyFlagLabel(Objects.WalkFlag, "Walking") then
+                    RefreshOrders()
+                    Objects.WalkFlag.Visible = true
                 else
-                    Objects.WalkFlag.LayoutOrder = 1
-                    Objects.JumpFlag.LayoutOrder = 2
+                    Objects.WalkFlag.Visible = false
                 end
-                Objects.WalkFlag.Visible = true
             elseif not Walking and Data.WalkActive then
                 Data.WalkActive = false
                 Objects.WalkFlag.Visible = false
-                if Data.JumpActive then
-                    Objects.JumpFlag.LayoutOrder = 1
-                end
+                RefreshOrders()
             end
         end)
 
-        Data.Conns.StateChange = Humanoid.StateChanged:Connect(function(_, NewState)
-            local Jumping = NewState == Enum.HumanoidStateType.Jumping or NewState == Enum.HumanoidStateType.Freefall
+        Data.Conns.StateChange = Humanoid.StateChanged:Connect(function(_, new)
+            local Jumping = new == Enum.HumanoidStateType.Jumping or new == Enum.HumanoidStateType.Freefall
             if Jumping and not Data.JumpActive then
                 Data.JumpActive = true
-                if Data.WalkActive then
-                    Objects.JumpFlag.LayoutOrder = 2
+                if ApplyFlagLabel(Objects.JumpFlag, "Jumping") then
+                    RefreshOrders()
+                    Objects.JumpFlag.Visible = true
                 else
-                    Objects.JumpFlag.LayoutOrder = 1
-                    Objects.WalkFlag.LayoutOrder = 2
+                    Objects.JumpFlag.Visible = false
                 end
-                Objects.JumpFlag.Visible = true
             elseif not Jumping and Data.JumpActive then
                 Data.JumpActive = false
                 Objects.JumpFlag.Visible = false
-                if Data.WalkActive then
-                    Objects.WalkFlag.LayoutOrder = 1
-                end
+                RefreshOrders()
             end
         end)
     end
@@ -1608,10 +1658,11 @@ function Library:Update(Player, Data)
                 Objects.OOVHealthOutline.Visible = true
 
                 if OOV.ShowHealthText then
+                    local FillTopY = BarY - (BarH * 0.5) + (BarH * (1 - Ratio))
                     Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                     Objects.OOVHealthText.TextTransparency = 1 - Alpha
-                    Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                    Objects.OOVHealthText.Position = DimOffset(BarX - 4, BarY)
+                    Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0)
+                    Objects.OOVHealthText.Position = DimOffset(BarX - 4, FillTopY)
                     Objects.OOVHealthText.Visible = true
                 else
                     Objects.OOVHealthText.Visible = false
@@ -1923,6 +1974,38 @@ function Library:Update(Player, Data)
         end
         if Objects.ArmorBarText.Visible then
             Objects.ArmorBarText.Visible = false
+        end
+    end
+
+    local FlagsCfg = Table.Flags
+    if not FlagsCfg or not FlagsCfg.Enabled then
+        if Objects.WalkFlag then Objects.WalkFlag.Visible = false end
+        if Objects.JumpFlag then Objects.JumpFlag.Visible = false end
+    else
+        local list = FlagsCfg.List
+        if type(list) == "table" then
+            if Objects.WalkFlag and Objects.WalkFlag.Visible then
+                local w = list.Walking
+                if type(w) == "table" then
+                    if not w.Enabled then
+                        Objects.WalkFlag.Visible = false
+                    else
+                        if w.Text then Objects.WalkFlag.Text = w.Text end
+                        if typeof(w.Color) == "Color3" then Objects.WalkFlag.TextColor3 = w.Color end
+                    end
+                end
+            end
+            if Objects.JumpFlag and Objects.JumpFlag.Visible then
+                local j = list.Jumping
+                if type(j) == "table" then
+                    if not j.Enabled then
+                        Objects.JumpFlag.Visible = false
+                    else
+                        if j.Text then Objects.JumpFlag.Text = j.Text end
+                        if typeof(j.Color) == "Color3" then Objects.JumpFlag.TextColor3 = j.Color end
+                    end
+                end
+            end
         end
     end
 
