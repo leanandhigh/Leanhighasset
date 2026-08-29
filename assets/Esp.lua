@@ -1311,15 +1311,28 @@ function Library:AddTarget(Player)
     local function BindFlags(Humanoid)
         if Data.Conns.MoveDir then
             Data.Conns.MoveDir:Disconnect()
+            Data.Conns.MoveDir = nil
         end
         if Data.Conns.StateChange then
             Data.Conns.StateChange:Disconnect()
+            Data.Conns.StateChange = nil
+        end
+        if not Humanoid then
+            return
         end
         local Objects = Data.Objects
+        if type(Objects) ~= "table" then
+            return
+        end
+
         Data.JumpActive = false
         Data.WalkActive = false
-        Objects.WalkFlag.Visible = false
-        Objects.JumpFlag.Visible = false
+        if Objects.WalkFlag then
+            Objects.WalkFlag.Visible = false
+        end
+        if Objects.JumpFlag then
+            Objects.JumpFlag.Visible = false
+        end
 
         local function FlagCfg(key)
             local flags = Table.Flags
@@ -1338,6 +1351,9 @@ function Library:AddTarget(Player)
         end
 
         local function ApplyFlagLabel(label, key)
+            if not label then
+                return false
+            end
             local cfg = FlagCfg(key)
             if not cfg then
                 label.Visible = false
@@ -1352,11 +1368,11 @@ function Library:AddTarget(Player)
 
         local function RefreshOrders()
             local order = 1
-            if Data.WalkActive and FlagCfg("Walking") then
+            if Data.WalkActive and Objects.WalkFlag and FlagCfg("Walking") then
                 Objects.WalkFlag.LayoutOrder = order
                 order = order + 1
             end
-            if Data.JumpActive and FlagCfg("Jumping") then
+            if Data.JumpActive and Objects.JumpFlag and FlagCfg("Jumping") then
                 Objects.JumpFlag.LayoutOrder = order
             end
         end
@@ -1368,12 +1384,14 @@ function Library:AddTarget(Player)
                 if ApplyFlagLabel(Objects.WalkFlag, "Walking") then
                     RefreshOrders()
                     Objects.WalkFlag.Visible = true
-                else
+                elseif Objects.WalkFlag then
                     Objects.WalkFlag.Visible = false
                 end
             elseif not Walking and Data.WalkActive then
                 Data.WalkActive = false
-                Objects.WalkFlag.Visible = false
+                if Objects.WalkFlag then
+                    Objects.WalkFlag.Visible = false
+                end
                 RefreshOrders()
             end
         end)
@@ -1385,12 +1403,14 @@ function Library:AddTarget(Player)
                 if ApplyFlagLabel(Objects.JumpFlag, "Jumping") then
                     RefreshOrders()
                     Objects.JumpFlag.Visible = true
-                else
+                elseif Objects.JumpFlag then
                     Objects.JumpFlag.Visible = false
                 end
             elseif not Jumping and Data.JumpActive then
                 Data.JumpActive = false
-                Objects.JumpFlag.Visible = false
+                if Objects.JumpFlag then
+                    Objects.JumpFlag.Visible = false
+                end
                 RefreshOrders()
             end
         end)
@@ -1661,7 +1681,7 @@ function Library:Update(Player, Data)
                     Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                     Objects.OOVHealthText.TextTransparency = 1 - Alpha
                     Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio) + 4)
+                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio) + 2)
                     Objects.OOVHealthText.Visible = true
                 else
                     Objects.OOVHealthText.Visible = false
