@@ -114,6 +114,28 @@ getgenv().Library = {
 			['Shading'] = Enum.AdornShading.Default,
 			['ShadingOutline'] = Enum.AdornShading.Default,
 		},
+
+		['OOV'] = {
+			['Enabled'] = true,
+			['Color'] = Color3.fromRGB(0, 255, 255),
+
+			['Size'] = 18,
+			['DynamicSize'] = true,
+			['MinSize'] = 12,
+			['MaxSize'] = 22,
+
+			['Radius'] = 0.35,
+			['DynamicRadius'] = true,
+			['MinRadius'] = 0.18,
+			['MaxRadius'] = 0.42,
+
+			['ShowName'] = true,
+			['ShowDistance'] = true,
+			['ShowHealth'] = false,
+
+			['Blink'] = false,
+			['BlinkSpeed'] = 4,
+		},
 	}
 }
 local Table = Library['Table'];
@@ -307,10 +329,10 @@ function Library:UpdateChams(Player, Data)
 		local Size = Part.Size
 
 		if IsHead then
-		    adorn.Height = Size.Y + 0.35
-		    adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
+			adorn.Height = Size.Y + 0.35
+			adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
 		else
-		    adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
+			adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
 		end
 
 		adorn.Adornee = Part
@@ -344,6 +366,58 @@ end
 
 function Library:InitEsp(Data)
     local Objects = Data.Objects
+
+    do
+        Objects["OOVArrow"] = self:CreateObjects("ImageLabel", {
+            Parent = self.Holder,
+            Image = "rbxassetid://7072718332",
+            BackgroundTransparency = 1,
+            Visible = false,
+            Size = DimOffset(18, 18),
+            AnchorPoint = NewVector2(0.5, 0.5),
+            ZIndex = 20,
+            ImageColor3 = Table['OOV']['Color'],
+            Rotation = 0,
+        })
+
+        Objects["OOVName"] = self:CreateObjects("TextLabel", {
+            Parent = self.Holder,
+            FontFace = Library.SmallestPixel,
+            TextSize = 10,
+            TextColor3 = Table['OOV']['Color'],
+            Text = "",
+            TextXAlignment = Enum.TextXAlignment.Center,
+            BackgroundTransparency = 1,
+            Visible = false,
+            AutomaticSize = Enum.AutomaticSize.XY,
+            ZIndex = 21,
+        })
+
+        self:CreateObjects("UIStroke", {
+            Parent = Objects["OOVName"],
+            Color = Color3.fromRGB(0, 0, 0),
+            LineJoinMode = Enum.LineJoinMode.Miter,
+        })
+
+        Objects["OOVDistance"] = self:CreateObjects("TextLabel", {
+            Parent = self.Holder,
+            FontFace = Library.SmallestPixel,
+            TextSize = 9,
+            TextColor3 = Table['OOV']['Color'],
+            Text = "",
+            TextXAlignment = Enum.TextXAlignment.Center,
+            BackgroundTransparency = 1,
+            Visible = false,
+            AutomaticSize = Enum.AutomaticSize.XY,
+            ZIndex = 21,
+        })
+
+        self:CreateObjects("UIStroke", {
+            Parent = Objects["OOVDistance"],
+            Color = Color3.fromRGB(0, 0, 0),
+            LineJoinMode = Enum.LineJoinMode.Miter,
+        })
+    end
 
     do
         Objects["TargetHolder"] = self:CreateObjects("Frame", {
@@ -1346,10 +1420,23 @@ end
 function Library:Update(Player, Data)
     local Objects = Data['Objects']
 
+    local function HideOOV()
+        if Objects['OOVArrow'] and Objects['OOVArrow'].Visible then
+            Objects['OOVArrow'].Visible = false
+        end
+        if Objects['OOVName'] and Objects['OOVName'].Visible then
+            Objects['OOVName'].Visible = false
+        end
+        if Objects['OOVDistance'] and Objects['OOVDistance'].Visible then
+            Objects['OOVDistance'].Visible = false
+        end
+    end
+
     if not Data['RootPart'] then
         if Objects['TargetHolder'].Visible then
             Objects['TargetHolder'].Visible = false
         end
+        HideOOV()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1358,6 +1445,7 @@ function Library:Update(Player, Data)
         if Objects['TargetHolder'].Visible then
             Objects['TargetHolder'].Visible = false
         end
+        HideOOV()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1369,6 +1457,7 @@ function Library:Update(Player, Data)
         if Objects['TargetHolder'].Visible then
             Objects['TargetHolder'].Visible = false
         end
+        HideOOV()
         self:UpdateChams(Player, Data)
         return
     end
@@ -1379,9 +1468,76 @@ function Library:Update(Player, Data)
         if Objects['TargetHolder'].Visible then
             Objects['TargetHolder'].Visible = false
         end
+
+        local OOV = Table['OOV']
+        if OOV['Enabled'] then
+            local Viewport = Camera.ViewportSize
+            local ScreenCenter = NewVector2(Viewport.X / 2, Viewport.Y / 2)
+
+            local Relative = Camera.CFrame:PointToObjectSpace(RootPos)
+            local Angle = math.atan2(-Relative.Y, Relative.X)
+
+            local Direction = NewVector2(math.cos(Angle), math.sin(Angle))
+
+            local Radius
+            if OOV['DynamicRadius'] then
+                local t = Clamp(Distance / 150, 0, 1)
+                Radius = OOV['MinRadius'] + (OOV['MaxRadius'] - OOV['MinRadius']) * t
+            else
+                Radius = OOV['Radius']
+            end
+
+            local Size
+            if OOV['DynamicSize'] then
+                local t = Clamp(Distance / 150, 0, 1)
+                Size = OOV['MaxSize'] - (OOV['MaxSize'] - OOV['MinSize']) * t
+            else
+                Size = OOV['Size']
+            end
+
+            local Point = (Direction * (math.min(Viewport.X, Viewport.Y) * Radius)) + ScreenCenter
+
+            local Arrow = Objects['OOVArrow']
+            Arrow.Position = DimOffset(Point.X, Point.Y)
+            Arrow.Size = DimOffset(Size, Size)
+            Arrow.Rotation = math.deg(Angle) + 90
+            Arrow.ImageColor3 = OOV['Color']
+
+            local Alpha = 0
+            if OOV['Blink'] then
+                Alpha = (math.sin(os.clock() * OOV['BlinkSpeed']) + 1) / 2
+            end
+            Arrow.ImageTransparency = Alpha
+            Arrow.Visible = true
+
+            if OOV['ShowName'] then
+                Objects['OOVName'].Text = Player.DisplayName
+                Objects['OOVName'].TextColor3 = OOV['Color']
+                Objects['OOVName'].TextTransparency = Alpha
+                Objects['OOVName'].Position = DimOffset(Point.X, Point.Y - Size - 8)
+                Objects['OOVName'].Visible = true
+            else
+                Objects['OOVName'].Visible = false
+            end
+
+            if OOV['ShowDistance'] then
+                Objects['OOVDistance'].Text = Format('%dst', Distance)
+                Objects['OOVDistance'].TextColor3 = OOV['Color']
+                Objects['OOVDistance'].TextTransparency = Alpha
+                Objects['OOVDistance'].Position = DimOffset(Point.X, Point.Y + Size + 4)
+                Objects['OOVDistance'].Visible = true
+            else
+                Objects['OOVDistance'].Visible = false
+            end
+        else
+            HideOOV()
+        end
+
         self:UpdateChams(Player, Data)
         return
     end
+
+    HideOOV()
 
     W = Floor(W)
     H = Floor(H)
@@ -1724,8 +1880,17 @@ do
             for _, Data in Library['Cache'] do
                 if Data['Objects']['TargetHolder'].Visible then
                     Data['Objects']['TargetHolder'].Visible = false
-                end;
-            end;
+                end
+                if Data['Objects']['OOVArrow'] then
+                    Data['Objects']['OOVArrow'].Visible = false
+                end
+                if Data['Objects']['OOVName'] then
+                    Data['Objects']['OOVName'].Visible = false
+                end
+                if Data['Objects']['OOVDistance'] then
+                    Data['Objects']['OOVDistance'].Visible = false
+                end
+            end
             for Player, list in pairs(Library.PlayerChams) do
                 for _, data in ipairs(list) do
                     data[1].Visible = false
@@ -1733,7 +1898,7 @@ do
                 end
             end
             return
-        end;
+        end
 
         local Now = os.clock();
 
