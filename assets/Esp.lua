@@ -71,6 +71,7 @@ getgenv().Library = {
         Bars = {
             ["Health Bar"] = {
                 Enabled = true,
+                ShowText = true,
                 Top = Color3.fromRGB(0, 255, 0),
                 Mid = Color3.fromRGB(255, 170, 0),
                 Bot = Color3.fromRGB(255, 0, 0),
@@ -126,6 +127,7 @@ getgenv().Library = {
             ShowDistance = true,
             ShowWeapon = true,
             ShowHealth = true,
+            ShowHealthText = true,
             Blink = false,
             BlinkSpeed = 4,
         },
@@ -1589,10 +1591,12 @@ function Library:Update(Player, Data)
                 local MaxHealth = Data.MaxHealth or 100
                 local Ratio = Clamp(Health / MaxHealth, 0, 1)
                 local BarH = math.max(Size * 1.2, 14)
+                local BarX = CenterX - Size * 0.62 - 5
+                local BarY = CenterY
 
                 Objects.OOVHealthOutline.Size = DimOffset(3, BarH)
                 Objects.OOVHealthOutline.AnchorPoint = NewVector2(1, 0.5)
-                Objects.OOVHealthOutline.Position = DimOffset(CenterX - Size * 0.62 - 5, CenterY)
+                Objects.OOVHealthOutline.Position = DimOffset(BarX, BarY)
                 Objects.OOVHealthOutline.BackgroundTransparency = 1 - Alpha
                 Objects.OOVHealthBar.Size = Dim2(1, 0, Ratio, 0)
                 Objects.OOVHealthBar.BackgroundTransparency = 1 - Alpha
@@ -1603,11 +1607,15 @@ function Library:Update(Player, Data)
                 })
                 Objects.OOVHealthOutline.Visible = true
 
-                Objects.OOVHealthText.Text = Format("%d", Floor(Health))
-                Objects.OOVHealthText.TextTransparency = 1 - Alpha
-                Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio))
-                Objects.OOVHealthText.Visible = true
+                if OOV.ShowHealthText then
+                    Objects.OOVHealthText.Text = Format("%d", Floor(Health))
+                    Objects.OOVHealthText.TextTransparency = 1 - Alpha
+                    Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
+                    Objects.OOVHealthText.Position = DimOffset(BarX - 4, BarY)
+                    Objects.OOVHealthText.Visible = true
+                else
+                    Objects.OOVHealthText.Visible = false
+                end
             else
                 Objects.OOVHealthOutline.Visible = false
                 Objects.OOVHealthText.Visible = false
@@ -1838,14 +1846,20 @@ function Library:Update(Player, Data)
             Data.LastHealthBot = GradBot
         end
 
-        if not Objects.HealthBarText.Visible then
-            Objects.HealthBarText.Visible = true
-        end
-        local FlooredHealth = Floor(Health)
-        if Data.LastHealthFloor ~= FlooredHealth then
-            Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-            Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
-            Data.LastHealthFloor = FlooredHealth
+        if HealthCfg.ShowText then
+            if not Objects.HealthBarText.Visible then
+                Objects.HealthBarText.Visible = true
+            end
+            local FlooredHealth = Floor(Health)
+            if Data.LastHealthFloor ~= FlooredHealth then
+                Objects.HealthBarText.Text = Format("%d", FlooredHealth)
+                Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
+                Data.LastHealthFloor = FlooredHealth
+            end
+        else
+            if Objects.HealthBarText.Visible then
+                Objects.HealthBarText.Visible = false
+            end
         end
     else
         if Objects.HealthBarOutline.Visible then
