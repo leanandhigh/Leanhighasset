@@ -465,7 +465,7 @@ function Library:InitEsp(Data)
 
     Objects.OOVName = self:CreateObjects("TextLabel", {
         Parent = self.Holder,
-        FontFace = Library.SmallestPixel,
+        FontFace = Library.TahomaBold,
         TextSize = 11,
         TextColor3 = Table.OOV.Color,
         Text = "",
@@ -1522,61 +1522,57 @@ function Library:Update(Player, Data)
                 Alpha = (math.sin(os.clock() * OOV.BlinkSpeed) + 1) * 0.5
             end
 
-            local PointC = Tip
-            local PointB = Tip - Rotate(Direction, 0.7) * (Size * 0.55)
-            local PointD = Tip - Rotate(Direction, -0.7) * (Size * 0.55)
-            local PointA = Tip - Direction * Size
+            local PointTip = Tip
+            local PointTail = Tip - Direction * Size
+            local PointL = Tip - Rotate(Direction, 1.05) * (Size * 0.42)
+            local PointR = Tip - Rotate(Direction, -1.05) * (Size * 0.42)
 
-            Objects.OOVQuad.Visible = false
+            Objects.OOVArrow.Visible = false
+            Objects.OOVArrowOutline.Visible = false
             Objects.OOVQuadOutline.Visible = false
 
-            local Fill1 = Objects.OOVArrow
-            Fill1.PointA = PointB
-            Fill1.PointB = PointC
-            Fill1.PointC = PointA
-            Fill1.Filled = true
-            Fill1.Color = OOV.Color
-            Fill1.Transparency = Alpha
-            Fill1.Visible = true
+            local Quad = Objects.OOVQuad
+            Quad.PointA = PointTip
+            Quad.PointB = PointL
+            Quad.PointC = PointTail
+            Quad.PointD = PointR
+            Quad.Filled = true
+            Quad.Color = OOV.Color
+            Quad.Transparency = Alpha
+            Quad.Visible = true
 
-            local Fill2 = Objects.OOVArrowOutline
-            Fill2.PointA = PointA
-            Fill2.PointB = PointC
-            Fill2.PointC = PointD
-            Fill2.Filled = true
-            Fill2.Thickness = 1
-            Fill2.Color = OOV.Color
-            Fill2.Transparency = Alpha
-            Fill2.Visible = true
-
-            local CenterX = (PointA.X + PointB.X + PointC.X + PointD.X) * 0.25
-            local CenterY = (PointA.Y + PointB.Y + PointC.Y + PointD.Y) * 0.25
+            local CenterX = (PointTip.X + PointL.X + PointTail.X + PointR.X) * 0.25
+            local CenterY = (PointTip.Y + PointL.Y + PointTail.Y + PointR.Y) * 0.25
 
             if OOV.ShowName then
                 local NameText = (Table.Texts.Name.Type == "Name") and Player.Name or Player.DisplayName
+                Objects.OOVName.FontFace = Library.TahomaBold
+                Objects.OOVName.TextSize = 11
                 Objects.OOVName.Text = NameText
                 Objects.OOVName.TextColor3 = OOV.Color
                 Objects.OOVName.TextTransparency = 1 - Alpha
-                Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size - 2)
+                Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size * 0.55 - 1)
                 Objects.OOVName.Visible = true
             else
                 Objects.OOVName.Visible = false
             end
 
-            local OffsetY = Size + 4
+            local OffsetY = Size * 0.55 + 2
 
             if OOV.ShowDistance then
+                Objects.OOVDistance.TextSize = 9
                 Objects.OOVDistance.Text = Format("%dst", Distance)
                 Objects.OOVDistance.TextColor3 = OOV.Color
                 Objects.OOVDistance.TextTransparency = 1 - Alpha
                 Objects.OOVDistance.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVDistance.Visible = true
-                OffsetY = OffsetY + 12
+                OffsetY = OffsetY + 10
             else
                 Objects.OOVDistance.Visible = false
             end
 
             if OOV.ShowWeapon then
+                Objects.OOVWeapon.TextSize = 9
                 Objects.OOVWeapon.Text = Data.CurrentTool or "none"
                 Objects.OOVWeapon.TextColor3 = OOV.Color
                 Objects.OOVWeapon.TextTransparency = 1 - Alpha
@@ -1590,14 +1586,11 @@ function Library:Update(Player, Data)
                 local Health = Data.Health or 0
                 local MaxHealth = Data.MaxHealth or 100
                 local Ratio = Clamp(Health / MaxHealth, 0, 1)
-                local BarH = math.max(Size * 1.4, 16)
-
-                local BarX = CenterX - Size - 8
-                local BarTop = CenterY - BarH * 0.5
+                local BarH = math.max(Size * 1.2, 14)
 
                 Objects.OOVHealthOutline.Size = DimOffset(3, BarH)
-                Objects.OOVHealthOutline.AnchorPoint = NewVector2(1, 0)
-                Objects.OOVHealthOutline.Position = DimOffset(BarX, BarTop)
+                Objects.OOVHealthOutline.AnchorPoint = NewVector2(1, 0.5)
+                Objects.OOVHealthOutline.Position = DimOffset(CenterX - Size * 0.55 - 4, CenterY)
                 Objects.OOVHealthOutline.BackgroundTransparency = 1 - Alpha
                 Objects.OOVHealthBar.Size = Dim2(1, 0, Ratio, 0)
                 Objects.OOVHealthBar.BackgroundTransparency = 1 - Alpha
@@ -1610,8 +1603,8 @@ function Library:Update(Player, Data)
 
                 Objects.OOVHealthText.Text = Format("%d", Floor(Health))
                 Objects.OOVHealthText.TextTransparency = 1 - Alpha
-                Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0)
-                Objects.OOVHealthText.Position = DimOffset(BarX - 4, BarTop)
+                Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
+                Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.55 - 8, CenterY + (BarH * 0.5) - (BarH * Ratio))
                 Objects.OOVHealthText.Visible = true
             else
                 Objects.OOVHealthOutline.Visible = false
