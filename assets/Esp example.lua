@@ -1,4 +1,4 @@
-local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Esp%20library.lua"))()
+local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Esp.lua"))()
 local Config = ESP.Table
 
 Config['Enabled'] = true
