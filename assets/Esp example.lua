@@ -85,3 +85,7 @@ Config['Skeleton']['Enabled'] = true
 Config['Skeleton']['Color'] = Color3.fromRGB(255, 255, 255)
 Config['Skeleton']['Thickness'] = 1.5
 Config['Skeleton']['Transparency'] = 0
+
+
+--Unload
+--ESP:Unload()
