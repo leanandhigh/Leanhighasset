@@ -25,7 +25,6 @@ CameraCache()
 Camera:GetPropertyChangedSignal("FieldOfView"):Connect(CameraCache)
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
 
--- Fixed: do not overwrite Lean UI (getgenv().Library)
 local Library = {
     Directory = "Esp",
     Cache = {},
@@ -178,6 +177,9 @@ local function GetBodyParts(Character)
 end
 
 local function CreateDrawing(Type, Props)
+    if type(Drawing) ~= "table" or type(Drawing.new) ~= "function" then
+        error("Drawing API not available")
+    end
     local Obj = Drawing.new(Type)
     for k, v in pairs(Props or {}) do
         Obj[k] = v
@@ -187,50 +189,60 @@ end
 
 local Fonts = {}
 do
-    local function FontsRegister(Name, Weight, Style, Asset)
-        if not isfile(Asset.Id) then
-            writefile(Asset.Id, Asset.Font)
-        end
-        if isfile(Name .. ".font") then
-            delfile(Name .. ".font")
-        end
-        local Info = {
-            name = Name,
-            faces = {
-                {
-                    name = "Normal",
-                    weight = Weight,
-                    style = Style,
-                    assetId = getcustomasset(Asset.Id),
+    local okFonts, errFonts = pcall(function()
+        local function FontsRegister(Name, Weight, Style, Asset)
+            if type(isfile) == "function" and not isfile(Asset.Id) then
+                writefile(Asset.Id, Asset.Font)
+            end
+            if type(isfile) == "function" and isfile(Name .. ".font") then
+                pcall(delfile, Name .. ".font")
+            end
+            local Info = {
+                name = Name,
+                faces = {
+                    {
+                        name = "Normal",
+                        weight = Weight,
+                        style = Style,
+                        assetId = getcustomasset(Asset.Id),
+                    },
                 },
-            },
-        }
-        writefile(Name .. ".font", HttpService:JSONEncode(Info))
-        return getcustomasset(Name .. ".font")
+            }
+            writefile(Name .. ".font", HttpService:JSONEncode(Info))
+            return getcustomasset(Name .. ".font")
+        end
+
+        Fonts.Tahoma = FontsRegister("Tahoma", 400, "Normal", {
+            Id = "Tahoma.ttf",
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/fs-tahoma-8px.ttf"),
+        })
+        Fonts.XPTahoma = FontsRegister("XPTahoma", 400, "Normal", {
+            Id = "Tahoma8PTBOLD.ttf",
+            Font = game:HttpGet("https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/TAHOMA-8PT-BOLD-WINDOWS-XP.TTF"),
+        })
+        Fonts.SmallestPixel = FontsRegister("SmallestPixel", 400, "Normal", {
+            Id = "smallest_pixel-7.ttf",
+            Font = game:HttpGet("https://raw.githubusercontent.com/sametexe001/luas/main/smallest_pixel-7.ttf"),
+        })
+        Fonts.ProggyClean = FontsRegister("ProggyClean", 400, "Normal", {
+            Id = "ProggyClean.ttf",
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/main/fonts/ProggyClean.ttf"),
+        })
+
+        Library.ProggyTiny = Font.new(Fonts.ProggyClean, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        Library.TahomaBold = Font.new(Fonts.XPTahoma, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        Library.ProggyClean = Font.new(Fonts.ProggyClean, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        Library.Tahoma = Font.new(Fonts.Tahoma, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        Library.SmallestPixel = Font.new(Fonts.SmallestPixel, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    end)
+    if not okFonts then
+        local fb = Font.fromEnum(Enum.Font.Gotham)
+        Library.ProggyTiny = fb
+        Library.TahomaBold = fb
+        Library.ProggyClean = fb
+        Library.Tahoma = fb
+        Library.SmallestPixel = fb
     end
-
-    Fonts.Tahoma = FontsRegister("Tahoma", 400, "Normal", {
-        Id = "Tahoma.ttf",
-        Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/fs-tahoma-8px.ttf"),
-    })
-    Fonts.XPTahoma = FontsRegister("XPTahoma", 400, "Normal", {
-        Id = "Tahoma8PTBOLD.ttf",
-        Font = game:HttpGet("https://github.com/sametexe001/luas/raw/refs/heads/main/fonts/TAHOMA-8PT-BOLD-WINDOWS-XP.TTF"),
-    })
-    Fonts.SmallestPixel = FontsRegister("SmallestPixel", 400, "Normal", {
-        Id = "smallest_pixel-7.ttf",
-        Font = game:HttpGet("https://raw.githubusercontent.com/sametexe001/luas/main/smallest_pixel-7.ttf"),
-    })
-    Fonts.ProggyClean = FontsRegister("ProggyClean", 400, "Normal", {
-        Id = "ProggyClean.ttf",
-        Font = game:HttpGet("https://github.com/i77lhm/storage/raw/main/fonts/ProggyClean.ttf"),
-    })
-
-    Library.ProggyTiny = Font.new(Fonts.ProggyClean, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    Library.TahomaBold = Font.new(Fonts.XPTahoma, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    Library.ProggyClean = Font.new(Fonts.ProggyClean, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    Library.Tahoma = Font.new(Fonts.Tahoma, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-    Library.SmallestPixel = Font.new(Fonts.SmallestPixel, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 end
 
 Library.__index = Library
@@ -249,15 +261,29 @@ function Library:CreateThreads(Name, Signal, Callback)
     return Connection
 end
 
-Library.Holder = Library:CreateObjects("ScreenGui", {
-    Name = "\n",
-    Parent = gethui(),
-    ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets,
-    ZIndexBehavior = Enum.ZIndexBehavior.Global,
-    ResetOnSpawn = false,
-    DisplayOrder = 10000,
-    IgnoreGuiInset = true,
-})
+do
+    local parent = nil
+    pcall(function()
+        if type(gethui) == "function" then parent = gethui() end
+    end)
+    if not parent then
+        pcall(function() parent = game:GetService("CoreGui") end)
+    end
+    if not parent then
+        pcall(function()
+            parent = Players.LocalPlayer:WaitForChild("PlayerGui", 5)
+        end)
+    end
+    Library.Holder = Library:CreateObjects("ScreenGui", {
+        Name = "LeanESP",
+        Parent = parent,
+        ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        ResetOnSpawn = false,
+        DisplayOrder = 10000,
+        IgnoreGuiInset = true,
+    })
+end
 
 Library.ChamsFolder = Library:CreateObjects("Folder", {
     Name = "Chams",
@@ -2132,9 +2158,43 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
     end
 end)
 
-for _, Player in Players:GetPlayers() do
-    Library:AddTarget(Player)
+local function RefreshAllPlayers()
+    for _, Player in Players:GetPlayers() do
+        if Player ~= LocalPlayer then
+            if not Library.Cache[Player] then
+                Library:AddTarget(Player)
+            else
+                local Data = Library.Cache[Player]
+                if Data and (not Data.RootPart or not Data.Alive) and Player.Character then
+                    pcall(function()
+                        local Char = Player.Character
+                        if Char and Char.Parent then
+                            local Root = Char:FindFirstChild("HumanoidRootPart")
+                            local Hum = Char:FindFirstChildOfClass("Humanoid")
+                            if Root and Hum then
+                                Data.Character = Char
+                                Data.RootPart = Root
+                                Data.Humanoid = Hum
+                                Data.Alive = Hum.Health > 0
+                                Data.Health = Hum.Health
+                                Data.MaxHealth = Hum.MaxHealth
+                                if Data.BindHealth then Data.BindHealth(Hum) end
+                                if Data.BindChildren then Data.BindChildren(Char) end
+                                if Data.BindFlags then Data.BindFlags(Hum) end
+                                Library:BuildChamsForPlayer(Player)
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
 end
+
+RefreshAllPlayers()
+task.defer(RefreshAllPlayers)
+task.delay(1, RefreshAllPlayers)
+task.delay(3, RefreshAllPlayers)
 
 Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
     Library:AddTarget(Player)
