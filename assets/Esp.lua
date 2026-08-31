@@ -1,7 +1,3 @@
-if getgenv().Library and getgenv().Library.Unload then
-    pcall(getgenv().Library.Unload, getgenv().Library)
-end
-
 local GetService = setmetatable({}, {
     __index = function(_, Name)
         return game:GetService(Name)
@@ -29,7 +25,8 @@ CameraCache()
 Camera:GetPropertyChangedSignal("FieldOfView"):Connect(CameraCache)
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
 
-getgenv().Library = {
+-- Fixed: do not overwrite Lean UI (getgenv().Library)
+local Library = {
     Directory = "Esp",
     Cache = {},
     Holder = nil,
@@ -2165,6 +2162,10 @@ function Library:Unload()
     end
     Clear(self.Cache)
     Clear(self.PlayerChams)
+    if rawget(getgenv(), "ESP") == self then
+        getgenv().ESP = nil
+    end
 end
 
+getgenv().ESP = Library
 return Library
