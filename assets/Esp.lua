@@ -66,7 +66,7 @@ local Library = {
 
         Bars = {
             ["Health Bar"] = {
-                Enabled = true,
+                Enabled = false,
                 ShowText = true,
                 Top = Color3.fromRGB(0, 255, 0),
                 Mid = Color3.fromRGB(255, 170, 0),
@@ -301,6 +301,13 @@ function Library:BuildChamsForPlayer(Player)
     end
 
     local Character = Player.Character
+    do
+        local folder = Workspace:FindFirstChild("Characters")
+        if folder then
+            local m = folder:FindFirstChild(Player.Name)
+            if m and m:IsA("Model") then Character = m end
+        end
+    end
     local Parts = GetBodyParts(Character)
     local list = {}
     local S = Table.Chams
@@ -1440,7 +1447,18 @@ function Library:AddTarget(Player)
     end
     Data.BindFlags = BindFlags
 
+    local function ResolveCharacter(Character)
+        if Character and Character.Parent then return Character end
+        local folder = Workspace:FindFirstChild("Characters")
+        if folder then
+            local m = folder:FindFirstChild(Player.Name)
+            if m and m:IsA("Model") then return m end
+        end
+        return Player.Character
+    end
+
     local function OnCharacter(Character)
+        Character = ResolveCharacter(Character)
         Data.Character = Character
         Data.RootPart = nil
         Data.Humanoid = nil
@@ -2165,9 +2183,14 @@ local function RefreshAllPlayers()
                 Library:AddTarget(Player)
             else
                 local Data = Library.Cache[Player]
-                if Data and (not Data.RootPart or not Data.Alive) and Player.Character then
+                if Data and (not Data.RootPart or not Data.Alive) then
                     pcall(function()
                         local Char = Player.Character
+                        local folder = Workspace:FindFirstChild("Characters")
+                        if folder then
+                            local m = folder:FindFirstChild(Player.Name)
+                            if m and m:IsA("Model") then Char = m end
+                        end
                         if Char and Char.Parent then
                             local Root = Char:FindFirstChild("HumanoidRootPart")
                             local Hum = Char:FindFirstChildOfClass("Humanoid")
@@ -2224,6 +2247,53 @@ function Library:Unload()
     Clear(self.PlayerChams)
     if rawget(getgenv(), "ESP") == self then
         getgenv().ESP = nil
+    end
+end
+
+
+do
+    local function bindCharsFolder(folder)
+        if not folder then return end
+        folder.ChildAdded:Connect(function(child)
+            if not child:IsA("Model") then return end
+            local plr = Players:FindFirstChild(child.Name)
+            if plr and plr ~= LocalPlayer then
+                task.defer(function()
+                    if not Library.Cache[plr] then
+                        Library:AddTarget(plr)
+                    end
+                    local Data = Library.Cache[plr]
+                    if Data and Data.Conns and Data.Conns.CharAdded then
+                    end
+                    if Data then
+                        pcall(function()
+                            local Root = child:FindFirstChild("HumanoidRootPart")
+                            local Hum = child:FindFirstChildOfClass("Humanoid")
+                            if Root and Hum then
+                                Data.Character = child
+                                Data.RootPart = Root
+                                Data.Humanoid = Hum
+                                Data.Alive = Hum.Health > 0
+                                Data.Health = Hum.Health
+                                Data.MaxHealth = Hum.MaxHealth
+                                if Data.BindHealth then Data.BindHealth(Hum) end
+                                if Data.BindChildren then Data.BindChildren(child) end
+                                if Data.BindFlags then Data.BindFlags(Hum) end
+                                Library:BuildChamsForPlayer(plr)
+                            end
+                        end)
+                    end
+                end)
+            end
+        end)
+    end
+    local cf = Workspace:FindFirstChild("Characters")
+    if cf then
+        bindCharsFolder(cf)
+    else
+        Workspace.ChildAdded:Connect(function(c)
+            if c.Name == "Characters" then bindCharsFolder(c) end
+        end)
     end
 end
 
