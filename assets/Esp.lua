@@ -33,6 +33,8 @@ local Library = {
     Connections = {},
     ChamsFolder = nil,
     PlayerChams = {},
+    FlagObjects = {},
+    FlagStates = {},
 
     Table = {
         Enabled = true,
@@ -468,6 +470,13 @@ function Library:HideAllVisuals(Data)
     if Objects.Skeleton then
         for _, bone in ipairs(Objects.Skeleton) do
             bone.Line.Visible = false
+        end
+    end
+    if Objects.FlagObjects then
+        for _, flagObj in pairs(Objects.FlagObjects) do
+            if flagObj then
+                flagObj.Visible = false
+            end
         end
     end
 end
@@ -1074,46 +1083,6 @@ function Library:InitEsp(Data)
         LineJoinMode = Enum.LineJoinMode.Miter,
     })
 
-    Objects.WalkFlag = self:CreateObjects("TextLabel", {
-        Parent = Objects.RightTextHolder,
-        FontFace = Library.SmallestPixel,
-        TextSize = 9,
-        LayoutOrder = 1,
-        TextColor3 = Color3.fromRGB(255, 0, 0),
-        Text = "Walking",
-        TextXAlignment = Enum.TextXAlignment.Left,
-        BorderSizePixel = 0,
-        Visible = false,
-        BackgroundTransparency = 1,
-        ZIndex = 5,
-        AutomaticSize = Enum.AutomaticSize.XY,
-    })
-    self:CreateObjects("UIStroke", {
-        Parent = Objects.WalkFlag,
-        Color = Color3.fromRGB(0, 0, 0),
-        LineJoinMode = Enum.LineJoinMode.Miter,
-    })
-
-    Objects.JumpFlag = self:CreateObjects("TextLabel", {
-        Parent = Objects.RightTextHolder,
-        FontFace = Library.SmallestPixel,
-        TextSize = 9,
-        LayoutOrder = 2,
-        TextColor3 = Color3.fromRGB(255, 0, 0),
-        Text = "Jumping",
-        TextXAlignment = Enum.TextXAlignment.Left,
-        BorderSizePixel = 0,
-        Visible = false,
-        BackgroundTransparency = 1,
-        ZIndex = 5,
-        AutomaticSize = Enum.AutomaticSize.XY,
-    })
-    self:CreateObjects("UIStroke", {
-        Parent = Objects.JumpFlag,
-        Color = Color3.fromRGB(0, 0, 0),
-        LineJoinMode = Enum.LineJoinMode.Miter,
-    })
-
     Objects.Weapon = self:CreateObjects("TextLabel", {
         Parent = Objects.BottomTextHolder,
         FontFace = Library.SmallestPixel,
@@ -1133,6 +1102,32 @@ function Library:InitEsp(Data)
         Color = Color3.fromRGB(0, 0, 0),
         LineJoinMode = Enum.LineJoinMode.Miter,
     })
+
+    Objects.FlagObjects = {}
+    for flagName, flagConfig in pairs(Table.Flags.List) do
+        if flagConfig.Enabled then
+            local flagLabel = self:CreateObjects("TextLabel", {
+                Parent = Objects.RightTextHolder,
+                FontFace = Library.SmallestPixel,
+                TextSize = 9,
+                LayoutOrder = 10,
+                TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255),
+                Text = flagConfig.Text or flagName,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                BorderSizePixel = 0,
+                Visible = false,
+                BackgroundTransparency = 1,
+                ZIndex = 5,
+                AutomaticSize = Enum.AutomaticSize.XY,
+            })
+            self:CreateObjects("UIStroke", {
+                Parent = flagLabel,
+                Color = Color3.fromRGB(0, 0, 0),
+                LineJoinMode = Enum.LineJoinMode.Miter,
+            })
+            Objects.FlagObjects[flagName] = flagLabel
+        end
+    end
 end
 
 function Library:CalculateBox(Data)
@@ -1207,6 +1202,41 @@ function Library:CalculateBox(Data)
     end
 end
 
+function Library:UpdateFlagVisibility(Data)
+    local Objects = Data.Objects
+    if not Objects or not Objects.FlagObjects then
+        return
+    end
+
+    local FlagsCfg = Table.Flags
+    if not FlagsCfg.Enabled then
+        for _, flagObj in pairs(Objects.FlagObjects) do
+            if flagObj then
+                flagObj.Visible = false
+            end
+        end
+        return
+    end
+
+    local order = 1
+    for flagName, flagObj in pairs(Objects.FlagObjects) do
+        if flagObj then
+            local flagConfig = FlagsCfg.List[flagName]
+            local isActive = Data.FlagStates and Data.FlagStates[flagName] or false
+            
+            if flagConfig and flagConfig.Enabled and isActive then
+                flagObj.Text = flagConfig.Text or flagName
+                flagObj.TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255)
+                flagObj.LayoutOrder = order
+                flagObj.Visible = true
+                order = order + 1
+            else
+                flagObj.Visible = false
+            end
+        end
+    end
+end
+
 function Library:AddTarget(Player)
     if Player == LocalPlayer or self.Cache[Player] then
         return
@@ -1230,8 +1260,7 @@ function Library:AddTarget(Player)
         LastH = nil,
         LastX = nil,
         LastY = nil,
-        WalkActive = false,
-        JumpActive = false,
+        FlagStates = {},
         IncludeAccessories = Table.Boxes["Bounding Box"].IncludeAcsessories,
         LastGlowTop = nil,
         LastGlowBot = nil,
@@ -1350,99 +1379,27 @@ function Library:AddTarget(Player)
         if not Humanoid then
             return
         end
-        local Objects = Data.Objects
-        if type(Objects) ~= "table" then
-            return
-        end
 
-        Data.JumpActive = false
-        Data.WalkActive = false
-        if Objects.WalkFlag then
-            Objects.WalkFlag.Visible = false
-        end
-        if Objects.JumpFlag then
-            Objects.JumpFlag.Visible = false
-        end
+        Data.FlagStates = {}
+        Data.FlagStates.Walking = false
+        Data.FlagStates.Jumping = false
 
-        local function FlagCfg(key)
-            local flags = Table.Flags
-            if not flags or not flags.Enabled then
-                return nil
-            end
-            local list = flags.List
-            if type(list) ~= "table" then
-                return nil
-            end
-            local cfg = list[key]
-            if type(cfg) ~= "table" or not cfg.Enabled then
-                return nil
-            end
-            return cfg
-        end
-
-        local function ApplyFlagLabel(label, key)
-            if not label then
-                return false
-            end
-            local cfg = FlagCfg(key)
-            if not cfg then
-                label.Visible = false
-                return false
-            end
-            label.Text = cfg.Text or key
-            if typeof(cfg.Color) == "Color3" then
-                label.TextColor3 = cfg.Color
-            end
-            return true
-        end
-
-        local function RefreshOrders()
-            local order = 1
-            if Data.WalkActive and Objects.WalkFlag and FlagCfg("Walking") then
-                Objects.WalkFlag.LayoutOrder = order
-                order = order + 1
-            end
-            if Data.JumpActive and Objects.JumpFlag and FlagCfg("Jumping") then
-                Objects.JumpFlag.LayoutOrder = order
+        for flagName, _ in pairs(Table.Flags.List) do
+            if Data.FlagStates[flagName] == nil then
+                Data.FlagStates[flagName] = false
             end
         end
 
         Data.Conns.MoveDir = Humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
             local Walking = Humanoid.MoveDirection ~= ZeroVector3
-            if Walking and not Data.WalkActive then
-                Data.WalkActive = true
-                if ApplyFlagLabel(Objects.WalkFlag, "Walking") then
-                    RefreshOrders()
-                    Objects.WalkFlag.Visible = true
-                elseif Objects.WalkFlag then
-                    Objects.WalkFlag.Visible = false
-                end
-            elseif not Walking and Data.WalkActive then
-                Data.WalkActive = false
-                if Objects.WalkFlag then
-                    Objects.WalkFlag.Visible = false
-                end
-                RefreshOrders()
-            end
+            Data.FlagStates.Walking = Walking
+            self:UpdateFlagVisibility(Data)
         end)
 
         Data.Conns.StateChange = Humanoid.StateChanged:Connect(function(_, new)
             local Jumping = new == Enum.HumanoidStateType.Jumping or new == Enum.HumanoidStateType.Freefall
-            if Jumping and not Data.JumpActive then
-                Data.JumpActive = true
-                if ApplyFlagLabel(Objects.JumpFlag, "Jumping") then
-                    RefreshOrders()
-                    Objects.JumpFlag.Visible = true
-                elseif Objects.JumpFlag then
-                    Objects.JumpFlag.Visible = false
-                end
-            elseif not Jumping and Data.JumpActive then
-                Data.JumpActive = false
-                if Objects.JumpFlag then
-                    Objects.JumpFlag.Visible = false
-                end
-                RefreshOrders()
-            end
+            Data.FlagStates.Jumping = Jumping
+            self:UpdateFlagVisibility(Data)
         end)
     end
     Data.BindFlags = BindFlags
@@ -1464,8 +1421,7 @@ function Library:AddTarget(Player)
         Data.Humanoid = nil
         Data.Children = nil
         Data.Alive = false
-        Data.WalkActive = false
-        Data.JumpActive = false
+        Data.FlagStates = {}
         self:HideAllVisuals(Data)
 
         if not Character or not Character.Parent then
@@ -1545,6 +1501,14 @@ function Library:RemoveTarget(Player)
         pcall(function()
             Data.Objects.OOVHealthText:Destroy()
         end)
+    end
+
+    if Data.Objects.FlagObjects then
+        for _, flagObj in pairs(Data.Objects.FlagObjects) do
+            pcall(function()
+                flagObj:Destroy()
+            end)
+        end
     end
 
     Clear(Data.Objects)
@@ -2037,37 +2001,7 @@ function Library:Update(Player, Data)
         end
     end
 
-    local FlagsCfg = Table.Flags
-    if not FlagsCfg or not FlagsCfg.Enabled then
-        if Objects.WalkFlag then Objects.WalkFlag.Visible = false end
-        if Objects.JumpFlag then Objects.JumpFlag.Visible = false end
-    else
-        local list = FlagsCfg.List
-        if type(list) == "table" then
-            if Objects.WalkFlag and Objects.WalkFlag.Visible then
-                local w = list.Walking
-                if type(w) == "table" then
-                    if not w.Enabled then
-                        Objects.WalkFlag.Visible = false
-                    else
-                        if w.Text then Objects.WalkFlag.Text = w.Text end
-                        if typeof(w.Color) == "Color3" then Objects.WalkFlag.TextColor3 = w.Color end
-                    end
-                end
-            end
-            if Objects.JumpFlag and Objects.JumpFlag.Visible then
-                local j = list.Jumping
-                if type(j) == "table" then
-                    if not j.Enabled then
-                        Objects.JumpFlag.Visible = false
-                    else
-                        if j.Text then Objects.JumpFlag.Text = j.Text end
-                        if typeof(j.Color) == "Color3" then Objects.JumpFlag.TextColor3 = j.Color end
-                    end
-                end
-            end
-        end
-    end
+    self:UpdateFlagVisibility(Data)
 
     local WeaponCfg = TextsCfg.Weapon
     if WeaponCfg.Enabled then
@@ -2250,7 +2184,6 @@ function Library:Unload()
     end
 end
 
-
 do
     local function bindCharsFolder(folder)
         if not folder then return end
@@ -2263,8 +2196,6 @@ do
                         Library:AddTarget(plr)
                     end
                     local Data = Library.Cache[plr]
-                    if Data and Data.Conns and Data.Conns.CharAdded then
-                    end
                     if Data then
                         pcall(function()
                             local Root = child:FindFirstChild("HumanoidRootPart")
