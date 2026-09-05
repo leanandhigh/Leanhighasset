@@ -16,13 +16,13 @@ local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, 
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
 local CachedFocalLength = 0
 
+local REF_FOV = 70
 local function CameraCache()
     ViewPortY = Camera.ViewportSize.Y
-    CachedFocalLength = ViewPortY / (2 * Tan(Rad(Camera.FieldOfView) * 0.5))
+    CachedFocalLength = ViewPortY / (2 * Tan(Rad(REF_FOV) * 0.5))
 end
 
 CameraCache()
-Camera:GetPropertyChangedSignal("FieldOfView"):Connect(CameraCache)
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
 
 local Library = {
@@ -1196,8 +1196,9 @@ function Library:CalculateBox(Data)
         local H = (ScrMaxY - ScrMinY) + PadY
         return W, H, ScrMinX - (PadX * 0.5), ScrMinY - (PadY * 0.5), true
     else
-        local Scale = (RootPart.Size.Y * ViewPortY) / (RootScreen.Z * 2)
-        local W, H = 3 * Scale, 4.5 * Scale
+        
+        local Scale = (RootPart.Size.Y * CachedFocalLength) / math.max(RootScreen.Z, 0.1)
+        local W, H = 1.2 * Scale, 2.0 * Scale
         return W, H, RootScreen.X - (W * 0.5), RootScreen.Y - (H * 0.5), OnScreen
     end
 end
@@ -1521,16 +1522,30 @@ function Library:Update(Player, Data)
 
     if not Data.RootPart or not Data.Alive then
         self:HideAllVisuals(Data)
-        self:UpdateChams(Player, Data)
+        local list = self.PlayerChams[Player]
+        if list then
+            for _, data in ipairs(list) do
+                data[1].Visible = false
+                data[1].Adornee = nil
+            end
+        end
         return
     end
 
     local RootPos = Data.RootPart.Position
     local Distance = Floor((CameraPosition - RootPos).Magnitude)
 
-    if Distance > Table.Distance then
+    local maxDist = tonumber(Table.Distance) or 7520
+    if Distance > maxDist then
         self:HideAllVisuals(Data)
-        self:UpdateChams(Player, Data)
+        
+        local list = self.PlayerChams[Player]
+        if list then
+            for _, data in ipairs(list) do
+                data[1].Visible = false
+                data[1].Adornee = nil
+            end
+        end
         return
     end
 
@@ -2079,35 +2094,53 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
     Updates = Now
     CameraPosition = Camera.CFrame.Position
 
+    local maxDist = tonumber(Table.Distance) or 7520
     local OOVCandidates = {}
     for Player, Data in Library.Cache do
-        if Player.Parent and Data.RootPart and Data.Alive then
-            local dist = (CameraPosition - Data.RootPart.Position).Magnitude
-            if dist <= Table.Distance then
-                local _, onScreen = WorldToViewportPoint(Camera, Data.RootPart.Position)
-                if not onScreen then
-                    OOVCandidates[#OOVCandidates + 1] = {Player = Player, Dist = dist}
+        if not Player.Parent then
+            Library:RemoveTarget(Player)
+            continue
+        end
+        if not Data.RootPart or not Data.Alive then
+            Library:HideAllVisuals(Data)
+            local list = Library.PlayerChams[Player]
+            if list then
+                for _, d in ipairs(list) do
+                    d[1].Visible = false
+                    d[1].Adornee = nil
                 end
             end
+            continue
         end
+        local dist = (CameraPosition - Data.RootPart.Position).Magnitude
+        if dist > maxDist then
+            Library:HideAllVisuals(Data)
+            local list = Library.PlayerChams[Player]
+            if list then
+                for _, d in ipairs(list) do
+                    d[1].Visible = false
+                    d[1].Adornee = nil
+                end
+            end
+            continue
+        end
+        if Table.OOV and Table.OOV.Enabled then
+            local _, onScreen = WorldToViewportPoint(Camera, Data.RootPart.Position)
+            if not onScreen then
+                OOVCandidates[#OOVCandidates + 1] = {Player = Player, Dist = dist}
+            end
+        end
+        Library:Update(Player, Data)
     end
     table.sort(OOVCandidates, function(a, b)
         return a.Dist < b.Dist
     end)
     local allowed = {}
-    local maxArrows = math.max(Table.OOV.Limit or 6, 0)
+    local maxArrows = math.max(Table.OOV and Table.OOV.Limit or 6, 0)
     for i = 1, math.min(#OOVCandidates, maxArrows) do
         allowed[OOVCandidates[i].Player] = true
     end
     Library.OOVAllowed = allowed
-
-    for Player, Data in Library.Cache do
-        if not Player.Parent then
-            Library:RemoveTarget(Player)
-        else
-            Library:Update(Player, Data)
-        end
-    end
 end)
 
 local function RefreshAllPlayers()
