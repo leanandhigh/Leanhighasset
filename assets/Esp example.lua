@@ -5,7 +5,6 @@ Config['Enabled'] = true
 Config['Distance'] = 500
 
 Config['Boxes']['Enabled'] = true
-
 Config['Boxes']['Bounding Box']['Enabled'] = true
 Config['Boxes']['Bounding Box']['IncludeAcsessories'] = false
 Config['Boxes']['Bounding Box']['BoxX'] = 2
@@ -46,13 +45,56 @@ Config['Texts']['Weapon']['Enabled'] = true
 Config['Texts']['Weapon']['Color'] = Color3.fromRGB(0, 255, 255)
 
 Config['Flags']['Enabled'] = true
-Config['Flags']['List']['Walking']['Enabled'] = true
-Config['Flags']['List']['Walking']['Text'] = 'Walking'
-Config['Flags']['List']['Walking']['Color'] = Color3.fromRGB(255, 80, 80)
-
-Config['Flags']['List']['Jumping']['Enabled'] = true
-Config['Flags']['List']['Jumping']['Text'] = 'Jumping'
-Config['Flags']['List']['Jumping']['Color'] = Color3.fromRGB(255, 180, 50)
+Config['Flags']['List']['Walking'] = {
+    Enabled = true,
+    Text = 'Walking',
+    Color = Color3.fromRGB(255, 80, 80)
+}
+Config['Flags']['List']['Jumping'] = {
+    Enabled = true,
+    Text = 'Jumping',
+    Color = Color3.fromRGB(255, 180, 50)
+}
+Config['Flags']['List']['Sprinting'] = {
+    Enabled = true,
+    Text = 'Sprinting',
+    Color = Color3.fromRGB(0, 255, 255)
+}
+Config['Flags']['List']['Crouching'] = {
+    Enabled = true,
+    Text = 'Crouching',
+    Color = Color3.fromRGB(255, 255, 0)
+}
+Config['Flags']['List']['Flying'] = {
+    Enabled = true,
+    Text = 'Flying',
+    Color = Color3.fromRGB(255, 0, 255)
+}
+Config['Flags']['List']['Swimming'] = {
+    Enabled = true,
+    Text = 'Swimming',
+    Color = Color3.fromRGB(0, 100, 255)
+}
+Config['Flags']['List']['Climbing'] = {
+    Enabled = true,
+    Text = 'Climbing',
+    Color = Color3.fromRGB(255, 165, 0)
+}
+Config['Flags']['List']['Falling'] = {
+    Enabled = true,
+    Text = 'Falling',
+    Color = Color3.fromRGB(255, 0, 0)
+}
+Config['Flags']['List']['Ragdoll'] = {
+    Enabled = true,
+    Text = 'Ragdoll',
+    Color = Color3.fromRGB(128, 128, 128)
+}
+Config['Flags']['List']['Dead'] = {
+    Enabled = true,
+    Text = 'Dead',
+    Color = Color3.fromRGB(0, 0, 0)
+}
 
 Config['Chams']['Enabled'] = true
 Config['Chams']['FillColor'] = Color3.fromRGB(0, 255, 255)
@@ -86,6 +128,5 @@ Config['Skeleton']['Color'] = Color3.fromRGB(255, 255, 255)
 Config['Skeleton']['Thickness'] = 1.5
 Config['Skeleton']['Transparency'] = 0
 
-
---Unload
---ESP:Unload()
+-- Unload
+-- ESP:Unload()
