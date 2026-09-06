@@ -56,7 +56,6 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
-local LoadTick = os.clock()
 local Library do
     local FromRGB = Color3.fromRGB
     local FromHSV = Color3.fromHSV
