@@ -152,6 +152,15 @@ local Library = {
             Thickness = 1.5,
             Transparency = 0,
         },
+
+        CustomData = {
+            GetHealth = nil,
+            GetArmor = nil,
+            GetWeapon = nil,
+            GetFlags = nil,
+        },
+        CustomGetBodyParts = nil,
+        CustomSkeletonJoints = nil,
     },
 }
 
@@ -160,6 +169,9 @@ local OutlineOffset = Vector3.new(0.09, 0.09, 0.09)
 local InlineOffset = Vector3.new(-0.05, -0.05, -0.05)
 
 local function GetBodyParts(Character)
+    if Table.CustomGetBodyParts then
+        return Table.CustomGetBodyParts(Character)
+    end
     if not Character then
         return {}
     end
@@ -640,7 +652,7 @@ function Library:InitEsp(Data)
     })
 
     Objects.Skeleton = {}
-    local SkeletonJoints = {
+    local defaultJoints = {
         {"Head", "UpperTorso"},
         {"UpperTorso", "LowerTorso"},
         {"UpperTorso", "LeftUpperArm"},
@@ -661,7 +673,8 @@ function Library:InitEsp(Data)
         {"Torso", "Left Leg"},
         {"Torso", "Right Leg"},
     }
-    for i = 1, #SkeletonJoints do
+    local joints = Table.CustomSkeletonJoints or defaultJoints
+    for i = 1, #joints do
         Objects.Skeleton[i] = {
             Line = CreateDrawing("Line", {
                 Visible = false,
@@ -670,8 +683,8 @@ function Library:InitEsp(Data)
                 Transparency = 1 - Table.Skeleton.Transparency,
                 ZIndex = 1,
             }),
-            From = SkeletonJoints[i][1],
-            To = SkeletonJoints[i][2],
+            From = joints[i][1],
+            To = joints[i][2],
         }
     end
 
@@ -1104,8 +1117,22 @@ function Library:InitEsp(Data)
     })
 
     Objects.FlagObjects = {}
-    for flagName, flagConfig in pairs(Table.Flags.List) do
-        if flagConfig.Enabled then
+end
+
+function Library:UpdateFlagVisibility(Data)
+    local Objects = Data.Objects
+    if not Objects then return end
+
+    local FlagsCfg = Table.Flags
+    if not FlagsCfg.Enabled then
+        for _, flagObj in pairs(Objects.FlagObjects) do
+            if flagObj then flagObj.Visible = false end
+        end
+        return
+    end
+
+    for flagName, flagConfig in pairs(FlagsCfg.List) do
+        if flagConfig.Enabled and not Objects.FlagObjects[flagName] then
             local flagLabel = self:CreateObjects("TextLabel", {
                 Parent = Objects.RightTextHolder,
                 FontFace = Library.SmallestPixel,
@@ -1126,6 +1153,24 @@ function Library:InitEsp(Data)
                 LineJoinMode = Enum.LineJoinMode.Miter,
             })
             Objects.FlagObjects[flagName] = flagLabel
+        end
+    end
+
+    local order = 1
+    for flagName, flagObj in pairs(Objects.FlagObjects) do
+        if flagObj then
+            local flagConfig = FlagsCfg.List[flagName]
+            local isActive = Data.FlagStates and Data.FlagStates[flagName] or false
+
+            if flagConfig and flagConfig.Enabled and isActive then
+                flagObj.Text = flagConfig.Text or flagName
+                flagObj.TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255)
+                flagObj.LayoutOrder = order
+                flagObj.Visible = true
+                order = order + 1
+            else
+                flagObj.Visible = false
+            end
         end
     end
 end
@@ -1196,45 +1241,9 @@ function Library:CalculateBox(Data)
         local H = (ScrMaxY - ScrMinY) + PadY
         return W, H, ScrMinX - (PadX * 0.5), ScrMinY - (PadY * 0.5), true
     else
-        
         local Scale = (RootPart.Size.Y * CachedFocalLength) / math.max(RootScreen.Z, 0.1)
         local W, H = 1.2 * Scale, 2.0 * Scale
         return W, H, RootScreen.X - (W * 0.5), RootScreen.Y - (H * 0.5), OnScreen
-    end
-end
-
-function Library:UpdateFlagVisibility(Data)
-    local Objects = Data.Objects
-    if not Objects or not Objects.FlagObjects then
-        return
-    end
-
-    local FlagsCfg = Table.Flags
-    if not FlagsCfg.Enabled then
-        for _, flagObj in pairs(Objects.FlagObjects) do
-            if flagObj then
-                flagObj.Visible = false
-            end
-        end
-        return
-    end
-
-    local order = 1
-    for flagName, flagObj in pairs(Objects.FlagObjects) do
-        if flagObj then
-            local flagConfig = FlagsCfg.List[flagName]
-            local isActive = Data.FlagStates and Data.FlagStates[flagName] or false
-            
-            if flagConfig and flagConfig.Enabled and isActive then
-                flagObj.Text = flagConfig.Text or flagName
-                flagObj.TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255)
-                flagObj.LayoutOrder = order
-                flagObj.Visible = true
-                order = order + 1
-            else
-                flagObj.Visible = false
-            end
-        end
     end
 end
 
@@ -1364,11 +1373,14 @@ function Library:AddTarget(Player)
                 end
             end
         end)
-        Data.BindTool(Character)
+        if not Table.CustomData.GetWeapon then
+            Data.BindTool(Character)
+        end
     end
     Data.BindChildren = BindChildren
 
     local function BindFlags(Humanoid)
+        if Table.CustomData.GetFlags then return end
         if Data.Conns.MoveDir then
             Data.Conns.MoveDir:Disconnect()
             Data.Conns.MoveDir = nil
@@ -1444,8 +1456,37 @@ function Library:AddTarget(Player)
         Data.RootPart = RootPart
         Data.Humanoid = Humanoid
         Data.BindChildren(Character)
-        Data.BindHealth(Humanoid)
+        if not Table.CustomData.GetHealth then
+            Data.BindHealth(Humanoid)
+        else
+            local h, mh = Table.CustomData.GetHealth(Player, Character)
+            Data.Health = h or 0
+            Data.MaxHealth = mh or 100
+            Data.Alive = Data.Health > 0
+        end
+        if not Table.CustomData.GetArmor then
+            Data.Armor = 100
+            Data.MaxArmor = 100
+        else
+            local a, ma = Table.CustomData.GetArmor(Player, Character)
+            Data.Armor = a or 0
+            Data.MaxArmor = ma or 100
+        end
+        if not Table.CustomData.GetWeapon then
+            Data.CurrentTool = nil
+        else
+            Data.CurrentTool = Table.CustomData.GetWeapon(Player, Character) or "none"
+        end
         Data.BindFlags(Humanoid)
+        if Table.CustomData.GetFlags then
+            local flags = Table.CustomData.GetFlags(Player, Character)
+            if flags then
+                for k, v in pairs(flags) do
+                    Data.FlagStates[k] = v
+                end
+                self:UpdateFlagVisibility(Data)
+            end
+        end
         self:BuildChamsForPlayer(Player)
     end
 
@@ -1520,6 +1561,30 @@ end
 function Library:Update(Player, Data)
     local Objects = Data.Objects
 
+    if Table.CustomData.GetHealth and Data.Character then
+        local h, mh = Table.CustomData.GetHealth(Player, Data.Character)
+        Data.Health = h or 0
+        Data.MaxHealth = mh or 100
+        Data.Alive = Data.Health > 0
+    end
+    if Table.CustomData.GetArmor and Data.Character then
+        local a, ma = Table.CustomData.GetArmor(Player, Data.Character)
+        Data.Armor = a or 0
+        Data.MaxArmor = ma or 100
+    end
+    if Table.CustomData.GetWeapon and Data.Character then
+        Data.CurrentTool = Table.CustomData.GetWeapon(Player, Data.Character) or "none"
+    end
+    if Table.CustomData.GetFlags and Data.Character then
+        local flags = Table.CustomData.GetFlags(Player, Data.Character)
+        if flags then
+            for k, v in pairs(flags) do
+                Data.FlagStates[k] = v
+            end
+            self:UpdateFlagVisibility(Data)
+        end
+    end
+
     if not Data.RootPart or not Data.Alive then
         self:HideAllVisuals(Data)
         local list = self.PlayerChams[Player]
@@ -1538,7 +1603,6 @@ function Library:Update(Player, Data)
     local maxDist = tonumber(Table.Distance) or 7520
     if Distance > maxDist then
         self:HideAllVisuals(Data)
-        
         local list = self.PlayerChams[Player]
         if list then
             for _, data in ipairs(list) do
