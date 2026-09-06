@@ -5,7 +5,7 @@ local Config = ESP.Table
 Config.Enabled = true
 Config.Distance = 500
 
--- ===== BOXES =====
+-- ===== BOXES (your existing config) =====
 Config.Boxes.Enabled = true
 Config.Boxes["Bounding Box"].Enabled = true
 Config.Boxes["Bounding Box"].IncludeAcsessories = false
@@ -48,19 +48,20 @@ Config.Texts.Distance.Color = Color3.fromRGB(0, 255, 255)
 Config.Texts.Weapon.Enabled = true
 Config.Texts.Weapon.Color = Color3.fromRGB(0, 255, 255)
 
--- ===== FLAGS (fully dynamic) =====
+-- ===== FLAGS (fully dynamic – define any flags you need) =====
 Config.Flags.Enabled = true
 Config.Flags.List = {
-    Walking = { Enabled = true, Text = "Walking", Color = Color3.fromRGB(255, 80, 80) },
-    Jumping = { Enabled = true, Text = "Jumping", Color = Color3.fromRGB(255, 180, 50) },
+    Walking   = { Enabled = true, Text = "Walking",   Color = Color3.fromRGB(255, 80, 80) },
+    Jumping   = { Enabled = true, Text = "Jumping",   Color = Color3.fromRGB(255, 180, 50) },
     Sprinting = { Enabled = true, Text = "Sprinting", Color = Color3.fromRGB(0, 255, 255) },
     Crouching = { Enabled = true, Text = "Crouching", Color = Color3.fromRGB(255, 255, 0) },
-    Flying = { Enabled = true, Text = "Flying", Color = Color3.fromRGB(255, 0, 255) },
-    Swimming = { Enabled = true, Text = "Swimming", Color = Color3.fromRGB(0, 100, 255) },
-    Climbing = { Enabled = true, Text = "Climbing", Color = Color3.fromRGB(255, 165, 0) },
-    Falling = { Enabled = true, Text = "Falling", Color = Color3.fromRGB(255, 0, 0) },
-    Ragdoll = { Enabled = true, Text = "Ragdoll", Color = Color3.fromRGB(128, 128, 128) },
-    Dead = { Enabled = true, Text = "Dead", Color = Color3.fromRGB(0, 0, 0) },
+    Flying    = { Enabled = true, Text = "Flying",    Color = Color3.fromRGB(255, 0, 255) },
+    Swimming  = { Enabled = true, Text = "Swimming",  Color = Color3.fromRGB(0, 100, 255) },
+    Climbing  = { Enabled = true, Text = "Climbing",  Color = Color3.fromRGB(255, 165, 0) },
+    Falling   = { Enabled = true, Text = "Falling",   Color = Color3.fromRGB(255, 0, 0) },
+    Ragdoll   = { Enabled = true, Text = "Ragdoll",   Color = Color3.fromRGB(128, 128, 128) },
+    Dead      = { Enabled = true, Text = "Dead",      Color = Color3.fromRGB(0, 0, 0) },
+    -- Add more custom flags as needed
 }
 
 -- ===== CHAMS =====
@@ -72,7 +73,7 @@ Config.Chams.OutlineTransparency = 0.21
 Config.Chams.Shading = Enum.AdornShading.Default
 Config.Chams.ShadingOutline = Enum.AdornShading.Default
 
--- ===== OFF‑SCREEN INDICATORS =====
+-- ===== OOV =====
 Config.OOV.Enabled = true
 Config.OOV.Color = Color3.fromRGB(0, 255, 255)
 Config.OOV.Size = 18
@@ -99,21 +100,26 @@ Config.Skeleton.Thickness = 1.5
 Config.Skeleton.Transparency = 0
 
 -- ============================================================
---  CUSTOMISATION FOR NON‑STANDARD GAMES
---  Override the default humanoid/tool detection with your own.
---  These functions are called every frame, so keep them lightweight.
+--  CUSTOM DATA FUNCTIONS
+--  These override the default Humanoid/Tool logic.
+--  Every frame they are called; they MUST return fresh data.
 -- ============================================================
 
--- 1. Custom health – Example: read from an IntValue named "Health" inside the character
+-- 1. Custom Health – supports both Humanoid and custom values
 Config.CustomData.GetHealth = function(Player, Character)
+    local hum = Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        return hum.Health, hum.MaxHealth
+    end
+    -- Fallback to custom values
     local healthVal = Character:FindFirstChild("Health")
     local maxHealthVal = Character:FindFirstChild("MaxHealth")
-    local health = healthVal and healthVal.Value or 100
+    local health = healthVal and healthVal.Value or 0
     local maxHealth = maxHealthVal and maxHealthVal.Value or 100
     return health, maxHealth
 end
 
--- 2. Custom armor – Example: read from an IntValue named "Armor"
+-- 2. Custom Armor – supports custom values only
 Config.CustomData.GetArmor = function(Player, Character)
     local armorVal = Character:FindFirstChild("Armor")
     local maxArmorVal = Character:FindFirstChild("MaxArmor")
@@ -122,71 +128,99 @@ Config.CustomData.GetArmor = function(Player, Character)
     return armor, maxArmor
 end
 
--- 3. Custom weapon – Example: read from a StringValue or attribute "CurrentWeapon"
+-- 3. Custom Weapon – supports StringValue or attribute
 Config.CustomData.GetWeapon = function(Player, Character)
     local weaponVal = Character:FindFirstChild("CurrentWeapon")
     if weaponVal then
         return weaponVal.Value
     end
-    -- Or via attribute:
-    -- return Character:GetAttribute("CurrentWeapon") or "none"
-    return "none"
+    return Character:GetAttribute("CurrentWeapon") or "none"
 end
 
--- 4. Custom flags – Return a table of flagName = true/false
---    The flags must match the names defined in Config.Flags.List.
+-- 4. Custom Flags – fully dynamic, resets every frame
 Config.CustomData.GetFlags = function(Player, Character)
-    -- Example: read attributes or custom values
-    return {
-        Walking = Character:GetAttribute("IsWalking") or false,
-        Jumping = Character:GetAttribute("IsJumping") or false,
-        Sprinting = Character:GetAttribute("IsSprinting") or false,
-        Crouching = Character:GetAttribute("IsCrouching") or false,
-        Flying = Character:GetAttribute("IsFlying") or false,
-        Swimming = Character:GetAttribute("IsSwimming") or false,
-        Climbing = Character:GetAttribute("IsClimbing") or false,
-        Falling = Character:GetAttribute("IsFalling") or false,
-        Ragdoll = Character:GetAttribute("IsRagdoll") or false,
-        Dead = Character:GetAttribute("IsDead") or false,
-    }
-end
-
--- 5. (Optional) Custom body parts for boxes and chams
---    Return a list of BasePart objects to be used for bounding box and chams.
-Config.CustomGetBodyParts = function(Character)
-    if not Character then return {} end
-    local parts = {}
-    for _, obj in Character:GetDescendants() do
-        if obj:IsA("BasePart") and obj.Transparency < 1 and obj.Name ~= "HumanoidRootPart" then
-            table.insert(parts, obj)
-        end
+    -- Start with all flags set to false
+    local flags = {}
+    for name, _ in pairs(Config.Flags.List) do
+        flags[name] = false
     end
-    return parts
+
+    -- Early exit if no character
+    if not Character then
+        return flags
+    end
+
+    local hum = Character:FindFirstChildOfClass("Humanoid")
+    if not hum then
+        return flags
+    end
+
+    -- Helper to get state name safely
+    local stateName = ""
+    local ok, state = pcall(function() return hum:GetState() end)
+    if ok then
+        stateName = tostring(state)
+    end
+
+    -- Get move direction string (for some games)
+    local ms = ""
+    local moveDir = hum.MoveDirection
+    if moveDir and moveDir ~= Vector3.new(0,0,0) then
+        ms = "Walking"
+    end
+    -- Some games store movement in an attribute or custom property
+    local customMove = Character:GetAttribute("MovementState")
+    if customMove then
+        ms = customMove
+    end
+
+    -- Helper to check a condition and set flag
+    local function setFlag(name, condition)
+        if condition then flags[name] = true end
+    end
+
+    -- ---- DETECTIONS ----
+
+    -- Walking: move direction not zero AND not jumping etc.
+    setFlag("Walking", ms == "Walking" or (moveDir and moveDir ~= Vector3.new(0,0,0) and stateName ~= "Jumping" and stateName ~= "Freefall"))
+
+    -- Jumping: state is Jumping or Freefall
+    setFlag("Jumping", stateName == "Jumping" or stateName == "Freefall")
+
+    -- Sprinting: often attribute or specific state
+    setFlag("Sprinting", Character:GetAttribute("Sprinting") == true or ms == "Sprinting")
+
+    -- Crouching: check CameraOffset.Y < -0.5 (standard Roblox crouch)
+    setFlag("Crouching", (hum.CameraOffset and hum.CameraOffset.Y < -0.5) or Character:GetAttribute("Crouching") == true)
+
+    -- Flying: state is Flying or attribute
+    setFlag("Flying", stateName == "Flying" or Character:GetAttribute("Flying") == true)
+
+    -- Swimming: state is Swimming
+    setFlag("Swimming", stateName == "Swimming")
+
+    -- Climbing: state is Climbing
+    setFlag("Climbing", stateName == "Climbing")
+
+    -- Falling: state is FallingDown (not freefall)
+    setFlag("Falling", stateName == "FallingDown")
+
+    -- Ragdoll: state is Physics
+    setFlag("Ragdoll", stateName == "Physics")
+
+    -- Dead: health <= 0
+    setFlag("Dead", hum.Health <= 0)
+
+    -- Return the complete flags table – every flag is explicitly set
+    return flags
 end
 
--- 6. (Optional) Custom skeleton joints – define the bone connections
---    Each entry is { "PartA", "PartB" } – the library will draw a line between them.
-Config.CustomSkeletonJoints = {
-    {"Head", "UpperTorso"},
-    {"UpperTorso", "LowerTorso"},
-    {"UpperTorso", "LeftUpperArm"},
-    {"LeftUpperArm", "LeftLowerArm"},
-    {"LeftLowerArm", "LeftHand"},
-    {"UpperTorso", "RightUpperArm"},
-    {"RightUpperArm", "RightLowerArm"},
-    {"RightLowerArm", "RightHand"},
-    {"LowerTorso", "LeftUpperLeg"},
-    {"LeftUpperLeg", "LeftLowerLeg"},
-    {"LeftLowerLeg", "LeftFoot"},
-    {"LowerTorso", "RightUpperLeg"},
-    {"RightUpperLeg", "RightLowerLeg"},
-    {"RightLowerLeg", "RightFoot"},
-}
+-- Optional: Custom body parts and skeleton joints (if needed)
+-- Config.CustomGetBodyParts = function(Character) ... end
+-- Config.CustomSkeletonJoints = { ... }
 
--- ===== THE ESP WILL NOW USE THESE CUSTOM FUNCTIONS =====
-
--- If you ever want to disable a custom function, set it back to nil:
--- Config.CustomData.GetHealth = nil   -- falls back to Humanoid.Health
--- Config.CustomData.GetFlags = nil    -- falls back to walking/jumping only (simple)
+-- ===== NOW THE ESP WILL USE THESE CUSTOM FUNCTIONS =====
+-- Flags will appear when conditions are true and disappear immediately when false.
+-- Death will hide the ESP because GetHealth returns 0 => Data.Alive = false.
 
 -- To unload: ESP:Unload()
