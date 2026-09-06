@@ -1131,6 +1131,7 @@ function Library:UpdateFlagVisibility(Data)
         return
     end
 
+    -- Ensure all enabled flags have a GUI object
     for flagName, flagConfig in pairs(FlagsCfg.List) do
         if flagConfig.Enabled and not Objects.FlagObjects[flagName] then
             local flagLabel = self:CreateObjects("TextLabel", {
@@ -1156,6 +1157,7 @@ function Library:UpdateFlagVisibility(Data)
         end
     end
 
+    -- Update visibility and text, hide those not active or disabled
     local order = 1
     for flagName, flagObj in pairs(Objects.FlagObjects) do
         if flagObj then
@@ -1580,6 +1582,12 @@ function Library:Update(Player, Data)
         if flags then
             for k, v in pairs(flags) do
                 Data.FlagStates[k] = v
+            end
+            self:UpdateFlagVisibility(Data)
+        else
+            -- If GetFlags returns nil, clear all flags
+            for k, _ in pairs(Data.FlagStates) do
+                Data.FlagStates[k] = false
             end
             self:UpdateFlagVisibility(Data)
         end
