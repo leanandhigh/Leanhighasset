@@ -5,12 +5,23 @@ local GetService = setmetatable({}, {
 })
 
 local Workspace, Players, RunService, HttpService = GetService["Workspace"], GetService["Players"], GetService["RunService"], GetService["HttpService"]
-local LocalPlayer, Camera = Players.LocalPlayer, Workspace.CurrentCamera
-local WorldToViewportPoint, FindFirstChildOfClass, FindFirstChild = Camera.WorldToViewportPoint, game.FindFirstChildOfClass, game.FindFirstChild
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local FindFirstChildOfClass, FindFirstChild = game.FindFirstChildOfClass, game.FindFirstChild
 
 local NewVector3, NewVector2, Dim, Dim2, DimOffset = Vector3.new, Vector2.new, UDim.new, UDim2.new, UDim2.fromOffset
 local NumSeq = NumberSequence.new
 local NumKey = NumberSequenceKeypoint.new
+
+local function WorldToViewportPoint(a, b)
+    local worldPos = b or a
+    local cam = Workspace.CurrentCamera
+    if not cam or not worldPos then
+        return NewVector3(0, 0, 0), false
+    end
+    Camera = cam
+    return cam:WorldToViewportPoint(worldPos)
+end
 
 local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, table.clear, math.floor, math.clamp, math.abs, math.tan, math.rad, math.huge, table.remove
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
@@ -18,12 +29,26 @@ local CachedFocalLength = 0
 
 local REF_FOV = 70
 local function CameraCache()
-    ViewPortY = Camera.ViewportSize.Y
+    local cam = Workspace.CurrentCamera
+    if not cam then return end
+    Camera = cam
+    ViewPortY = cam.ViewportSize.Y
     CachedFocalLength = ViewPortY / (2 * Tan(Rad(REF_FOV) * 0.5))
 end
 
 CameraCache()
-Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = Workspace.CurrentCamera
+    CameraCache()
+    if Camera then
+        pcall(function()
+            Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
+        end)
+    end
+end)
+if Camera then
+    Camera:GetPropertyChangedSignal("ViewportSize"):Connect(CameraCache)
+end
 
 local Library = {
     Directory = "Esp",
@@ -2175,7 +2200,12 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
         return
     end
     Updates = Now
-    CameraPosition = Camera.CFrame.Position
+    local cam = Workspace.CurrentCamera
+    if not cam then
+        return
+    end
+    Camera = cam
+    CameraPosition = cam.CFrame.Position
 
     local maxDist = tonumber(Table.Distance) or 7520
     local OOVCandidates = {}
@@ -2227,13 +2257,17 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 end)
 
 local function RefreshAllPlayers()
+    Camera = Workspace.CurrentCamera or Camera
     for _, Player in Players:GetPlayers() do
         if Player ~= LocalPlayer then
             if not Library.Cache[Player] then
                 Library:AddTarget(Player)
-            else
-                local Data = Library.Cache[Player]
-                if Data and (not Data.RootPart or not Data.Alive) then
+            end
+            local Data = Library.Cache[Player]
+            if Data then
+                if Data.TryBind then
+                    pcall(Data.TryBind)
+                else
                     pcall(function()
                         local Char = Player.Character
                         local folder = Workspace:FindFirstChild("Characters")
@@ -2279,6 +2313,18 @@ Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
         end
     end)
 end)
+
+Library:CreateThreads("LocalCharacterAdded", LocalPlayer.CharacterAdded, function()
+    Camera = Workspace.CurrentCamera
+    CameraCache()
+    task.defer(RefreshAllPlayers)
+    task.delay(0.5, RefreshAllPlayers)
+    task.delay(1.5, RefreshAllPlayers)
+end)
+
+if LocalPlayer.Character then
+    task.defer(RefreshAllPlayers)
+end
 
 Library:CreateThreads("RebindMissing", RunService.Heartbeat, function()
     local now = os.clock()
