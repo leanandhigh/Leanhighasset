@@ -1420,13 +1420,20 @@ function Library:AddTarget(Player)
     Data.BindFlags = BindFlags
 
     local function ResolveCharacter(Character)
-        if Character and Character.Parent then return Character end
+        if Character and Character.Parent and Character:IsA("Model") then
+            return Character
+        end
         local folder = Workspace:FindFirstChild("Characters")
         if folder then
             local m = folder:FindFirstChild(Player.Name)
-            if m and m:IsA("Model") then return m end
+            if m and m:IsA("Model") and m.Parent then
+                return m
+            end
         end
-        return Player.Character
+        if Player.Character and Player.Character.Parent then
+            return Player.Character
+        end
+        return nil
     end
 
     local function OnCharacter(Character)
@@ -1445,11 +1452,11 @@ function Library:AddTarget(Player)
 
         local RootPart = FindFirstChild(Character, "HumanoidRootPart")
         if not RootPart then
-            RootPart = Character:WaitForChild("HumanoidRootPart", 10)
+            RootPart = Character:WaitForChild("HumanoidRootPart", 1)
         end
         local Humanoid = FindFirstChildOfClass(Character, "Humanoid")
         if not Humanoid then
-            Humanoid = Character:WaitForChild("Humanoid", 10)
+            Humanoid = Character:WaitForChild("Humanoid", 1)
         end
         if not RootPart or not Humanoid or not Character.Parent then
             return
@@ -1492,12 +1499,16 @@ function Library:AddTarget(Player)
         self:BuildChamsForPlayer(Player)
     end
 
+    Data.TryBind = function()
+        OnCharacter(ResolveCharacter(nil))
+    end
+
     Data.Conns.CharAdded = Player.CharacterAdded:Connect(function(Character)
         task.defer(OnCharacter, Character)
     end)
-    if Player.Character and Player.Character.Parent then
-        task.defer(OnCharacter, Player.Character)
-    end
+    task.defer(function()
+        OnCharacter(ResolveCharacter(Player.Character))
+    end)
 end
 
 function Library:RemoveTarget(Player)
@@ -2255,11 +2266,33 @@ end
 
 RefreshAllPlayers()
 task.defer(RefreshAllPlayers)
+task.delay(0.25, RefreshAllPlayers)
 task.delay(1, RefreshAllPlayers)
 task.delay(3, RefreshAllPlayers)
 
 Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
     Library:AddTarget(Player)
+    task.defer(function()
+        local Data = Library.Cache[Player]
+        if Data and Data.TryBind then
+            Data.TryBind()
+        end
+    end)
+end)
+
+Library:CreateThreads("RebindMissing", RunService.Heartbeat, function()
+    local now = os.clock()
+    if now - (Library._lastRebind or 0) < 0.35 then
+        return
+    end
+    Library._lastRebind = now
+    for Player, Data in pairs(Library.Cache) do
+        if Player.Parent and Data and (not Data.RootPart or not Data.RootPart.Parent or not Data.Alive) then
+            if Data.TryBind then
+                pcall(Data.TryBind)
+            end
+        end
+    end
 end)
 
 Library:CreateThreads("PlayerRemoving", Players.PlayerRemoving, function(Player)
@@ -2306,16 +2339,20 @@ do
                             local Root = child:FindFirstChild("HumanoidRootPart")
                             local Hum = child:FindFirstChildOfClass("Humanoid")
                             if Root and Hum then
-                                Data.Character = child
-                                Data.RootPart = Root
-                                Data.Humanoid = Hum
-                                Data.Alive = Hum.Health > 0
-                                Data.Health = Hum.Health
-                                Data.MaxHealth = Hum.MaxHealth
-                                if Data.BindHealth then Data.BindHealth(Hum) end
-                                if Data.BindChildren then Data.BindChildren(child) end
-                                if Data.BindFlags then Data.BindFlags(Hum) end
-                                Library:BuildChamsForPlayer(plr)
+                                if Data.TryBind then
+                                    Data.TryBind()
+                                else
+                                    Data.Character = child
+                                    Data.RootPart = Root
+                                    Data.Humanoid = Hum
+                                    Data.Alive = Hum.Health > 0
+                                    Data.Health = Hum.Health
+                                    Data.MaxHealth = Hum.MaxHealth
+                                    if Data.BindHealth then Data.BindHealth(Hum) end
+                                    if Data.BindChildren then Data.BindChildren(child) end
+                                    if Data.BindFlags then Data.BindFlags(Hum) end
+                                    Library:BuildChamsForPlayer(plr)
+                                end
                             end
                         end)
                     end
