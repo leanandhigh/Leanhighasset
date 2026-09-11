@@ -10,10 +10,6 @@ Config.Boxes["Bounding Box"].IncludeAcsessories = false
 Config.Boxes["Bounding Box"].BoxX = 0
 Config.Boxes["Bounding Box"].BoxY = 0
 
-Config.Boxes["Box Glow"].Enabled = false
-Config.Boxes.Gradients.Top = Color3.fromRGB(0, 255, 255)
-Config.Boxes.Gradients.Bot = Color3.fromRGB(0, 255, 255)
-
 Config.Boxes.Filled.Enabled = true
 Config.Boxes.Filled.Top = Color3.fromRGB(0, 255, 255)
 Config.Boxes.Filled.Bot = Color3.fromRGB(0, 120, 255)
@@ -32,7 +28,7 @@ Config.Bars["Armor Bar"].Bot = Color3.fromRGB(180, 180, 180)
 
 Config.Texts.Name.Enabled = true
 Config.Texts.Name.Color = Color3.fromRGB(255, 255, 255)
-Config.Texts.Name.Type = "DisplayName"
+Config.Texts.Name.Type = "Name"
 
 Config.Texts.Distance.Enabled = true
 Config.Texts.Distance.Color = Color3.fromRGB(180, 180, 180)
@@ -123,9 +119,5 @@ Config.CustomData.GetFlags = function(Player, Character)
 		Dead = hum and hum.Health <= 0,
 	}
 end
-
--- Box size is fixed pixels (edit in ESP file if needed):
--- STATIC_BOX_W = 42
--- STATIC_BOX_H = 68
 
 -- ESP:Unload()
