@@ -39,10 +39,9 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	Camera = Workspace.CurrentCamera
 	CameraCache()
 end)
-local DrawingFont = (Drawing.Fonts and (Drawing.Fonts.UI or Drawing.Fonts.System or Drawing.Fonts.Plex)) or 1
-local DrawingFontSmall = DrawingFont
+local DrawingFont = (Drawing.Fonts and Drawing.Fonts.Plex) or 1
 local TextSizeMain = 13
-local TextSizeSmall = 11
+local TextSizeSmall = 13
 local Library = {
 	Directory = "Esp",
 	Cache = {},
@@ -99,29 +98,18 @@ local Library = {
 			Distance = {
 				Enabled = true,
 				Color = Color3.fromRGB(255, 255, 255),
-				Size = 11,
+				Size = 13,
 			},
 			Weapon = {
 				Enabled = true,
 				Color = Color3.fromRGB(255, 255, 255),
-				Size = 11,
+				Size = 13,
 			},
 		},
 		Flags = {
-			Enabled = true,
-			Size = 11,
-			List = {
-				Walking = {
-					Enabled = true,
-					Text = "Walking",
-					Color = Color3.fromRGB(255, 0, 0),
-				},
-				Jumping = {
-					Enabled = true,
-					Text = "Jumping",
-					Color = Color3.fromRGB(255, 0, 0),
-				},
-			},
+			Enabled = false,
+			Size = 13,
+			List = {},
 		},
 		Chams = {
 			Enabled = true,
@@ -356,7 +344,7 @@ function Library:InitEsp(Data)
 		Center = true,
 		Outline = true,
 		Size = (Table.Texts.Distance and Table.Texts.Distance.Size) or TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Table.Texts.Distance.Color,
 		Text = "",
 		ZIndex = 3,
@@ -366,7 +354,7 @@ function Library:InitEsp(Data)
 		Center = true,
 		Outline = true,
 		Size = (Table.Texts.Weapon and Table.Texts.Weapon.Size) or TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Table.Texts.Weapon.Color,
 		Text = "",
 		ZIndex = 3,
@@ -390,7 +378,7 @@ function Library:InitEsp(Data)
 		Center = false,
 		Outline = true,
 		Size = TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Color3.new(1, 1, 1),
 		Text = "",
 		ZIndex = 3,
@@ -428,7 +416,7 @@ function Library:InitEsp(Data)
 		Center = true,
 		Outline = true,
 		Size = TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
 		ZIndex = 3,
@@ -438,7 +426,7 @@ function Library:InitEsp(Data)
 		Center = true,
 		Outline = true,
 		Size = TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
 		ZIndex = 3,
@@ -448,7 +436,7 @@ function Library:InitEsp(Data)
 		Center = true,
 		Outline = true,
 		Size = TextSizeSmall,
-		Font = DrawingFontSmall,
+		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
 		ZIndex = 3,
@@ -547,44 +535,7 @@ local function healthColor(ratio, cfg)
 	return lerpColor(cfg.Bot, cfg.Mid, ratio * 2)
 end
 function Library:CollectFlags(Player, Data)
-	local list = Table.Flags and Table.Flags.List
-	if not list or not Table.Flags.Enabled then
-		return {}
-	end
-	local out = {}
-	local custom = Table.CustomData and Table.CustomData.GetFlags
-	local flags = nil
-	if type(custom) == "function" then
-		local ok, res = pcall(custom, Player, Data.Character)
-		if ok and type(res) == "table" then flags = res end
-	end
-	local hum = Data.Humanoid
-	local stateName = ""
-	pcall(function()
-		if hum then stateName = hum:GetState().Name end
-	end)
-	for key, cfg in pairs(list) do
-		if type(cfg) == "table" and cfg.Enabled then
-			local on = false
-			if flags and flags[key] ~= nil then
-				on = flags[key] and true or false
-			elseif key == "Walking" then
-				on = hum and hum.MoveDirection.Magnitude > 0.08 and stateName ~= "Jumping" and stateName ~= "Freefall"
-			elseif key == "Jumping" then
-				on = stateName == "Jumping" or stateName == "Freefall"
-			elseif key == "Running" then
-				on = hum and hum.MoveDirection.Magnitude > 0.08 and (hum.WalkSpeed or 16) > 18
-			elseif key == "Dead" then
-				on = (Data.Health or 0) <= 0
-			elseif key == "Ragdoll" then
-				on = stateName == "Physics" or stateName == "Ragdoll"
-			end
-			if on then
-				out[#out + 1] = { Text = cfg.Text or key, Color = cfg.Color or Color3.new(1, 1, 1) }
-			end
-		end
-	end
-	return out
+	return {}
 end
 function Library:Update(Player, Data)
 	local Objects = Data.Objects
@@ -703,7 +654,7 @@ function Library:Update(Player, Data)
 		Objects.Distance.Text = Format("%dst", Distance)
 		Objects.Distance.Color = TextsCfg.Distance.Color
 		Objects.Distance.Size = distSize
-		Objects.Distance.Font = DrawingFontSmall
+		Objects.Distance.Font = DrawingFont
 		Objects.Distance.Position = NewVector2(X + W * 0.5, below)
 		Objects.Distance.Visible = true
 		below = below + Objects.Distance.TextBounds.Y + 1
@@ -714,7 +665,7 @@ function Library:Update(Player, Data)
 		Objects.Weapon.Text = Data.CurrentTool or "none"
 		Objects.Weapon.Color = TextsCfg.Weapon.Color
 		Objects.Weapon.Size = wepSize
-		Objects.Weapon.Font = DrawingFontSmall
+		Objects.Weapon.Font = DrawingFont
 		Objects.Weapon.Position = NewVector2(X + W * 0.5, below)
 		Objects.Weapon.Visible = true
 	else
@@ -776,7 +727,7 @@ function Library:Update(Player, Data)
 				Center = false,
 				Outline = true,
 				Size = flagSize,
-				Font = DrawingFontSmall,
+				Font = DrawingFont,
 				ZIndex = 3,
 			})
 			Objects.Flags[i] = d
@@ -784,7 +735,7 @@ function Library:Update(Player, Data)
 		d.Text = entry.Text
 		d.Color = entry.Color
 		d.Size = flagSize
-		d.Font = DrawingFontSmall
+		d.Font = DrawingFont
 		d.Position = NewVector2(flagX, flagY + (i - 1) * (flagSize + 2))
 		d.Visible = true
 	end
