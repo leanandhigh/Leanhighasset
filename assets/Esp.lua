@@ -26,7 +26,8 @@ end
 local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, table.clear, math.floor, math.clamp, math.abs, math.tan, math.rad, math.huge, table.remove
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
 
-local STATIC_ESP_SCALE = 12
+local STATIC_BOX_W = 42
+local STATIC_BOX_H = 68
 local function CameraCache()
     local cam = Workspace.CurrentCamera
     if not cam then return end
@@ -1215,15 +1216,10 @@ function Library:CalculateBox(Data)
     local PadX = (BoundingBox and BoundingBox.BoxX) or 0
     local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-    local dist = math.max(RootScreen.Z, 0.1)
-    local scale = STATIC_ESP_SCALE * 50 / dist
-    local W = (2.0 * scale) + PadX
-    local H = (3.2 * scale) + PadY
-    if W < 4 then W = 4 end
-    if H < 6 then H = 6 end
-
+    local W = STATIC_BOX_W + PadX
+    local H = STATIC_BOX_H + PadY
     local X = RootScreen.X - W * 0.5
-    local Y = RootScreen.Y - H * 0.45
+    local Y = RootScreen.Y - H * 0.5
     return W, H, X, Y, true
 end
 
