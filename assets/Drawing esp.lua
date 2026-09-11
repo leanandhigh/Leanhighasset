@@ -22,13 +22,23 @@ local function WorldToViewportPoint(a, b)
 end
 
 local Frame, ZeroVector3, CameraPosition, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0
-local STATIC_BOX_W = 42
-local STATIC_BOX_H = 68
+local MathConfig = {
+	textYOffset = 2,
+	headPositionOffset = Vector3.new(0, 1, 0),
+	legPositionOffset = Vector3.new(0, -3.5, 0),
+	leftArmOffset = CFrame.new(-1.5, 0, 0),
+	rightArmOffset = CFrame.new(1.5, 0, 0),
+	dynamicXSize = false,
+}
 
 local function CameraCache()
 	local cam = Workspace.CurrentCamera
 	if not cam then return end
 	Camera = cam
+end
+
+local function calculateXSize(armScreenPositionX, baseScreenPositionX, distanceFromCamera, fieldOfView)
+	return math.max(math.abs(armScreenPositionX - baseScreenPositionX) * 3, (500 / math.max(distanceFromCamera, 1)) / ((fieldOfView or 70) / 70))
 end
 
 CameraCache()
@@ -141,7 +151,7 @@ local Library = {
 			Shape = "Chevron",
 			Size = 18,
 			DynamicSize = false,
-			MinSize = 12,
+			MinSize = 13,
 			MaxSize = 22,
 			Radius = 0.35,
 			DynamicRadius = false,
@@ -394,7 +404,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = true,
 		Outline = true,
-		Size = 12,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Table.Texts.Distance.Color,
 		Text = "",
@@ -404,7 +414,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = true,
 		Outline = true,
-		Size = 12,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Table.Texts.Weapon.Color,
 		Text = "",
@@ -429,7 +439,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = false,
 		Outline = true,
-		Size = 11,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Color3.new(1, 1, 1),
 		Text = "",
@@ -469,7 +479,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = true,
 		Outline = true,
-		Size = 12,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
@@ -479,7 +489,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = true,
 		Outline = true,
-		Size = 11,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
@@ -489,7 +499,7 @@ function Library:InitEsp(Data)
 		Visible = false,
 		Center = true,
 		Outline = true,
-		Size = 11,
+		Size = 13,
 		Font = DrawingFont,
 		Color = Table.OOV.Color,
 		Text = "",
@@ -535,23 +545,54 @@ end
 
 function Library:CalculateBox(Data)
 	local RootPart = Data.RootPart
+	local Character = Data.Character
 	if not RootPart then
 		return nil, nil, nil, nil, false
 	end
 
-	local RootScreen, OnScreen = WorldToViewportPoint(Camera, RootPart.Position)
-	if not OnScreen or RootScreen.Z <= 0 then
+	local cam = Camera or Workspace.CurrentCamera
+	if not cam then
 		return nil, nil, nil, nil, false
 	end
+
+	local rootPosition = RootPart.Position
+	local rootCFrame = RootPart.CFrame
+	local head = Character and Character:FindFirstChild("Head")
+	local headWorld = (head and head.Position or rootPosition) + MathConfig.headPositionOffset
+	local legWorld = rootPosition + MathConfig.legPositionOffset
+
+	local headScreen, onScreen = WorldToViewportPoint(cam, headWorld)
+	if not onScreen or headScreen.Z <= 0 then
+		return nil, nil, nil, nil, false
+	end
+	local legScreen = WorldToViewportPoint(cam, legWorld)
+
+	local camCFrame = cam.CFrame
+	local fov = cam.FieldOfView
+	local distanceFromCamera = (camCFrame.Position - rootPosition).Magnitude
+
+	local baseCFrame = (MathConfig.dynamicXSize and rootCFrame) or CFrame.lookAt(rootPosition, camCFrame.Position)
+	local leftArmWorld = (baseCFrame * MathConfig.leftArmOffset).Position
+	local armScreen = WorldToViewportPoint(cam, leftArmWorld)
+
+	local headV = NewVector2(headScreen.X, headScreen.Y)
+	local legV = NewVector2(legScreen.X, legScreen.Y)
+	local baseScreen = headV + ((legV - headV) / 2)
+
+	local width = math.max(calculateXSize(armScreen.X, baseScreen.X, distanceFromCamera, fov), 3)
+	local rawHeight = headV.Y - legV.Y
+	local height = math.abs(rawHeight)
+	if height < 4 then height = 4 end
 
 	local BoundingBox = Table.Boxes["Bounding Box"]
 	local PadX = (BoundingBox and BoundingBox.BoxX) or 0
 	local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-	local W = STATIC_BOX_W + PadX
-	local H = STATIC_BOX_H + PadY
-	local X = RootScreen.X - W * 0.5
-	local Y = RootScreen.Y - H * 0.5
+	local W = width + PadX
+	local H = height + PadY
+	local topY = math.min(headV.Y, legV.Y)
+	local X = baseScreen.X - W * 0.5
+	local Y = topY
 	return W, H, X, Y, true
 end
 
@@ -807,7 +848,7 @@ function Library:Update(Player, Data)
 				Visible = false,
 				Center = false,
 				Outline = true,
-				Size = 12,
+				Size = 13,
 				Font = DrawingFont,
 				ZIndex = 3,
 			})
