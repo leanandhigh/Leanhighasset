@@ -69,12 +69,6 @@ local Library = {
 				BoxX = 0,
 				BoxY = 0,
 			},
-			["Box Glow"] = {
-				Enabled = false,
-				Top = Color3.fromRGB(255, 255, 255),
-				Bot = Color3.fromRGB(255, 255, 255),
-				Transparency = {0.9, 0.9},
-			},
 			Gradients = {
 				Top = Color3.fromRGB(255, 255, 255),
 				Bot = Color3.fromRGB(255, 255, 255),
@@ -83,7 +77,7 @@ local Library = {
 				Enabled = true,
 				Top = Color3.fromRGB(255, 255, 255),
 				Bot = Color3.fromRGB(255, 255, 255),
-				Transparency = {1, 0.8},
+				Transparency = {0.85, 0.85},
 			},
 		},
 
@@ -141,30 +135,18 @@ local Library = {
 			OutlineColor = Color3.fromRGB(0, 0, 0),
 			FillTransparency = 0.61,
 			OutlineTransparency = 0.21,
-			Shading = Enum.AdornShading.Default,
-			ShadingOutline = Enum.AdornShading.Default,
+			DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 		},
 
 		OOV = {
 			Enabled = true,
 			Color = Color3.fromRGB(0, 255, 255),
-			Shape = "Chevron",
 			Size = 18,
-			DynamicSize = false,
-			MinSize = 13,
-			MaxSize = 22,
 			Radius = 0.35,
-			DynamicRadius = false,
-			MinRadius = 0.18,
-			MaxRadius = 0.42,
 			Limit = 6,
 			ShowName = true,
 			ShowDistance = true,
 			ShowWeapon = true,
-			ShowHealth = false,
-			ShowHealthText = false,
-			Blink = false,
-			BlinkSpeed = 4,
 		},
 
 		Skeleton = {
@@ -186,8 +168,6 @@ local Library = {
 }
 
 local Table = Library.Table
-local OutlineOffset = Vector3.new(0.09, 0.09, 0.09)
-local InlineOffset = Vector3.new(-0.05, -0.05, -0.05)
 
 local function GetBodyParts(Character)
 	if Table.CustomGetBodyParts then
@@ -316,6 +296,9 @@ function Library:UpdateChams(Player, Data)
 	hl.OutlineColor = S.OutlineColor
 	hl.FillTransparency = S.FillTransparency
 	hl.OutlineTransparency = S.OutlineTransparency
+	if S.DepthMode then
+		hl.DepthMode = S.DepthMode
+	end
 	hl.Enabled = true
 end
 
