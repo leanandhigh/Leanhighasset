@@ -25,15 +25,13 @@ end
 
 local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, table.clear, math.floor, math.clamp, math.abs, math.tan, math.rad, math.huge, table.remove
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
-local CachedFocalLength = 0
 
-local REF_FOV = 70
+local STATIC_ESP_SCALE = 12
 local function CameraCache()
     local cam = Workspace.CurrentCamera
     if not cam then return end
     Camera = cam
     ViewPortY = cam.ViewportSize.Y
-    CachedFocalLength = ViewPortY / (2 * Tan(Rad(REF_FOV) * 0.5))
 end
 
 CameraCache()
@@ -1209,69 +1207,24 @@ function Library:CalculateBox(Data)
     end
 
     local RootScreen, OnScreen = WorldToViewportPoint(Camera, RootPart.Position)
-    if not OnScreen then
+    if not OnScreen or RootScreen.Z <= 0 then
         return nil, nil, nil, nil, false
     end
 
     local BoundingBox = Table.Boxes["Bounding Box"]
-    if BoundingBox.Enabled then
-        local Children = Data.Children
-        if not Children then
-            return nil, nil, nil, nil, false
-        end
+    local PadX = (BoundingBox and BoundingBox.BoxX) or 0
+    local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-        local IncludeAccessories = Data.IncludeAccessories
-        local ScrMinX, ScrMinY = Huge, Huge
-        local ScrMaxX, ScrMaxY = -Huge, -Huge
-        local HasValidParts = false
+    local dist = math.max(RootScreen.Z, 0.1)
+    local scale = STATIC_ESP_SCALE * 50 / dist
+    local W = (2.0 * scale) + PadX
+    local H = (3.2 * scale) + PadY
+    if W < 4 then W = 4 end
+    if H < 6 then H = 6 end
 
-        for _, Part in Children do
-            if Part:IsA("BasePart") and Part.Transparency ~= 1 and Part ~= RootPart then
-                local Parent = Part.Parent
-                if Parent == nil then
-                    continue
-                end
-                if not IncludeAccessories and Parent:IsA("Accessory") then
-                    continue
-                end
-
-                local PartScreen, PartOnScreen = WorldToViewportPoint(Camera, Part.Position)
-                if not PartOnScreen or PartScreen.Z <= 0 then
-                    continue
-                end
-
-                HasValidParts = true
-                local Cf = Part.CFrame
-                local Sz = Part.Size
-                local HX, HY, HZ = Sz.X * 0.5, Sz.Y * 0.5, Sz.Z * 0.5
-                local RX, UY, LZ = Cf.RightVector, Cf.UpVector, Cf.LookVector
-                local DepthScale = CachedFocalLength / PartScreen.Z
-                local Ex = (Abs(RX.X * HX) + Abs(UY.X * HY) + Abs(LZ.X * HZ)) * DepthScale
-                local Ey = (Abs(RX.Y * HX) + Abs(UY.Y * HY) + Abs(LZ.Y * HZ)) * DepthScale
-                local PMinX, PMaxX = PartScreen.X - Ex, PartScreen.X + Ex
-                local PMinY, PMaxY = PartScreen.Y - Ey, PartScreen.Y + Ey
-
-                if PMinX < ScrMinX then ScrMinX = PMinX end
-                if PMaxX > ScrMaxX then ScrMaxX = PMaxX end
-                if PMinY < ScrMinY then ScrMinY = PMinY end
-                if PMaxY > ScrMaxY then ScrMaxY = PMaxY end
-            end
-        end
-
-        if not HasValidParts then
-            return nil, nil, nil, nil, false
-        end
-
-        local PadX = BoundingBox.BoxX
-        local PadY = BoundingBox.BoxY
-        local W = (ScrMaxX - ScrMinX) + PadX
-        local H = (ScrMaxY - ScrMinY) + PadY
-        return W, H, ScrMinX - (PadX * 0.5), ScrMinY - (PadY * 0.5), true
-    else
-        local Scale = (RootPart.Size.Y * CachedFocalLength) / math.max(RootScreen.Z, 0.1)
-        local W, H = 1.2 * Scale, 2.0 * Scale
-        return W, H, RootScreen.X - (W * 0.5), RootScreen.Y - (H * 0.5), OnScreen
-    end
+    local X = RootScreen.X - W * 0.5
+    local Y = RootScreen.Y - H * 0.45
+    return W, H, X, Y, true
 end
 
 function Library:AddTarget(Player)
