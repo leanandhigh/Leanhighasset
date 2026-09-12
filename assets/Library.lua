@@ -309,10 +309,58 @@ local Library do
         }
     }
     Library.Theme = TableClone(Themes["Preset"])
-    for Index, Value in Library.Folders do
-        if not isfolder(Value) then
-            makefolder(Value)
+    Library.EnsureFolder = function(self, Path)
+        if not Path or Path == "" then
+            return false
         end
+        Path = Path:gsub("\\", "/"):gsub("/+", "/"):gsub("^/", ""):gsub("/$", "")
+        if Path == "" then
+            return false
+        end
+        local Current = ""
+        for Segment in Path:gmatch("[^/]+") do
+            Current = Current == "" and Segment or (Current .. "/" .. Segment)
+            if not isfolder(Current) then
+                pcall(makefolder, Current)
+            end
+        end
+        return isfolder(Path)
+    end
+    Library.SetFolder = function(self, Path)
+        if type(Path) ~= "string" or Path == "" then
+            warn("[Library] SetFolder: path must be a non-empty string")
+            return false
+        end
+        Path = Path:gsub("\\", "/"):gsub("/+", "/"):gsub("^/", ""):gsub("/$", "")
+        if Path == "" then
+            warn("[Library] SetFolder: path is empty after cleaning")
+            return false
+        end
+
+        self.Folders.Directory = Path
+        self.Folders.Configs = Path .. "/Configs"
+        self.Folders.Assets = Path .. "/Assets"
+
+        self:EnsureFolder(self.Folders.Directory)
+        self:EnsureFolder(self.Folders.Configs)
+        self:EnsureFolder(self.Folders.Assets)
+
+        -- Re-download theme images into the new Assets folder if missing
+        for _, ImageData in self.Images do
+            local ImageName = ImageData[1]
+            local ImageLink = ImageData[2]
+            local FullPath = self.Folders.Assets .. "/" .. ImageName
+            if not isfile(FullPath) then
+                pcall(function()
+                    writefile(FullPath, game:HttpGet(ImageLink))
+                end)
+            end
+        end
+
+        return true
+    end
+    for Index, Value in Library.Folders do
+        Library:EnsureFolder(Value)
     end
     for Index, Value in Library.Images do
         local ImageData = Value
@@ -1145,18 +1193,6 @@ local Library do
         })
         Label:AddToTheme({ TextColor3 = "Text" })
         Label:TextBorder()
-
-        local AccentLine = Instances:Create("Frame", {
-            Parent = Tooltip.Instance,
-            Name = "\0",
-            AnchorPoint = Vector2New(0, 1),
-            Position = UDim2New(0, -6, 1, 4),
-            Size = UDim2New(0, 12, 0, 1),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Library.Theme.Accent,
-            ZIndex = 10002,
-        })
-        AccentLine:AddToTheme({ BackgroundColor3 = "Accent" })
 
         local TooltipTable = {
             Tooltip = Tooltip,
