@@ -125,6 +125,7 @@ local Library do
         Font = nil,
         KeyList = nil,
         Colorpickers = { },
+        Tooltips = { },
     }
     Library.Sounds = {
 	["Minecraft"] = LPH_ENCSTR("rbxassetid://7151570575"),
@@ -829,6 +830,12 @@ local Library do
             if hitBase then hitBase:Destroy() end
             if killBase then killBase:Destroy() end
         end)
+        if self.Tooltips then
+            for _, Tip in ipairs(self.Tooltips) do
+                pcall(function() Tip:Destroy() end)
+            end
+            self.Tooltips = {}
+        end
         if self.Holder then pcall(function() self.Holder:Clean() end) end
         if self.UnusedHolder then pcall(function() self.UnusedHolder:Clean() end) end
         if self.NotifHolder then pcall(function() self.NotifHolder:Clean() end) end
@@ -1066,12 +1073,196 @@ local Library do
         end
     end
     Library.IsMouseOverFrame = function(self, Frame, XOffset, YOffset)
-        Frame = Frame.Instance
+        Frame = Frame.Instance or Frame
         XOffset = XOffset or 0
         YOffset = YOffset or 0
         local MousePosition = Vector2New(Mouse.X + XOffset, Mouse.Y + YOffset)
         return MousePosition.X >= Frame.AbsolutePosition.X and MousePosition.X <= Frame.AbsolutePosition.X + Frame.AbsoluteSize.X
         and MousePosition.Y >= Frame.AbsolutePosition.Y and MousePosition.Y <= Frame.AbsolutePosition.Y + Frame.AbsoluteSize.Y
+    end
+    Library.MouseIsOverOpenedFrame = function(self)
+        for Frame, _ in next, self.OpenFrames do
+            local RealFrame = Frame.Instance or (type(Frame) == "table" and (Frame.Items and (Frame.Items["OptionHolder"] or Frame.Items["KeybindWindow"] or Frame.Items["ColorpickerWindow"])) or Frame)
+            if RealFrame and Library:IsMouseOverFrame(RealFrame) then
+                return true
+            end
+        end
+        return false
+    end
+    Library.AddToolTip = function(self, InfoStr, DisabledInfoStr, HoverInstance)
+        InfoStr = typeof(InfoStr) == "string" and InfoStr or nil
+        DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
+        if not InfoStr and not DisabledInfoStr then
+            return nil
+        end
+
+        HoverInstance = HoverInstance.Instance or HoverInstance
+
+        local Tooltip = Instances:Create("Frame", {
+            Parent = Library.Holder.Instance,
+            Name = "\0",
+            BackgroundColor3 = Library.Theme.Background,
+            BorderColor3 = Library.Theme.Border,
+            BorderSizePixel = 2,
+            Size = UDim2New(0, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.XY,
+            ZIndex = 10000,
+            Visible = false,
+        })
+        Tooltip:AddToTheme({ BackgroundColor3 = "Background", BorderColor3 = "Border" })
+
+        local TooltipStroke = Instances:Create("UIStroke", {
+            Parent = Tooltip.Instance,
+            Name = "\0",
+            Color = Library.Theme.Outline,
+            Thickness = 1,
+            LineJoinMode = Enum.LineJoinMode.Miter,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+        TooltipStroke:AddToTheme({ Color = "Outline" })
+
+        Instances:Create("UIPadding", {
+            Parent = Tooltip.Instance,
+            Name = "\0",
+            PaddingTop = UDimNew(0, 4),
+            PaddingBottom = UDimNew(0, 4),
+            PaddingLeft = UDimNew(0, 6),
+            PaddingRight = UDimNew(0, 6),
+        })
+
+        local Label = Instances:Create("TextLabel", {
+            Parent = Tooltip.Instance,
+            Name = "\0",
+            FontFace = Library.Font,
+            TextColor3 = Library.Theme.Text,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Text = InfoStr or "",
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            AutomaticSize = Enum.AutomaticSize.XY,
+            ZIndex = 10001,
+        })
+        Label:AddToTheme({ TextColor3 = "Text" })
+        Label:TextBorder()
+
+        local AccentLine = Instances:Create("Frame", {
+            Parent = Tooltip.Instance,
+            Name = "\0",
+            AnchorPoint = Vector2New(0, 1),
+            Position = UDim2New(0, -6, 1, 4),
+            Size = UDim2New(0, 12, 0, 1),
+            BorderSizePixel = 0,
+            BackgroundColor3 = Library.Theme.Accent,
+            ZIndex = 10002,
+        })
+        AccentLine:AddToTheme({ BackgroundColor3 = "Accent" })
+
+        local TooltipTable = {
+            Tooltip = Tooltip,
+            Disabled = false,
+            Signals = {},
+        }
+        local IsHovering = false
+
+        local function UpdateText(Text)
+            if not Text or Text == "" then
+                return
+            end
+            Label.Instance.Text = Text
+        end
+
+        local function GiveSignal(Connection)
+            if Connection then
+                TableInsert(TooltipTable.Signals, Connection)
+            end
+            return Connection
+        end
+
+        UpdateText(InfoStr)
+
+        GiveSignal(HoverInstance.MouseEnter:Connect(function()
+            if Library:MouseIsOverOpenedFrame() then
+                Tooltip.Instance.Visible = false
+                return
+            end
+
+            local TextToShow
+            if not TooltipTable.Disabled then
+                if not InfoStr or InfoStr == "" then
+                    Tooltip.Instance.Visible = false
+                    return
+                end
+                TextToShow = InfoStr
+            else
+                if not DisabledInfoStr or DisabledInfoStr == "" then
+                    Tooltip.Instance.Visible = false
+                    return
+                end
+                TextToShow = DisabledInfoStr
+            end
+
+            if Label.Instance.Text ~= TextToShow then
+                UpdateText(TextToShow)
+            end
+
+            IsHovering = true
+            Tooltip.Instance.Position = UDim2New(0, Mouse.X + 15, 0, Mouse.Y + 18)
+            Tooltip.Instance.Visible = true
+
+            while IsHovering and Library do
+                if TooltipTable.Disabled and not DisabledInfoStr then
+                    break
+                end
+                RunService.Heartbeat:Wait()
+                Tooltip.Instance.Position = UDim2New(0, Mouse.X + 15, 0, Mouse.Y + 18)
+            end
+
+            IsHovering = false
+            if Tooltip and Tooltip.Instance then
+                Tooltip.Instance.Visible = false
+            end
+        end))
+
+        GiveSignal(HoverInstance.MouseLeave:Connect(function()
+            IsHovering = false
+            if Tooltip and Tooltip.Instance then
+                Tooltip.Instance.Visible = false
+            end
+        end))
+
+        function TooltipTable:SetDisabled(Bool)
+            self.Disabled = Bool == true
+        end
+
+        function TooltipTable:SetText(NewInfo, NewDisabledInfo)
+            if typeof(NewInfo) == "string" then
+                InfoStr = NewInfo
+            end
+            if typeof(NewDisabledInfo) == "string" then
+                DisabledInfoStr = NewDisabledInfo
+            end
+            if not self.Disabled then
+                UpdateText(InfoStr)
+            else
+                UpdateText(DisabledInfoStr)
+            end
+        end
+
+        function TooltipTable:Destroy()
+            for Idx = #TooltipTable.Signals, 1, -1 do
+                local Connection = TableRemove(TooltipTable.Signals, Idx)
+                if Connection and Connection.Connected then
+                    pcall(function() Connection:Disconnect() end)
+                end
+            end
+            if Tooltip then
+                Tooltip:Clean()
+            end
+        end
+
+        TableInsert(Library.Tooltips, TooltipTable)
+        return TooltipTable
     end
     Library.Lerp = LPH_NO_VIRTUALIZE(function(self, Start, Finish, Time)
         return Start + (Finish - Start) * Time
@@ -1659,6 +1850,9 @@ local Library do
             Library.SetFlags[Toggle.Flag] = function(Value)
                 Toggle:Set(Value)
             end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Toggle.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Toggle"])
+            end
             return Toggle, Items
         end
         Components.Button = function(self, Data)
@@ -1683,7 +1877,7 @@ local Library do
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
             end
-            function Button:Add(Name, Callback)
+            function Button:Add(Name, Callback, Tooltip)
                 local NewButton = { }
                 local SubItems = { } do
                     SubItems["NewButton"] = Instances:Create("TextButton", {
@@ -1764,6 +1958,9 @@ local Library do
                 SubItems["NewButton"]:Connect("MouseButton1Down", function()
                     NewButton:Press()
                 end)
+                if Tooltip then
+                    NewButton.Tooltip = Library:AddToolTip(Tooltip, nil, SubItems["NewButton"])
+                end
                 return NewButton
             end
             function Button:SetVisibility(Bool)
@@ -1920,6 +2117,9 @@ local Library do
             Library.SetFlags[Slider.Flag] = function(Value)
                 Slider:Set(Value)
             end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Slider.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Slider"])
+            end
             return Slider, Items
         end
         Components.Label = function(self, Data)
@@ -1979,6 +2179,9 @@ local Library do
             end
             function Label:SetVisibility(Bool)
                 Items["Label"].Instance.Visible = Bool
+            end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Label.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Label"])
             end
             return Label, Items
         end
@@ -2331,6 +2534,9 @@ local Library do
             end
             Library.SetFlags[Dropdown.Flag] = function(Value)
                 Dropdown:Set(Value)
+            end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Dropdown.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Dropdown"])
             end
             return Dropdown, Items
         end
@@ -3702,6 +3908,9 @@ local Library do
             Library.SetFlags[Keybind.Flag] = function(Value)
                 Keybind:Set(Value)
             end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Keybind.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["KeyButton"])
+            end
             return Keybind, Items
         end
         Components.Textbox = function(self, Data)
@@ -3821,6 +4030,9 @@ local Library do
             end
             Library.SetFlags[Textbox.Flag] = function(Value)
                 Textbox:Set(Value)
+            end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Textbox.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Textbox"])
             end
             return Textbox, Items
         end
@@ -4123,6 +4335,9 @@ local Library do
             end
             Library.SetFlags[Dropdown.Flag] = function(Value)
                 Dropdown:Set(Value)
+            end
+            if Data.Tooltip or Data.Info or Data.DisabledTooltip then
+                Dropdown.Tooltip = Library:AddToolTip(Data.Tooltip or Data.Info, Data.DisabledTooltip, Items["Listbox"])
             end
             return Dropdown, Items
         end
@@ -5033,7 +5248,9 @@ local Library do
             Name = Data.Name or Data.name or "Toggle",
             Flag = Data.Flag or Data.flag or Library:NextFlag(),
             Default = Data.Default or Data.default or false,
-            Callback = Data.Callback or Data.callback or function() end
+            Callback = Data.Callback or Data.callback or function() end,
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewToggle, ToggleItems = Components:Toggle({
             Name = Toggle.Name,
@@ -5041,7 +5258,9 @@ local Library do
             Flag = Toggle.Flag,
             Default = Toggle.Default,
             Page = Toggle.Page,
-            Callback = Toggle.Callback
+            Callback = Toggle.Callback,
+            Tooltip = Toggle.Tooltip,
+            DisabledTooltip = Toggle.DisabledTooltip,
         })
         function NewToggle:Colorpicker(Data)
             local Colorpicker = {
@@ -5075,6 +5294,8 @@ local Library do
                 Default = Data.Default or Data.default or Enum.KeyCode.RightShift,
                 Callback = Data.Callback or Data.callback or function() end,
                 Mode = Data.Mode or Data.mode or "Toggle",
+                Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+                DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
             }
             local NewKeybind, KeybindItems = Components:Keybind({
                 Name = Toggle.Name,
@@ -5083,7 +5304,9 @@ local Library do
                 Flag = Keybind.Flag,
                 Default = Keybind.Default,
                 Mode = Keybind.Mode,
-                Callback = Keybind.Callback
+                Callback = Keybind.Callback,
+                Tooltip = Keybind.Tooltip,
+                DisabledTooltip = Keybind.DisabledTooltip,
             })
             return NewKeybind
         end
@@ -5115,6 +5338,8 @@ local Library do
             Max = Data.Max or Data.max or 100,
             Default = Data.Default or Data.Default or 0,
             Callback = Data.Callback or Data.callback or function() end,
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewSlider, SliderItems = Components:Slider({
             Name = Slider.Name,
@@ -5127,6 +5352,8 @@ local Library do
             Max = Slider.Max,
             Default = Slider.Default,
             Callback = Slider.Callback,
+            Tooltip = Slider.Tooltip,
+            DisabledTooltip = Slider.DisabledTooltip,
         })
         local PageSearchData = Library.SearchItems[Slider.Page]
         if PageSearchData then
@@ -5149,7 +5376,9 @@ local Library do
             Items = Data.Items or Data.items or { },
             Default = Data.Default or Data.default or nil,
             Multi = Data.Multi or Data.multi or false,
-            Callback = Data.Callback or Data.callback or function() end
+            Callback = Data.Callback or Data.callback or function() end,
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewDropdown, DropdownItems = Components:Dropdown({
             Name = Dropdown.Name,
@@ -5160,6 +5389,8 @@ local Library do
             Default = Dropdown.Default,
             Multi = Dropdown.Multi,
             Callback = Dropdown.Callback,
+            Tooltip = Dropdown.Tooltip,
+            DisabledTooltip = Dropdown.DisabledTooltip,
         })
         local PageSearchData = Library.SearchItems[Dropdown.Page]
         if PageSearchData then
@@ -5172,16 +5403,21 @@ local Library do
         return NewDropdown
     end
     Library.Sections.Label = function(self, Name)
+        local Data = type(Name) == "table" and Name or { Name = Name }
         local Label = {
             Window = self.Window,
             Page = self.Page,
             Section = self,
-            Name = Name or "Label"
+            Name = Data.Name or Data.name or "Label",
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewLabel, LabelItems = Components:Label({
             Name = Label.Name,
             Parent = Label.Section.Items["Content"],
             Page = Label.Page,
+            Tooltip = Label.Tooltip,
+            DisabledTooltip = Label.DisabledTooltip,
         })
         function NewLabel:Colorpicker(Data)
             Data = Data or { }
@@ -5216,6 +5452,8 @@ local Library do
                 Default = Data.Default or Data.default or Enum.KeyCode.RightShift,
                 Callback = Data.Callback or Data.callback or function() end,
                 Mode = Data.Mode or Data.mode or "Toggle",
+                Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+                DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
             }
             local NewKeybind, KeybindItems = Components:Keybind({
                 Name = Label.Name,
@@ -5224,7 +5462,9 @@ local Library do
                 Flag = Keybind.Flag,
                 Default = Keybind.Default,
                 Mode = Keybind.Mode,
-                Callback = Keybind.Callback
+                Callback = Keybind.Callback,
+                Tooltip = Keybind.Tooltip,
+                DisabledTooltip = Keybind.DisabledTooltip,
             })
             return NewKeybind
         end
@@ -5251,6 +5491,8 @@ local Library do
             Finished = Data.Finished or Data.finished or false,
             Placeholder = Data.Placeholder or Data.placeholder or "...",
             Callback = Data.Callback or Data.callback or function() end,
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewTextbox, TextboxItems = Components:Textbox({
             Name = Textbox.Name,
@@ -5262,6 +5504,8 @@ local Library do
             Numeric = Textbox.Numeric,
             Finished = Textbox.Finished,
             Callback = Textbox.Callback,
+            Tooltip = Textbox.Tooltip,
+            DisabledTooltip = Textbox.DisabledTooltip,
         })
         local PageSearchData = Library.SearchItems[Textbox.Page]
         if PageSearchData then
@@ -5284,7 +5528,9 @@ local Library do
             Items = Data.Items or Data.items or { },
             Default = Data.Default or Data.default or nil,
             Multi = Data.Multi or Data.multi or false,
-            Callback = Data.Callback or Data.callback or function() end
+            Callback = Data.Callback or Data.callback or function() end,
+            Tooltip = Data.Tooltip or Data.tooltip or Data.Info or Data.info,
+            DisabledTooltip = Data.DisabledTooltip or Data.disabledtooltip,
         }
         local NewSearchbox, SearchboxItems = Components:Searchbox({
             Parent = Searchbox.Section.Items["Content"],
@@ -5294,6 +5540,8 @@ local Library do
             Default = Searchbox.Default,
             Multi = Searchbox.Multi,
             Callback = Searchbox.Callback,
+            Tooltip = Searchbox.Tooltip,
+            DisabledTooltip = Searchbox.DisabledTooltip,
         })
         local PageSearchData = Library.SearchItems[Searchbox.Page]
         if PageSearchData then
