@@ -98,28 +98,7 @@ local Library = {
 		Flags = {
 			Enabled = true,
 			Size = 13,
-			List = {
-				Walking = {
-					Enabled = true,
-					Text = "Walking",
-					Color = Color3.fromRGB(255, 255, 100),
-				},
-				Jumping = {
-					Enabled = true,
-					Text = "Jumping",
-					Color = Color3.fromRGB(100, 200, 255),
-				},
-				ForceField = {
-					Enabled = true,
-					Text = "FF",
-					Color = Color3.fromRGB(100, 255, 200),
-				},
-				Visible = {
-					Enabled = false,
-					Text = "Visible",
-					Color = Color3.fromRGB(0, 255, 0),
-				},
-			},
+			List = {},
 		},
 		Chams = {
 			Enabled = true,
@@ -563,65 +542,21 @@ function Library:CollectFlags(Player, Data)
 	if not FlagsCfg or not FlagsCfg.Enabled then
 		return result
 	end
-	if Table.CustomData and type(Table.CustomData.GetFlags) == "function" then
-		local ok, flags = pcall(Table.CustomData.GetFlags, Player, Data.Character)
-		if ok and type(flags) == "table" then
-			for name, active in pairs(flags) do
-				local cfg = FlagsCfg.List[name]
-				if active and cfg and cfg.Enabled then
-					result[#result + 1] = {
-						Text = cfg.Text or name,
-						Color = cfg.Color or Color3.fromRGB(255, 255, 255),
-					}
-				end
-			end
-			return result
-		end
-	end
-	local Char = Data.Character
-	local Hum = Data.Humanoid
-	if not Char or not Hum then
+	if not Table.CustomData or type(Table.CustomData.GetFlags) ~= "function" then
 		return result
 	end
-	local list = FlagsCfg.List
-	if list.Walking and list.Walking.Enabled then
-		if Hum.MoveDirection.Magnitude > 0.1 then
+	local ok, flags = pcall(Table.CustomData.GetFlags, Player, Data.Character)
+	if not ok or type(flags) ~= "table" then
+		return result
+	end
+	for name, active in pairs(flags) do
+		if active then
+			local cfg = FlagsCfg.List[name]
 			result[#result + 1] = {
-				Text = list.Walking.Text or "Walking",
-				Color = list.Walking.Color or Color3.fromRGB(255, 255, 100),
+				Text = (cfg and cfg.Text) or tostring(name),
+				Color = (cfg and cfg.Color) or Color3.fromRGB(255, 255, 255),
 			}
 		end
-	end
-	if list.Jumping and list.Jumping.Enabled then
-		local state = Hum:GetState()
-		if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall then
-			result[#result + 1] = {
-				Text = list.Jumping.Text or "Jumping",
-				Color = list.Jumping.Color or Color3.fromRGB(100, 200, 255),
-			}
-		end
-	end
-	if list.ForceField and list.ForceField.Enabled then
-		if Char:FindFirstChildOfClass("ForceField") then
-			result[#result + 1] = {
-				Text = list.ForceField.Text or "FF",
-				Color = list.ForceField.Color or Color3.fromRGB(100, 255, 200),
-			}
-		end
-	end
-	if list.Visible and list.Visible.Enabled and Data.RootPart then
-		local origin = Camera.CFrame.Position
-		local target = Data.RootPart.Position
-		local dir = target - origin
-		local rayParams = RaycastParams.new()
-		rayParams.FilterType = Enum.RaycastFilterType.Exclude
-		rayParams.FilterDescendantsInstances = {LocalPlayer.Character, Char}
-		local hit = Workspace:Raycast(origin, dir, rayParams)
-		local isVisible = not hit
-		result[#result + 1] = {
-			Text = isVisible and (list.Visible.Text or "Visible") or "Not Visible",
-			Color = isVisible and (list.Visible.Color or Color3.fromRGB(0, 255, 0)) or Color3.fromRGB(255, 80, 80),
-		}
 	end
 	return result
 end
