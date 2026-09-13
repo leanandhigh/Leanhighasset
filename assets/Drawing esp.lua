@@ -18,21 +18,10 @@ local function WorldToViewportPoint(a, b)
 	return cam:WorldToViewportPoint(worldPos)
 end
 local Frame, ZeroVector3, CameraPosition, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0
-local MathConfig = {
-	textYOffset = 2,
-	headPositionOffset = Vector3.new(0, 1, 0),
-	legPositionOffset = Vector3.new(0, -3.5, 0),
-	leftArmOffset = CFrame.new(-1.5, 0, 0),
-	rightArmOffset = CFrame.new(1.5, 0, 0),
-	dynamicXSize = false,
-}
 local function CameraCache()
 	local cam = Workspace.CurrentCamera
 	if not cam then return end
 	Camera = cam
-end
-local function calculateXSize(armScreenPositionX, baseScreenPositionX, distanceFromCamera, fieldOfView)
-	return math.max(math.abs(armScreenPositionX - baseScreenPositionX) * 3, (500 / math.max(distanceFromCamera, 1)) / ((fieldOfView or 70) / 70))
 end
 CameraCache()
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
@@ -107,9 +96,30 @@ local Library = {
 			},
 		},
 		Flags = {
-			Enabled = false,
+			Enabled = true,
 			Size = 13,
-			List = {},
+			List = {
+				Walking = {
+					Enabled = true,
+					Text = "Walking",
+					Color = Color3.fromRGB(255, 255, 100),
+				},
+				Jumping = {
+					Enabled = true,
+					Text = "Jumping",
+					Color = Color3.fromRGB(100, 200, 255),
+				},
+				ForceField = {
+					Enabled = true,
+					Text = "FF",
+					Color = Color3.fromRGB(100, 255, 200),
+				},
+				Visible = {
+					Enabled = false,
+					Text = "Visible",
+					Color = Color3.fromRGB(0, 255, 0),
+				},
+			},
 		},
 		Chams = {
 			Enabled = true,
@@ -480,44 +490,57 @@ end
 function Library:CalculateBox(Data)
 	local RootPart = Data.RootPart
 	local Character = Data.Character
-	if not RootPart then
+	if not RootPart or not Character then
 		return nil, nil, nil, nil, false
 	end
 	local cam = Camera or Workspace.CurrentCamera
 	if not cam then
 		return nil, nil, nil, nil, false
 	end
-	local rootPosition = RootPart.Position
-	local rootCFrame = RootPart.CFrame
-	local head = Character and Character:FindFirstChild("Head")
-	local headWorld = (head and head.Position or rootPosition) + MathConfig.headPositionOffset
-	local legWorld = rootPosition + MathConfig.legPositionOffset
-	local headScreen, onScreen = WorldToViewportPoint(cam, headWorld)
-	if not onScreen or headScreen.Z <= 0 then
+	local parts = GetBodyParts(Character)
+	if #parts == 0 then
 		return nil, nil, nil, nil, false
 	end
-	local legScreen = WorldToViewportPoint(cam, legWorld)
-	local camCFrame = cam.CFrame
-	local fov = cam.FieldOfView
-	local distanceFromCamera = (camCFrame.Position - rootPosition).Magnitude
-	local baseCFrame = (MathConfig.dynamicXSize and rootCFrame) or CFrame.lookAt(rootPosition, camCFrame.Position)
-	local leftArmWorld = (baseCFrame * MathConfig.leftArmOffset).Position
-	local armScreen = WorldToViewportPoint(cam, leftArmWorld)
-	local headV = NewVector2(headScreen.X, headScreen.Y)
-	local legV = NewVector2(legScreen.X, legScreen.Y)
-	local baseScreen = headV + ((legV - headV) / 2)
-	local width = math.max(calculateXSize(armScreen.X, baseScreen.X, distanceFromCamera, fov), 3)
-	local rawHeight = headV.Y - legV.Y
-	local height = math.abs(rawHeight)
-	if height < 4 then height = 4 end
+	local minX, minY = Huge, Huge
+	local maxX, maxY = -Huge, -Huge
+	local anyOnScreen = false
+	for _, part in ipairs(parts) do
+		local cf = part.CFrame
+		local size = part.Size
+		local half = size * 0.5
+		local corners = {
+			cf * NewVector3( half.X,  half.Y,  half.Z),
+			cf * NewVector3( half.X,  half.Y, -half.Z),
+			cf * NewVector3( half.X, -half.Y,  half.Z),
+			cf * NewVector3( half.X, -half.Y, -half.Z),
+			cf * NewVector3(-half.X,  half.Y,  half.Z),
+			cf * NewVector3(-half.X,  half.Y, -half.Z),
+			cf * NewVector3(-half.X, -half.Y,  half.Z),
+			cf * NewVector3(-half.X, -half.Y, -half.Z),
+		}
+		for i = 1, 8 do
+			local screen, onScreen = WorldToViewportPoint(cam, corners[i])
+			if onScreen and screen.Z > 0 then
+				anyOnScreen = true
+				if screen.X < minX then minX = screen.X end
+				if screen.Y < minY then minY = screen.Y end
+				if screen.X > maxX then maxX = screen.X end
+				if screen.Y > maxY then maxY = screen.Y end
+			end
+		end
+	end
+	if not anyOnScreen then
+		return nil, nil, nil, nil, false
+	end
 	local BoundingBox = Table.Boxes["Bounding Box"]
 	local PadX = (BoundingBox and BoundingBox.BoxX) or 0
 	local PadY = (BoundingBox and BoundingBox.BoxY) or 0
-	local W = width + PadX
-	local H = height + PadY
-	local topY = math.min(headV.Y, legV.Y)
-	local X = baseScreen.X - W * 0.5
-	local Y = topY
+	local W = (maxX - minX) + PadX
+	local H = (maxY - minY) + PadY
+	if W < 4 then W = 4 end
+	if H < 6 then H = 6 end
+	local X = minX - PadX * 0.5
+	local Y = minY - PadY * 0.5
 	return W, H, X, Y, true
 end
 local function lerpColor(a, b, t)
@@ -535,7 +558,72 @@ local function healthColor(ratio, cfg)
 	return lerpColor(cfg.Bot, cfg.Mid, ratio * 2)
 end
 function Library:CollectFlags(Player, Data)
-	return {}
+	local result = {}
+	local FlagsCfg = Table.Flags
+	if not FlagsCfg or not FlagsCfg.Enabled then
+		return result
+	end
+	if Table.CustomData and type(Table.CustomData.GetFlags) == "function" then
+		local ok, flags = pcall(Table.CustomData.GetFlags, Player, Data.Character)
+		if ok and type(flags) == "table" then
+			for name, active in pairs(flags) do
+				local cfg = FlagsCfg.List[name]
+				if active and cfg and cfg.Enabled then
+					result[#result + 1] = {
+						Text = cfg.Text or name,
+						Color = cfg.Color or Color3.fromRGB(255, 255, 255),
+					}
+				end
+			end
+			return result
+		end
+	end
+	local Char = Data.Character
+	local Hum = Data.Humanoid
+	if not Char or not Hum then
+		return result
+	end
+	local list = FlagsCfg.List
+	if list.Walking and list.Walking.Enabled then
+		if Hum.MoveDirection.Magnitude > 0.1 then
+			result[#result + 1] = {
+				Text = list.Walking.Text or "Walking",
+				Color = list.Walking.Color or Color3.fromRGB(255, 255, 100),
+			}
+		end
+	end
+	if list.Jumping and list.Jumping.Enabled then
+		local state = Hum:GetState()
+		if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall then
+			result[#result + 1] = {
+				Text = list.Jumping.Text or "Jumping",
+				Color = list.Jumping.Color or Color3.fromRGB(100, 200, 255),
+			}
+		end
+	end
+	if list.ForceField and list.ForceField.Enabled then
+		if Char:FindFirstChildOfClass("ForceField") then
+			result[#result + 1] = {
+				Text = list.ForceField.Text or "FF",
+				Color = list.ForceField.Color or Color3.fromRGB(100, 255, 200),
+			}
+		end
+	end
+	if list.Visible and list.Visible.Enabled and Data.RootPart then
+		local origin = Camera.CFrame.Position
+		local target = Data.RootPart.Position
+		local dir = target - origin
+		local rayParams = RaycastParams.new()
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		rayParams.FilterDescendantsInstances = {LocalPlayer.Character, Char}
+		local hit = Workspace:Raycast(origin, dir, rayParams)
+		local isVisible = not hit
+		result[#result + 1] = {
+			Text = isVisible and (list.Visible.Text or "Visible") or "Not Visible",
+			Color = isVisible and (list.Visible.Color or Color3.fromRGB(0, 255, 0)) or Color3.fromRGB(255, 80, 80),
+		}
+	end
+	return result
 end
 function Library:Update(Player, Data)
 	local Objects = Data.Objects
