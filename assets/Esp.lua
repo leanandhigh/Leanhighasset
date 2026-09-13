@@ -26,6 +26,25 @@ end
 local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, table.clear, math.floor, math.clamp, math.abs, math.tan, math.rad, math.huge, table.remove
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
 
+local function toColor3(c)
+    if typeof(c) == "Color3" then
+        return c
+    end
+    if type(c) == "table" then
+        if c.R and c.G and c.B then
+            return Color3.new(c.R, c.G, c.B)
+        end
+        if c[1] and c[2] and c[3] then
+            local r, g, b = c[1], c[2], c[3]
+            if r > 1 or g > 1 or b > 1 then
+                return Color3.fromRGB(r, g, b)
+            end
+            return Color3.new(r, g, b)
+        end
+    end
+    return Color3.fromRGB(255, 255, 255)
+end
+
 local MathConfig = {
     textYOffset = 2,
     headPositionOffset = Vector3.new(0, 1, 0),
@@ -370,7 +389,7 @@ function Library:BuildChamsForPlayer(Player)
             adorn.ZIndex = IsOutline and -1 or 1
             adorn.Transparency = IsOutline and S.OutlineTransparency or S.FillTransparency
             adorn.AdornCullingMode = Enum.AdornCullingMode.Never
-            adorn.Color3 = IsOutline and S.OutlineColor or S.FillColor
+            adorn.Color3 = toColor3(IsOutline and S.OutlineColor or S.FillColor)
             adorn.Shading = IsOutline and (S.ShadingOutline or Enum.AdornShading.Default) or (S.Shading or Enum.AdornShading.Default)
             adorn.Visible = false
             adorn.Parent = self.ChamsFolder
@@ -431,10 +450,10 @@ function Library:UpdateChams(Player, Data)
         adorn.Visible = true
         adorn.Shading = IsOutline and (S.ShadingOutline or Enum.AdornShading.Default) or (S.Shading or Enum.AdornShading.Default)
         if IsOutline then
-            adorn.Color3 = S.OutlineColor
+            adorn.Color3 = toColor3(S.OutlineColor)
             adorn.Transparency = S.OutlineTransparency
         else
-            adorn.Color3 = S.FillColor
+            adorn.Color3 = toColor3(S.FillColor)
             adorn.Transparency = S.FillTransparency
         end
     end
@@ -535,7 +554,7 @@ function Library:InitEsp(Data)
         Visible = false,
         Filled = true,
         Thickness = 1,
-        Color = Table.OOV.Color,
+        Color = toColor3(Table.OOV.Color),
         Transparency = 1,
         ZIndex = 3,
     })
@@ -553,7 +572,7 @@ function Library:InitEsp(Data)
         Visible = false,
         Filled = true,
         Thickness = 1,
-        Color = Table.OOV.Color,
+        Color = toColor3(Table.OOV.Color),
         Transparency = 1,
         ZIndex = 3,
     })
@@ -571,7 +590,7 @@ function Library:InitEsp(Data)
         Parent = self.Holder,
         FontFace = Library.TahomaBold,
         TextSize = 11,
-        TextColor3 = Table.OOV.Color,
+        TextColor3 = toColor3(Table.OOV.Color),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Center,
         TextYAlignment = Enum.TextYAlignment.Bottom,
@@ -592,7 +611,7 @@ function Library:InitEsp(Data)
         Parent = self.Holder,
         FontFace = Library.SmallestPixel,
         TextSize = 10,
-        TextColor3 = Table.OOV.Color,
+        TextColor3 = toColor3(Table.OOV.Color),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Center,
         TextYAlignment = Enum.TextYAlignment.Top,
@@ -613,7 +632,7 @@ function Library:InitEsp(Data)
         Parent = self.Holder,
         FontFace = Library.SmallestPixel,
         TextSize = 10,
-        TextColor3 = Table.OOV.Color,
+        TextColor3 = toColor3(Table.OOV.Color),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Center,
         TextYAlignment = Enum.TextYAlignment.Top,
@@ -659,9 +678,9 @@ function Library:InitEsp(Data)
         Parent = Objects.OOVHealthBar,
         Rotation = 90,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Table.Bars["Health Bar"].Top),
-            ColorSequenceKeypoint.new(0.5, Table.Bars["Health Bar"].Mid),
-            ColorSequenceKeypoint.new(1, Table.Bars["Health Bar"].Bot),
+            ColorSequenceKeypoint.new(0, toColor3(Table.Bars["Health Bar"].Top)),
+            ColorSequenceKeypoint.new(0.5, toColor3(Table.Bars["Health Bar"].Mid)),
+            ColorSequenceKeypoint.new(1, toColor3(Table.Bars["Health Bar"].Bot)),
         }),
     })
 
@@ -714,7 +733,7 @@ function Library:InitEsp(Data)
             Line = CreateDrawing("Line", {
                 Visible = false,
                 Thickness = Table.Skeleton.Thickness,
-                Color = Table.Skeleton.Color,
+                Color = toColor3(Table.Skeleton.Color),
                 Transparency = 1 - Table.Skeleton.Transparency,
                 ZIndex = 1,
             }),
@@ -1009,9 +1028,9 @@ function Library:InitEsp(Data)
         Parent = Objects.HealthBar,
         Rotation = 90,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Table.Bars["Health Bar"].Top),
-            ColorSequenceKeypoint.new(0.5, Table.Bars["Health Bar"].Mid),
-            ColorSequenceKeypoint.new(1, Table.Bars["Health Bar"].Bot),
+            ColorSequenceKeypoint.new(0, toColor3(Table.Bars["Health Bar"].Top)),
+            ColorSequenceKeypoint.new(0.5, toColor3(Table.Bars["Health Bar"].Mid)),
+            ColorSequenceKeypoint.new(1, toColor3(Table.Bars["Health Bar"].Bot)),
         }),
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
@@ -1064,9 +1083,9 @@ function Library:InitEsp(Data)
         Parent = Objects.ArmorBar,
         Rotation = 0,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Table.Bars["Armor Bar"].Top),
-            ColorSequenceKeypoint.new(0.5, Table.Bars["Armor Bar"].Mid),
-            ColorSequenceKeypoint.new(1, Table.Bars["Armor Bar"].Bot),
+            ColorSequenceKeypoint.new(0, toColor3(Table.Bars["Armor Bar"].Top)),
+            ColorSequenceKeypoint.new(0.5, toColor3(Table.Bars["Armor Bar"].Mid)),
+            ColorSequenceKeypoint.new(1, toColor3(Table.Bars["Armor Bar"].Bot)),
         }),
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
@@ -1096,7 +1115,7 @@ function Library:InitEsp(Data)
         FontFace = Library.TahomaBold,
         TextSize = 12,
         LayoutOrder = 2,
-        TextColor3 = Table.Texts.Name.Color,
+        TextColor3 = toColor3(Table.Texts.Name.Color),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Center,
         BorderSizePixel = 0,
@@ -1116,7 +1135,7 @@ function Library:InitEsp(Data)
         FontFace = Library.SmallestPixel,
         TextSize = 9,
         LayoutOrder = 2,
-        TextColor3 = Table.Texts.Distance.Color,
+        TextColor3 = toColor3(Table.Texts.Distance.Color),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Center,
         BorderSizePixel = 0,
@@ -1136,7 +1155,7 @@ function Library:InitEsp(Data)
         FontFace = Library.SmallestPixel,
         TextSize = 9,
         LayoutOrder = 3,
-        TextColor3 = Table.Texts.Weapon.Color,
+        TextColor3 = toColor3(Table.Texts.Weapon.Color),
         Text = "none",
         TextXAlignment = Enum.TextXAlignment.Center,
         BorderSizePixel = 0,
@@ -1173,7 +1192,7 @@ function Library:UpdateFlagVisibility(Data)
                 FontFace = Library.SmallestPixel,
                 TextSize = 9,
                 LayoutOrder = 10,
-                TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255),
+                TextColor3 = toColor3(flagConfig.Color or Color3.fromRGB(255, 255, 255)),
                 Text = flagConfig.Text or flagName,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 BorderSizePixel = 0,
@@ -1199,7 +1218,7 @@ function Library:UpdateFlagVisibility(Data)
 
             if flagConfig and flagConfig.Enabled and isActive then
                 flagObj.Text = flagConfig.Text or flagName
-                flagObj.TextColor3 = flagConfig.Color or Color3.fromRGB(255, 255, 255)
+                flagObj.TextColor3 = toColor3(flagConfig.Color or Color3.fromRGB(255, 255, 255))
                 flagObj.LayoutOrder = order
                 flagObj.Visible = true
                 order = order + 1
@@ -1222,64 +1241,59 @@ function Library:CalculateBox(Data)
         return nil, nil, nil, nil, false
     end
 
-    local head = Character:FindFirstChild("Head")
-    if not head then
+    local parts = GetBodyParts(Character)
+    if #parts == 0 then
         return nil, nil, nil, nil, false
     end
 
-    local lowestY = RootPart.Position.Y
-    local lowestPart = RootPart
+    local minX, minY = Huge, Huge
+    local maxX, maxY = -Huge, -Huge
+    local anyOnScreen = false
 
-    for _, part in ipairs(GetBodyParts(Character)) do
-        if part.Position.Y < lowestY then
-            lowestY = part.Position.Y
-            lowestPart = part
+    for _, part in ipairs(parts) do
+        local cf = part.CFrame
+        local size = part.Size
+        local half = size * 0.5
+
+        local corners = {
+            cf * NewVector3( half.X,  half.Y,  half.Z),
+            cf * NewVector3( half.X,  half.Y, -half.Z),
+            cf * NewVector3( half.X, -half.Y,  half.Z),
+            cf * NewVector3( half.X, -half.Y, -half.Z),
+            cf * NewVector3(-half.X,  half.Y,  half.Z),
+            cf * NewVector3(-half.X,  half.Y, -half.Z),
+            cf * NewVector3(-half.X, -half.Y,  half.Z),
+            cf * NewVector3(-half.X, -half.Y, -half.Z),
+        }
+
+        for i = 1, 8 do
+            local screen, onScreen = WorldToViewportPoint(cam, corners[i])
+            if onScreen and screen.Z > 0 then
+                anyOnScreen = true
+                if screen.X < minX then minX = screen.X end
+                if screen.Y < minY then minY = screen.Y end
+                if screen.X > maxX then maxX = screen.X end
+                if screen.Y > maxY then maxY = screen.Y end
+            end
         end
     end
 
-    local headWorld = head.Position + Vector3.new(0, head.Size.Y * 0.5 + 0.15, 0)
-    local legWorld  = lowestPart.Position - Vector3.new(0, lowestPart.Size.Y * 0.5 + 0.1, 0)
-
-    local headScreen, onScreen = WorldToViewportPoint(cam, headWorld)
-    if not onScreen or headScreen.Z <= 0 then
+    if not anyOnScreen then
         return nil, nil, nil, nil, false
-    end
-
-    local legScreen = WorldToViewportPoint(cam, legWorld)
-
-    local headV = NewVector2(headScreen.X, headScreen.Y)
-    local legV  = NewVector2(legScreen.X, legScreen.Y)
-
-    local height = math.abs(headV.Y - legV.Y)
-    if height < 6 then height = 6 end
-
-    local distanceFromCamera = (cam.CFrame.Position - RootPart.Position).Magnitude
-    local fov = cam.FieldOfView
-
-    local leftArm = Character:FindFirstChild("LeftUpperArm") or Character:FindFirstChild("Left Arm")
-    local rightArm = Character:FindFirstChild("RightUpperArm") or Character:FindFirstChild("Right Arm")
-
-    local width
-    if leftArm and rightArm then
-        local leftScreen = WorldToViewportPoint(cam, leftArm.Position)
-        local rightScreen = WorldToViewportPoint(cam, rightArm.Position)
-        width = math.max(math.abs(leftScreen.X - rightScreen.X) * 1.35, 8)
-    else
-        width = math.max((500 / math.max(distanceFromCamera, 1)) / ((fov or 70) / 70), 8)
     end
 
     local BoundingBox = Table.Boxes["Bounding Box"]
     local PadX = (BoundingBox and BoundingBox.BoxX) or 0
     local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-    local W = width + PadX
-    local H = height + PadY
+    local W = (maxX - minX) + PadX
+    local H = (maxY - minY) + PadY
 
-    local centerX = (headV.X + legV.X) * 0.5
-    local topY = math.min(headV.Y, legV.Y)
+    if W < 4 then W = 4 end
+    if H < 6 then H = 6 end
 
-    local X = centerX - W * 0.5
-    local Y = topY
+    local X = minX - PadX * 0.5
+    local Y = minY - PadY * 0.5
 
     return W, H, X, Y, true
 end
@@ -1748,7 +1762,8 @@ function Library:Update(Player, Data)
             Quad.PointC = PointTail
             Quad.PointD = PointR
             Quad.Filled = true
-            Quad.Color = OOV.Color
+            local oovColor = toColor3(OOV.Color)
+            Quad.Color = oovColor
             Quad.Transparency = Alpha
             Quad.Visible = true
 
@@ -1760,7 +1775,7 @@ function Library:Update(Player, Data)
                 Objects.OOVName.FontFace = Library.TahomaBold
                 Objects.OOVName.TextSize = 11
                 Objects.OOVName.Text = NameText
-                Objects.OOVName.TextColor3 = OOV.Color
+                Objects.OOVName.TextColor3 = oovColor
                 Objects.OOVName.TextTransparency = 1 - Alpha
                 Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size * 0.62 - 2)
                 Objects.OOVName.Visible = true
@@ -1773,7 +1788,7 @@ function Library:Update(Player, Data)
             if OOV.ShowDistance then
                 Objects.OOVDistance.TextSize = 9
                 Objects.OOVDistance.Text = Format("%dst", Distance)
-                Objects.OOVDistance.TextColor3 = OOV.Color
+                Objects.OOVDistance.TextColor3 = oovColor
                 Objects.OOVDistance.TextTransparency = 1 - Alpha
                 Objects.OOVDistance.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVDistance.Visible = true
@@ -1785,7 +1800,7 @@ function Library:Update(Player, Data)
             if OOV.ShowWeapon then
                 Objects.OOVWeapon.TextSize = 9
                 Objects.OOVWeapon.Text = Data.CurrentTool or "none"
-                Objects.OOVWeapon.TextColor3 = OOV.Color
+                Objects.OOVWeapon.TextColor3 = oovColor
                 Objects.OOVWeapon.TextTransparency = 1 - Alpha
                 Objects.OOVWeapon.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVWeapon.Visible = true
@@ -1808,9 +1823,9 @@ function Library:Update(Player, Data)
                 Objects.OOVHealthBar.Size = Dim2(1, 0, Ratio, 0)
                 Objects.OOVHealthBar.BackgroundTransparency = 1 - Alpha
                 Objects.OOVHealthGradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Table.Bars["Health Bar"].Top),
-                    ColorSequenceKeypoint.new(0.5, Table.Bars["Health Bar"].Mid),
-                    ColorSequenceKeypoint.new(1, Table.Bars["Health Bar"].Bot),
+                    ColorSequenceKeypoint.new(0, toColor3(Table.Bars["Health Bar"].Top)),
+                    ColorSequenceKeypoint.new(0.5, toColor3(Table.Bars["Health Bar"].Mid)),
+                    ColorSequenceKeypoint.new(1, toColor3(Table.Bars["Health Bar"].Bot)),
                 })
                 Objects.OOVHealthOutline.Visible = true
 
@@ -1899,8 +1914,8 @@ function Library:Update(Player, Data)
             if Objects.BoxGlow.ImageTransparency ~= 0 then
                 Objects.BoxGlow.ImageTransparency = 0
             end
-            local GlowTop = BoxesCfg["Box Glow"].Top
-            local GlowBot = BoxesCfg["Box Glow"].Bot
+            local GlowTop = toColor3(BoxesCfg["Box Glow"].Top)
+            local GlowBot = toColor3(BoxesCfg["Box Glow"].Bot)
             if Data.LastGlowTop ~= GlowTop or Data.LastGlowBot ~= GlowBot then
                 Objects.BoxGlowGradient.Color = ColorSequence.new({
                     ColorSequenceKeypoint.new(0, GlowTop),
@@ -1929,8 +1944,8 @@ function Library:Update(Player, Data)
             Objects.BoxInlineHolder.Visible = true
         end
 
-        local GradTop = BoxesCfg.Gradients.Top
-        local GradBot = BoxesCfg.Gradients.Bot
+        local GradTop = toColor3(BoxesCfg.Gradients.Top)
+        local GradBot = toColor3(BoxesCfg.Gradients.Bot)
         if Data.LastGradTop ~= GradTop or Data.LastGradBot ~= GradBot then
             Objects.BoxInlineGradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, GradTop),
@@ -1944,8 +1959,8 @@ function Library:Update(Player, Data)
             if not Objects.BoxFill.Visible then
                 Objects.BoxFill.Visible = true
             end
-            local FillTop = BoxesCfg.Filled.Top
-            local FillBot = BoxesCfg.Filled.Bot
+            local FillTop = toColor3(BoxesCfg.Filled.Top)
+            local FillBot = toColor3(BoxesCfg.Filled.Bot)
             local FillT1 = BoxesCfg.Filled.Transparency[1]
             local FillT2 = BoxesCfg.Filled.Transparency[2]
             if Data.LastFillTop ~= FillTop or Data.LastFillBot ~= FillBot then
@@ -1990,7 +2005,7 @@ function Library:Update(Player, Data)
             Objects.TargetName.Text = NameText
             Data.LastDisplayName = NameText
         end
-        local NameColor = TextsCfg.Name.Color
+        local NameColor = toColor3(TextsCfg.Name.Color)
         if Data.LastNameColor ~= NameColor then
             Objects.TargetName.TextColor3 = NameColor
             Data.LastNameColor = NameColor
@@ -2009,7 +2024,7 @@ function Library:Update(Player, Data)
             Objects.Distance.Text = Format("%dst", Distance)
             Data.LastDist = Distance
         end
-        local DistColor = TextsCfg.Distance.Color
+        local DistColor = toColor3(TextsCfg.Distance.Color)
         if Data.LastDistColor ~= DistColor then
             Objects.Distance.TextColor3 = DistColor
             Data.LastDistColor = DistColor
@@ -2039,9 +2054,9 @@ function Library:Update(Player, Data)
             Data.LastRatio = Ratio
         end
 
-        local GradTop = HealthCfg.Top
-        local GradMid = HealthCfg.Mid
-        local GradBot = HealthCfg.Bot
+        local GradTop = toColor3(HealthCfg.Top)
+        local GradMid = toColor3(HealthCfg.Mid)
+        local GradBot = toColor3(HealthCfg.Bot)
         if Data.LastHealthTop ~= GradTop or Data.LastHealthMid ~= GradMid or Data.LastHealthBot ~= GradBot then
             Objects.HealthBarGradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, GradTop),
@@ -2093,9 +2108,9 @@ function Library:Update(Player, Data)
             Data.LastArmorRatio = Ratio
         end
 
-        local GradTop = ArmorCfg.Top
-        local GradMid = ArmorCfg.Mid
-        local GradBot = ArmorCfg.Bot
+        local GradTop = toColor3(ArmorCfg.Top)
+        local GradMid = toColor3(ArmorCfg.Mid)
+        local GradBot = toColor3(ArmorCfg.Bot)
         if Data.LastArmorTop ~= GradTop or Data.LastArmorMid ~= GradMid or Data.LastArmorBot ~= GradBot then
             Objects.ArmorBarGradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, GradTop),
@@ -2145,7 +2160,7 @@ function Library:Update(Player, Data)
             Objects.Weapon.Text = CurrentTool
             Data.LastWeapon = CurrentTool
         end
-        local WeaponColor = WeaponCfg.Color
+        local WeaponColor = toColor3(WeaponCfg.Color)
         if Data.LastWeaponColor ~= WeaponColor then
             Objects.Weapon.TextColor3 = WeaponColor
             Data.LastWeaponColor = WeaponColor
@@ -2168,7 +2183,7 @@ function Library:Update(Player, Data)
                 if OnA and OnB and PosA.Z > 0 and PosB.Z > 0 then
                     bone.Line.From = NewVector2(PosA.X, PosA.Y)
                     bone.Line.To = NewVector2(PosB.X, PosB.Y)
-                    bone.Line.Color = SkelCfg.Color
+                    bone.Line.Color = toColor3(SkelCfg.Color)
                     bone.Line.Thickness = SkelCfg.Thickness
                     bone.Line.Transparency = 1 - SkelCfg.Transparency
                     bone.Line.Visible = true
