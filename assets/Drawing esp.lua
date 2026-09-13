@@ -17,8 +17,6 @@ local WorldToViewportPoint = function(worldPos)
 end
 
 local Frame, CameraPosition, Updates = 1 / 60, NewVector3(0, 0, 0), 0
-local LOD_NEAR = 120
-local LOD_MID = 280
 
 local function CameraCache()
 	local cam = Workspace.CurrentCamera
@@ -401,7 +399,7 @@ function Library:InitEsp(Data)
 	end
 end
 
-function Library:CalculateBox(Data, dist)
+function Library:CalculateBox(Data)
 	local RootPart = Data.RootPart
 	local Character = Data.Character
 	if not RootPart or not Character then
@@ -410,78 +408,44 @@ function Library:CalculateBox(Data, dist)
 	local cam = Camera
 	if not cam then return nil, nil, nil, nil, false end
 
+	local parts = Data.Parts
+	if not parts or #parts == 0 then
+		return nil, nil, nil, nil, false
+	end
+
 	local BoundingBox = Table.Boxes["Bounding Box"]
 	local PadX = (BoundingBox and BoundingBox.BoxX) or 0
 	local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-	if dist > LOD_MID or not Data.Parts or #Data.Parts == 0 then
-		local head = Data.HeadPart
-		local lowest = Data.LowestPart
-		local headWorld = head and (head.Position + NewVector3(0, head.Size.Y * 0.5, 0)) or (RootPart.Position + NewVector3(0, 1.5, 0))
-		local legWorld = lowest and (lowest.Position - NewVector3(0, lowest.Size.Y * 0.5, 0)) or (RootPart.Position - NewVector3(0, 3, 0))
-		local headScreen, onScreen = WorldToViewportPoint(headWorld)
-		if not onScreen or headScreen.Z <= 0 then
-			return nil, nil, nil, nil, false
-		end
-		local legScreen = WorldToViewportPoint(legWorld)
-		local headV = NewVector2(headScreen.X, headScreen.Y)
-		local legV = NewVector2(legScreen.X, legScreen.Y)
-		local height = math.abs(headV.Y - legV.Y)
-		if height < 6 then height = 6 end
-		local width = math.max(height * 0.55, 8)
-		local W = width + PadX
-		local H = height + PadY
-		local centerX = (headV.X + legV.X) * 0.5
-		local topY = math.min(headV.Y, legV.Y)
-		return W, H, centerX - W * 0.5, topY, true
-	end
-
-	local parts = Data.Parts
 	local minX, minY = Huge, Huge
 	local maxX, maxY = -Huge, -Huge
 	local anyOnScreen = false
-	local useCorners = dist <= LOD_NEAR
 
 	for i = 1, #parts do
 		local part = parts[i]
 		if part and part.Parent then
 			local cf = part.CFrame
 			local size = part.Size
-			if useCorners then
-				local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
-				local corners = {
-					cf * NewVector3( hx,  hy,  hz),
-					cf * NewVector3( hx,  hy, -hz),
-					cf * NewVector3( hx, -hy,  hz),
-					cf * NewVector3( hx, -hy, -hz),
-					cf * NewVector3(-hx,  hy,  hz),
-					cf * NewVector3(-hx,  hy, -hz),
-					cf * NewVector3(-hx, -hy,  hz),
-					cf * NewVector3(-hx, -hy, -hz),
-				}
-				for c = 1, 8 do
-					local screen, onScreen = WorldToViewportPoint(corners[c])
-					if onScreen and screen.Z > 0 then
-						anyOnScreen = true
-						local sx, sy = screen.X, screen.Y
-						if sx < minX then minX = sx end
-						if sy < minY then minY = sy end
-						if sx > maxX then maxX = sx end
-						if sy > maxY then maxY = sy end
-					end
-				end
-			else
-				local screen, onScreen = WorldToViewportPoint(part.Position)
+			local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
+			local corners = {
+				cf * NewVector3( hx,  hy,  hz),
+				cf * NewVector3( hx,  hy, -hz),
+				cf * NewVector3( hx, -hy,  hz),
+				cf * NewVector3( hx, -hy, -hz),
+				cf * NewVector3(-hx,  hy,  hz),
+				cf * NewVector3(-hx,  hy, -hz),
+				cf * NewVector3(-hx, -hy,  hz),
+				cf * NewVector3(-hx, -hy, -hz),
+			}
+			for c = 1, 8 do
+				local screen, onScreen = WorldToViewportPoint(corners[c])
 				if onScreen and screen.Z > 0 then
 					anyOnScreen = true
 					local sx, sy = screen.X, screen.Y
-					local half = math.max(size.X, size.Y) * 0.5
-					local scale = 50 / math.max(dist, 1)
-					local ext = half * scale * 8
-					if sx - ext < minX then minX = sx - ext end
-					if sy - ext < minY then minY = sy - ext end
-					if sx + ext > maxX then maxX = sx + ext end
-					if sy + ext > maxY then maxY = sy + ext end
+					if sx < minX then minX = sx end
+					if sy < minY then minY = sy end
+					if sx > maxX then maxX = sx end
+					if sy > maxY then maxY = sy end
 				end
 			end
 		end
@@ -540,7 +504,7 @@ function Library:Update(Player, Data, dist)
 		Objects = Data.Objects
 	end
 
-	local W, H, X, Y, onScreen = self:CalculateBox(Data, dist)
+	local W, H, X, Y, onScreen = self:CalculateBox(Data)
 	local Distance = Floor(dist)
 
 	local oovCfg = Table.OOV
@@ -716,7 +680,7 @@ function Library:Update(Player, Data, dist)
 		Objects.ArmorBar.Visible = false
 	end
 
-	if Table.Flags.Enabled and dist <= LOD_MID then
+	if Table.Flags.Enabled then
 		local flagLines = self:CollectFlags(Player, Data)
 		if not Objects.Flags then Objects.Flags = {} end
 		local flagSize = Table.Flags.Size or TextSizeSmall
@@ -747,7 +711,7 @@ function Library:Update(Player, Data, dist)
 	end
 
 	local SkelCfg = Table.Skeleton
-	if SkelCfg.Enabled and Data.Character and Objects.Skeleton and dist <= LOD_NEAR then
+	if SkelCfg.Enabled and Data.Character and Objects.Skeleton then
 		local Char = Data.Character
 		for _, bone in ipairs(Objects.Skeleton) do
 			local PartA = Char:FindFirstChild(bone.From)
