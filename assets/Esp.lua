@@ -1166,7 +1166,6 @@ function Library:UpdateFlagVisibility(Data)
         return
     end
 
-    -- Ensure all enabled flags have a GUI object
     for flagName, flagConfig in pairs(FlagsCfg.List) do
         if flagConfig.Enabled and not Objects.FlagObjects[flagName] then
             local flagLabel = self:CreateObjects("TextLabel", {
@@ -1192,7 +1191,6 @@ function Library:UpdateFlagVisibility(Data)
         end
     end
 
-    -- Update visibility and text, hide those not active or disabled
     local order = 1
     for flagName, flagObj in pairs(Objects.FlagObjects) do
         if flagObj then
@@ -1215,7 +1213,7 @@ end
 function Library:CalculateBox(Data)
     local RootPart = Data.RootPart
     local Character = Data.Character
-    if not RootPart then
+    if not RootPart or not Character then
         return nil, nil, nil, nil, false
     end
 
@@ -1224,33 +1222,51 @@ function Library:CalculateBox(Data)
         return nil, nil, nil, nil, false
     end
 
-    local rootPosition = RootPart.Position
-    local rootCFrame = RootPart.CFrame
-    local head = Character and Character:FindFirstChild("Head")
-    local headWorld = (head and head.Position or rootPosition) + MathConfig.headPositionOffset
-    local legWorld = rootPosition + MathConfig.legPositionOffset
+    local head = Character:FindFirstChild("Head")
+    if not head then
+        return nil, nil, nil, nil, false
+    end
+
+    local lowestY = RootPart.Position.Y
+    local lowestPart = RootPart
+
+    for _, part in ipairs(GetBodyParts(Character)) do
+        if part.Position.Y < lowestY then
+            lowestY = part.Position.Y
+            lowestPart = part
+        end
+    end
+
+    local headWorld = head.Position + Vector3.new(0, head.Size.Y * 0.5 + 0.15, 0)
+    local legWorld  = lowestPart.Position - Vector3.new(0, lowestPart.Size.Y * 0.5 + 0.1, 0)
 
     local headScreen, onScreen = WorldToViewportPoint(cam, headWorld)
     if not onScreen or headScreen.Z <= 0 then
         return nil, nil, nil, nil, false
     end
+
     local legScreen = WorldToViewportPoint(cam, legWorld)
 
-    local camCFrame = cam.CFrame
-    local fov = cam.FieldOfView
-    local distanceFromCamera = (camCFrame.Position - rootPosition).Magnitude
-
-    local baseCFrame = (MathConfig.dynamicXSize and rootCFrame) or CFrame.lookAt(rootPosition, camCFrame.Position)
-    local leftArmWorld = (baseCFrame * MathConfig.leftArmOffset).Position
-    local armScreen = WorldToViewportPoint(cam, leftArmWorld)
-
     local headV = NewVector2(headScreen.X, headScreen.Y)
-    local legV = NewVector2(legScreen.X, legScreen.Y)
-    local baseScreen = headV + ((legV - headV) / 2)
+    local legV  = NewVector2(legScreen.X, legScreen.Y)
 
-    local width = math.max(calculateXSize(armScreen.X, baseScreen.X, distanceFromCamera, fov), 3)
     local height = math.abs(headV.Y - legV.Y)
-    if height < 4 then height = 4 end
+    if height < 6 then height = 6 end
+
+    local distanceFromCamera = (cam.CFrame.Position - RootPart.Position).Magnitude
+    local fov = cam.FieldOfView
+
+    local leftArm = Character:FindFirstChild("LeftUpperArm") or Character:FindFirstChild("Left Arm")
+    local rightArm = Character:FindFirstChild("RightUpperArm") or Character:FindFirstChild("Right Arm")
+
+    local width
+    if leftArm and rightArm then
+        local leftScreen = WorldToViewportPoint(cam, leftArm.Position)
+        local rightScreen = WorldToViewportPoint(cam, rightArm.Position)
+        width = math.max(math.abs(leftScreen.X - rightScreen.X) * 1.35, 8)
+    else
+        width = math.max((500 / math.max(distanceFromCamera, 1)) / ((fov or 70) / 70), 8)
+    end
 
     local BoundingBox = Table.Boxes["Bounding Box"]
     local PadX = (BoundingBox and BoundingBox.BoxX) or 0
@@ -1258,9 +1274,13 @@ function Library:CalculateBox(Data)
 
     local W = width + PadX
     local H = height + PadY
+
+    local centerX = (headV.X + legV.X) * 0.5
     local topY = math.min(headV.Y, legV.Y)
-    local X = baseScreen.X - W * 0.5
+
+    local X = centerX - W * 0.5
     local Y = topY
+
     return W, H, X, Y, true
 end
 
@@ -1611,7 +1631,6 @@ function Library:Update(Player, Data)
             end
             self:UpdateFlagVisibility(Data)
         else
-            -- If GetFlags returns nil, clear all flags
             for k, _ in pairs(Data.FlagStates) do
                 Data.FlagStates[k] = false
             end
