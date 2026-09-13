@@ -423,8 +423,12 @@ function Library:UpdateChams(Player, Data)
         and Data.Alive
         and (CameraPosition - Data.RootPart.Position).Magnitude <= Table.Distance
 
-    local CurrentParts = GetBodyParts(Character)
-    if #list ~= #CurrentParts * 2 then
+    local CurrentParts = Data.Parts
+    if not CurrentParts or #CurrentParts == 0 then
+        CurrentParts = GetBodyParts(Character)
+        Data.Parts = CurrentParts
+    end
+    if list and CurrentParts and #list ~= #CurrentParts * 2 then
         self:BuildChamsForPlayer(Player)
         list = PlayerChams[Player]
     end
@@ -1241,39 +1245,49 @@ function Library:CalculateBox(Data)
         return nil, nil, nil, nil, false
     end
 
-    local parts = GetBodyParts(Character)
+    local parts = Data.Parts
+    if not parts or #parts == 0 then
+        parts = GetBodyParts(Character)
+        Data.Parts = parts
+    end
     if #parts == 0 then
         return nil, nil, nil, nil, false
     end
+
+    local BoundingBox = Table.Boxes["Bounding Box"]
+    local PadX = (BoundingBox and BoundingBox.BoxX) or 0
+    local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
     local minX, minY = Huge, Huge
     local maxX, maxY = -Huge, -Huge
     local anyOnScreen = false
 
-    for _, part in ipairs(parts) do
-        local cf = part.CFrame
-        local size = part.Size
-        local half = size * 0.5
-
-        local corners = {
-            cf * NewVector3( half.X,  half.Y,  half.Z),
-            cf * NewVector3( half.X,  half.Y, -half.Z),
-            cf * NewVector3( half.X, -half.Y,  half.Z),
-            cf * NewVector3( half.X, -half.Y, -half.Z),
-            cf * NewVector3(-half.X,  half.Y,  half.Z),
-            cf * NewVector3(-half.X,  half.Y, -half.Z),
-            cf * NewVector3(-half.X, -half.Y,  half.Z),
-            cf * NewVector3(-half.X, -half.Y, -half.Z),
-        }
-
-        for i = 1, 8 do
-            local screen, onScreen = WorldToViewportPoint(cam, corners[i])
-            if onScreen and screen.Z > 0 then
-                anyOnScreen = true
-                if screen.X < minX then minX = screen.X end
-                if screen.Y < minY then minY = screen.Y end
-                if screen.X > maxX then maxX = screen.X end
-                if screen.Y > maxY then maxY = screen.Y end
+    for i = 1, #parts do
+        local part = parts[i]
+        if part and part.Parent then
+            local cf = part.CFrame
+            local size = part.Size
+            local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
+            local corners = {
+                cf * NewVector3( hx,  hy,  hz),
+                cf * NewVector3( hx,  hy, -hz),
+                cf * NewVector3( hx, -hy,  hz),
+                cf * NewVector3( hx, -hy, -hz),
+                cf * NewVector3(-hx,  hy,  hz),
+                cf * NewVector3(-hx,  hy, -hz),
+                cf * NewVector3(-hx, -hy,  hz),
+                cf * NewVector3(-hx, -hy, -hz),
+            }
+            for c = 1, 8 do
+                local screen, onScreen = WorldToViewportPoint(cam, corners[c])
+                if onScreen and screen.Z > 0 then
+                    anyOnScreen = true
+                    local sx, sy = screen.X, screen.Y
+                    if sx < minX then minX = sx end
+                    if sy < minY then minY = sy end
+                    if sx > maxX then maxX = sx end
+                    if sy > maxY then maxY = sy end
+                end
             end
         end
     end
@@ -1282,20 +1296,11 @@ function Library:CalculateBox(Data)
         return nil, nil, nil, nil, false
     end
 
-    local BoundingBox = Table.Boxes["Bounding Box"]
-    local PadX = (BoundingBox and BoundingBox.BoxX) or 0
-    local PadY = (BoundingBox and BoundingBox.BoxY) or 0
-
     local W = (maxX - minX) + PadX
     local H = (maxY - minY) + PadY
-
     if W < 4 then W = 4 end
     if H < 6 then H = 6 end
-
-    local X = minX - PadX * 0.5
-    local Y = minY - PadY * 0.5
-
-    return W, H, X, Y, true
+    return W, H, minX - PadX * 0.5, minY - PadY * 0.5, true
 end
 
 function Library:AddTarget(Player)
@@ -1491,6 +1496,9 @@ function Library:AddTarget(Player)
         Data.RootPart = nil
         Data.Humanoid = nil
         Data.Children = nil
+        Data.Parts = nil
+        Data.HeadPart = nil
+        Data.LowestPart = nil
         Data.Alive = false
         Data.FlagStates = {}
         self:HideAllVisuals(Data)
@@ -1514,6 +1522,16 @@ function Library:AddTarget(Player)
         Data.RootPart = RootPart
         Data.Humanoid = Humanoid
         Data.BindChildren(Character)
+        local parts = GetBodyParts(Character)
+        Data.Parts = parts
+        local head, lowest
+        for i = 1, #parts do
+            local p = parts[i]
+            if p.Name == "Head" then head = p end
+            if not lowest or p.Position.Y < lowest.Position.Y then lowest = p end
+        end
+        Data.HeadPart = head
+        Data.LowestPart = lowest
         if not Table.CustomData.GetHealth then
             Data.BindHealth(Humanoid)
         else
