@@ -9,7 +9,6 @@ Config.Boxes["Bounding Box"].Enabled = true
 Config.Boxes["Bounding Box"].IncludeAcsessories = false
 Config.Boxes["Bounding Box"].BoxX = 0
 Config.Boxes["Bounding Box"].BoxY = 0
-
 Config.Boxes.Filled.Enabled = true
 Config.Boxes.Filled.Top = Color3.fromRGB(0, 255, 255)
 Config.Boxes.Filled.Bot = Color3.fromRGB(0, 120, 255)
@@ -37,37 +36,33 @@ Config.Texts.Weapon.Enabled = true
 Config.Texts.Weapon.Color = Color3.fromRGB(255, 200, 100)
 
 Config.Flags.Enabled = true
-Config.Flags.List.Walking = {
-	Enabled = true,
-	Text = "Walking",
-	Color = Color3.fromRGB(255, 255, 255),
-}
-Config.Flags.List.Jumping = {
-	Enabled = true,
-	Text = "Jumping",
-	Color = Color3.fromRGB(255, 200, 50),
-}
-Config.Flags.List.Running = {
-	Enabled = true,
-	Text = "Running",
-	Color = Color3.fromRGB(100, 200, 255),
-}
-Config.Flags.List.Ragdoll = {
-	Enabled = true,
-	Text = "Ragdoll",
-	Color = Color3.fromRGB(128, 128, 128),
-}
-Config.Flags.List.Dead = {
-	Enabled = true,
-	Text = "Dead",
-	Color = Color3.fromRGB(255, 50, 50),
+Config.Flags.List = {
+	Walking = {
+		Text = "Walking",
+		Color = Color3.fromRGB(255, 255, 255),
+	},
+	Jumping = {
+		Text = "Jumping",
+		Color = Color3.fromRGB(255, 200, 50),
+	},
+	Running = {
+		Text = "Running",
+		Color = Color3.fromRGB(100, 200, 255),
+	},
+	Ragdoll = {
+		Text = "Ragdoll",
+		Color = Color3.fromRGB(128, 128, 128),
+	},
+	Dead = {
+		Text = "Dead",
+		Color = Color3.fromRGB(255, 50, 50),
+	},
 }
 
 Config.Chams.Enabled = true
 Config.Chams.FillColor = Color3.fromRGB(0, 255, 255)
 Config.Chams.OutlineColor = Color3.fromRGB(0, 0, 0)
 Config.Chams.FillTransparency = 0.61
-
 Config.Chams.OutlineTransparency = 0.21
 
 Config.OOV.Enabled = true
@@ -78,10 +73,6 @@ Config.OOV.Limit = 6
 Config.OOV.ShowName = true
 Config.OOV.ShowDistance = true
 Config.OOV.ShowWeapon = true
-Config.OOV.ShowHealth = false
-Config.OOV.ShowHealthText = false
-Config.OOV.Blink = false
-Config.OOV.BlinkSpeed = 4
 
 Config.Skeleton.Enabled = false
 Config.Skeleton.Color = Color3.fromRGB(255, 255, 255)
