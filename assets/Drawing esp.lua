@@ -3,34 +3,37 @@ local GetService = setmetatable({}, {
 		return game:GetService(Name)
 	end,
 })
-local Workspace, Players, RunService, HttpService = GetService["Workspace"], GetService["Players"], GetService["RunService"], GetService["HttpService"]
+local Workspace, Players, RunService = GetService["Workspace"], GetService["Players"], GetService["RunService"]
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local NewVector3, NewVector2 = Vector3.new, Vector2.new
-local Format, Clear, Floor, Clamp, Abs, Huge = string.format, table.clear, math.floor, math.clamp, math.abs, math.huge
-local function WorldToViewportPoint(a, b)
-	local worldPos = b or a
-	local cam = Workspace.CurrentCamera
+local Format, Clear, Floor, Clamp, Huge = string.format, table.clear, math.floor, math.clamp, math.huge
+local WorldToViewportPoint = function(worldPos)
+	local cam = Camera or Workspace.CurrentCamera
 	if not cam or not worldPos then
 		return NewVector3(0, 0, 0), false
 	end
-	Camera = cam
 	return cam:WorldToViewportPoint(worldPos)
 end
-local Frame, ZeroVector3, CameraPosition, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0
+
+local Frame, CameraPosition, Updates = 1 / 60, NewVector3(0, 0, 0), 0
+local LOD_NEAR = 120
+local LOD_MID = 280
+
 local function CameraCache()
 	local cam = Workspace.CurrentCamera
-	if not cam then return end
-	Camera = cam
+	if cam then Camera = cam end
 end
 CameraCache()
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	Camera = Workspace.CurrentCamera
 	CameraCache()
 end)
+
 local DrawingFont = (Drawing.Fonts and Drawing.Fonts.Plex) or 1
 local TextSizeMain = 13
 local TextSizeSmall = 13
+
 local Library = {
 	Directory = "Esp",
 	Cache = {},
@@ -38,7 +41,6 @@ local Library = {
 	Connections = {},
 	ChamsFolder = nil,
 	PlayerChams = {},
-	FlagStates = {},
 	OOVAllowed = {},
 	Table = {
 		Enabled = true,
@@ -135,14 +137,14 @@ local Library = {
 	},
 }
 local Table = Library.Table
-local function GetBodyParts(Character)
+
+local function CacheBodyParts(Character)
 	if Table.CustomGetBodyParts then
 		return Table.CustomGetBodyParts(Character)
 	end
-	if not Character then
-		return {}
-	end
+	if not Character then return {} end
 	local Parts = {}
+	local head, lowest
 	for _, Obj in Character:GetDescendants() do
 		if Obj:IsA("BasePart")
 			and Obj.Transparency < 1
@@ -151,11 +153,18 @@ local function GetBodyParts(Character)
 			and Obj.Name ~= "HumanoidRootPart"
 			and Obj.Name ~= "Handle"
 		then
-			table.insert(Parts, Obj)
+			Parts[#Parts + 1] = Obj
+			if Obj.Name == "Head" then
+				head = Obj
+			end
+			if not lowest or Obj.Position.Y < lowest.Position.Y then
+				lowest = Obj
+			end
 		end
 	end
-	return Parts
+	return Parts, head, lowest
 end
+
 local function CreateDrawing(Type, Props)
 	local Obj = Drawing.new(Type)
 	for k, v in pairs(Props or {}) do
@@ -163,6 +172,7 @@ local function CreateDrawing(Type, Props)
 	end
 	return Obj
 end
+
 local function SafeRemove(obj)
 	if not obj then return end
 	pcall(function()
@@ -170,12 +180,15 @@ local function SafeRemove(obj)
 		obj:Remove()
 	end)
 end
+
 Library.__index = Library
+
 function Library:CreateThreads(Name, Signal, Callback)
 	local Connection = Signal:Connect(Callback)
 	self.Threads[Name] = Connection
 	return Connection
 end
+
 do
 	local parent = nil
 	pcall(function()
@@ -190,6 +203,7 @@ do
 		Library.ChamsFolder.Parent = parent
 	end
 end
+
 function Library:BuildChamsForPlayer(Player)
 	local existing = self.PlayerChams[Player]
 	if existing then
@@ -204,14 +218,12 @@ function Library:BuildChamsForPlayer(Player)
 			if m and m:IsA("Model") then Character = m end
 		end
 	end
-	if not Character or not self.ChamsFolder then
-		return
-	end
+	if not Character or not self.ChamsFolder then return end
 	local S = Table.Chams
 	local hl = Instance.new("Highlight")
 	hl.Name = "ESPCham"
 	hl.Enabled = false
-	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.DepthMode = S.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
 	hl.FillColor = S.FillColor
 	hl.OutlineColor = S.OutlineColor
 	hl.FillTransparency = S.FillTransparency
@@ -220,38 +232,33 @@ function Library:BuildChamsForPlayer(Player)
 	hl.Parent = self.ChamsFolder
 	self.PlayerChams[Player] = hl
 end
-function Library:UpdateChams(Player, Data)
-	local S = Table.Chams
-	local Character = Data.Character or Player.Character
+
+function Library:UpdateChams(Player, Data, enabled)
 	local hl = self.PlayerChams[Player]
 	if not hl or not hl.Parent then
 		self:BuildChamsForPlayer(Player)
 		hl = self.PlayerChams[Player]
 	end
 	if not hl then return end
-	local enabled = S.Enabled
-		and Table.Enabled
-		and Character ~= nil
-		and Data.RootPart ~= nil
-		and Data.Alive
-		and (CameraPosition - Data.RootPart.Position).Magnitude <= Table.Distance
 	if not enabled then
-		hl.Enabled = false
-		hl.Adornee = nil
+		if hl.Enabled then
+			hl.Enabled = false
+			hl.Adornee = nil
+		end
 		return
 	end
+	local Character = Data.Character
+	local S = Table.Chams
 	if hl.Adornee ~= Character then
 		hl.Adornee = Character
 	end
-	hl.FillColor = S.FillColor
-	hl.OutlineColor = S.OutlineColor
-	hl.FillTransparency = S.FillTransparency
-	hl.OutlineTransparency = S.OutlineTransparency
-	if S.DepthMode then
-		hl.DepthMode = S.DepthMode
-	end
-	hl.Enabled = true
+	if hl.FillColor ~= S.FillColor then hl.FillColor = S.FillColor end
+	if hl.OutlineColor ~= S.OutlineColor then hl.OutlineColor = S.OutlineColor end
+	if hl.FillTransparency ~= S.FillTransparency then hl.FillTransparency = S.FillTransparency end
+	if hl.OutlineTransparency ~= S.OutlineTransparency then hl.OutlineTransparency = S.OutlineTransparency end
+	if not hl.Enabled then hl.Enabled = true end
 end
+
 function Library:ClearChamsForPlayer(Player)
 	local hl = self.PlayerChams[Player]
 	if not hl then return end
@@ -262,6 +269,7 @@ function Library:ClearChamsForPlayer(Player)
 	end)
 	self.PlayerChams[Player] = nil
 end
+
 function Library:DestroyDrawings(Objects)
 	if not Objects then return end
 	for key, obj in pairs(Objects) do
@@ -273,10 +281,11 @@ function Library:DestroyDrawings(Objects)
 		Objects[key] = nil
 	end
 end
+
 function Library:HideAllVisuals(Data)
 	local Objects = Data and Data.Objects
 	if not Objects then return end
-	for key, obj in pairs(Objects) do
+	for _, obj in pairs(Objects) do
 		if type(obj) == "table" and obj.Line then
 			obj.Line.Visible = false
 		elseif obj and obj.Visible ~= nil then
@@ -294,164 +303,89 @@ function Library:HideAllVisuals(Data)
 		end
 	end
 end
+
 function Library:InitEsp(Data)
 	local Objects = Data.Objects
 	Objects.BoxOutline = CreateDrawing("Square", {
-		Visible = false,
-		Filled = false,
-		Thickness = 3,
-		Color = Color3.new(0, 0, 0),
-		ZIndex = 1,
+		Visible = false, Filled = false, Thickness = 3,
+		Color = Color3.new(0, 0, 0), ZIndex = 1,
 	})
 	Objects.Box = CreateDrawing("Square", {
-		Visible = false,
-		Filled = false,
-		Thickness = 1,
-		Color = Table.Boxes.Gradients.Top,
-		ZIndex = 2,
+		Visible = false, Filled = false, Thickness = 1,
+		Color = Table.Boxes.Gradients.Top, ZIndex = 2,
 	})
 	Objects.BoxFill = CreateDrawing("Square", {
-		Visible = false,
-		Filled = true,
-		Thickness = 0,
-		Color = Table.Boxes.Filled.Top,
-		Transparency = 0.8,
-		ZIndex = 0,
+		Visible = false, Filled = true, Thickness = 0,
+		Color = Table.Boxes.Filled.Top, Transparency = 0.8, ZIndex = 0,
 	})
 	Objects.Name = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
+		Visible = false, Center = true, Outline = true,
 		Size = (Table.Texts.Name and Table.Texts.Name.Size) or TextSizeMain,
-		Font = DrawingFont,
-		Color = Table.Texts.Name.Color,
-		Text = "",
-		ZIndex = 3,
+		Font = DrawingFont, Color = Table.Texts.Name.Color, Text = "", ZIndex = 3,
 	})
 	Objects.Distance = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
+		Visible = false, Center = true, Outline = true,
 		Size = (Table.Texts.Distance and Table.Texts.Distance.Size) or TextSizeSmall,
-		Font = DrawingFont,
-		Color = Table.Texts.Distance.Color,
-		Text = "",
-		ZIndex = 3,
+		Font = DrawingFont, Color = Table.Texts.Distance.Color, Text = "", ZIndex = 3,
 	})
 	Objects.Weapon = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
+		Visible = false, Center = true, Outline = true,
 		Size = (Table.Texts.Weapon and Table.Texts.Weapon.Size) or TextSizeSmall,
-		Font = DrawingFont,
-		Color = Table.Texts.Weapon.Color,
-		Text = "",
-		ZIndex = 3,
+		Font = DrawingFont, Color = Table.Texts.Weapon.Color, Text = "", ZIndex = 3,
 	})
 	Objects.HealthBarOutline = CreateDrawing("Square", {
-		Visible = false,
-		Filled = true,
-		Thickness = 0,
-		Color = Color3.new(0, 0, 0),
-		ZIndex = 1,
+		Visible = false, Filled = true, Thickness = 0,
+		Color = Color3.new(0, 0, 0), ZIndex = 1,
 	})
 	Objects.HealthBar = CreateDrawing("Square", {
-		Visible = false,
-		Filled = true,
-		Thickness = 0,
-		Color = Color3.new(0, 1, 0),
-		ZIndex = 2,
+		Visible = false, Filled = true, Thickness = 0,
+		Color = Color3.new(0, 1, 0), ZIndex = 2,
 	})
 	Objects.HealthText = CreateDrawing("Text", {
-		Visible = false,
-		Center = false,
-		Outline = true,
-		Size = TextSizeSmall,
-		Font = DrawingFont,
-		Color = Color3.new(1, 1, 1),
-		Text = "",
-		ZIndex = 3,
+		Visible = false, Center = false, Outline = true,
+		Size = TextSizeSmall, Font = DrawingFont,
+		Color = Color3.new(1, 1, 1), Text = "", ZIndex = 3,
 	})
 	Objects.ArmorBarOutline = CreateDrawing("Square", {
-		Visible = false,
-		Filled = true,
-		Thickness = 0,
-		Color = Color3.new(0, 0, 0),
-		ZIndex = 1,
+		Visible = false, Filled = true, Thickness = 0,
+		Color = Color3.new(0, 0, 0), ZIndex = 1,
 	})
 	Objects.ArmorBar = CreateDrawing("Square", {
-		Visible = false,
-		Filled = true,
-		Thickness = 0,
-		Color = Color3.new(1, 1, 1),
-		ZIndex = 2,
+		Visible = false, Filled = true, Thickness = 0,
+		Color = Color3.new(1, 1, 1), ZIndex = 2,
 	})
 	Objects.OOVArrow = CreateDrawing("Triangle", {
-		Visible = false,
-		Filled = true,
-		Thickness = 1,
-		Color = Table.OOV.Color,
-		ZIndex = 3,
+		Visible = false, Filled = true, Thickness = 1,
+		Color = Table.OOV.Color, ZIndex = 3,
 	})
 	Objects.OOVArrowOutline = CreateDrawing("Triangle", {
-		Visible = false,
-		Filled = false,
-		Thickness = 2,
-		Color = Color3.new(0, 0, 0),
-		ZIndex = 2,
+		Visible = false, Filled = false, Thickness = 2,
+		Color = Color3.new(0, 0, 0), ZIndex = 2,
 	})
 	Objects.OOVName = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
-		Size = TextSizeSmall,
-		Font = DrawingFont,
-		Color = Table.OOV.Color,
-		Text = "",
-		ZIndex = 3,
+		Visible = false, Center = true, Outline = true,
+		Size = TextSizeSmall, Font = DrawingFont,
+		Color = Table.OOV.Color, Text = "", ZIndex = 3,
 	})
 	Objects.OOVDistance = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
-		Size = TextSizeSmall,
-		Font = DrawingFont,
-		Color = Table.OOV.Color,
-		Text = "",
-		ZIndex = 3,
+		Visible = false, Center = true, Outline = true,
+		Size = TextSizeSmall, Font = DrawingFont,
+		Color = Table.OOV.Color, Text = "", ZIndex = 3,
 	})
 	Objects.OOVWeapon = CreateDrawing("Text", {
-		Visible = false,
-		Center = true,
-		Outline = true,
-		Size = TextSizeSmall,
-		Font = DrawingFont,
-		Color = Table.OOV.Color,
-		Text = "",
-		ZIndex = 3,
+		Visible = false, Center = true, Outline = true,
+		Size = TextSizeSmall, Font = DrawingFont,
+		Color = Table.OOV.Color, Text = "", ZIndex = 3,
 	})
 	Objects.Flags = {}
 	Objects.Skeleton = {}
 	local joints = Table.CustomSkeletonJoints or {
-		{"Head", "UpperTorso"},
-		{"UpperTorso", "LowerTorso"},
-		{"UpperTorso", "LeftUpperArm"},
-		{"LeftUpperArm", "LeftLowerArm"},
-		{"LeftLowerArm", "LeftHand"},
-		{"UpperTorso", "RightUpperArm"},
-		{"RightUpperArm", "RightLowerArm"},
-		{"RightLowerArm", "RightHand"},
-		{"LowerTorso", "LeftUpperLeg"},
-		{"LeftUpperLeg", "LeftLowerLeg"},
-		{"LeftLowerLeg", "LeftFoot"},
-		{"LowerTorso", "RightUpperLeg"},
-		{"RightUpperLeg", "RightLowerLeg"},
-		{"RightLowerLeg", "RightFoot"},
-		{"Head", "Torso"},
-		{"Torso", "Left Arm"},
-		{"Torso", "Right Arm"},
-		{"Torso", "Left Leg"},
-		{"Torso", "Right Leg"},
+		{"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
+		{"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+		{"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+		{"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+		{"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"},
+		{"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"}, {"Torso", "Left Leg"}, {"Torso", "Right Leg"},
 	}
 	for _, pair in ipairs(joints) do
 		Objects.Skeleton[#Objects.Skeleton + 1] = {
@@ -466,62 +400,104 @@ function Library:InitEsp(Data)
 		}
 	end
 end
-function Library:CalculateBox(Data)
+
+function Library:CalculateBox(Data, dist)
 	local RootPart = Data.RootPart
 	local Character = Data.Character
 	if not RootPart or not Character then
 		return nil, nil, nil, nil, false
 	end
-	local cam = Camera or Workspace.CurrentCamera
-	if not cam then
-		return nil, nil, nil, nil, false
-	end
-	local parts = GetBodyParts(Character)
-	if #parts == 0 then
-		return nil, nil, nil, nil, false
-	end
-	local minX, minY = Huge, Huge
-	local maxX, maxY = -Huge, -Huge
-	local anyOnScreen = false
-	for _, part in ipairs(parts) do
-		local cf = part.CFrame
-		local size = part.Size
-		local half = size * 0.5
-		local corners = {
-			cf * NewVector3( half.X,  half.Y,  half.Z),
-			cf * NewVector3( half.X,  half.Y, -half.Z),
-			cf * NewVector3( half.X, -half.Y,  half.Z),
-			cf * NewVector3( half.X, -half.Y, -half.Z),
-			cf * NewVector3(-half.X,  half.Y,  half.Z),
-			cf * NewVector3(-half.X,  half.Y, -half.Z),
-			cf * NewVector3(-half.X, -half.Y,  half.Z),
-			cf * NewVector3(-half.X, -half.Y, -half.Z),
-		}
-		for i = 1, 8 do
-			local screen, onScreen = WorldToViewportPoint(cam, corners[i])
-			if onScreen and screen.Z > 0 then
-				anyOnScreen = true
-				if screen.X < minX then minX = screen.X end
-				if screen.Y < minY then minY = screen.Y end
-				if screen.X > maxX then maxX = screen.X end
-				if screen.Y > maxY then maxY = screen.Y end
-			end
-		end
-	end
-	if not anyOnScreen then
-		return nil, nil, nil, nil, false
-	end
+	local cam = Camera
+	if not cam then return nil, nil, nil, nil, false end
+
 	local BoundingBox = Table.Boxes["Bounding Box"]
 	local PadX = (BoundingBox and BoundingBox.BoxX) or 0
 	local PadY = (BoundingBox and BoundingBox.BoxY) or 0
+
+	if dist > LOD_MID or not Data.Parts or #Data.Parts == 0 then
+		local head = Data.HeadPart
+		local lowest = Data.LowestPart
+		local headWorld = head and (head.Position + NewVector3(0, head.Size.Y * 0.5, 0)) or (RootPart.Position + NewVector3(0, 1.5, 0))
+		local legWorld = lowest and (lowest.Position - NewVector3(0, lowest.Size.Y * 0.5, 0)) or (RootPart.Position - NewVector3(0, 3, 0))
+		local headScreen, onScreen = WorldToViewportPoint(headWorld)
+		if not onScreen or headScreen.Z <= 0 then
+			return nil, nil, nil, nil, false
+		end
+		local legScreen = WorldToViewportPoint(legWorld)
+		local headV = NewVector2(headScreen.X, headScreen.Y)
+		local legV = NewVector2(legScreen.X, legScreen.Y)
+		local height = math.abs(headV.Y - legV.Y)
+		if height < 6 then height = 6 end
+		local width = math.max(height * 0.55, 8)
+		local W = width + PadX
+		local H = height + PadY
+		local centerX = (headV.X + legV.X) * 0.5
+		local topY = math.min(headV.Y, legV.Y)
+		return W, H, centerX - W * 0.5, topY, true
+	end
+
+	local parts = Data.Parts
+	local minX, minY = Huge, Huge
+	local maxX, maxY = -Huge, -Huge
+	local anyOnScreen = false
+	local useCorners = dist <= LOD_NEAR
+
+	for i = 1, #parts do
+		local part = parts[i]
+		if part and part.Parent then
+			local cf = part.CFrame
+			local size = part.Size
+			if useCorners then
+				local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
+				local corners = {
+					cf * NewVector3( hx,  hy,  hz),
+					cf * NewVector3( hx,  hy, -hz),
+					cf * NewVector3( hx, -hy,  hz),
+					cf * NewVector3( hx, -hy, -hz),
+					cf * NewVector3(-hx,  hy,  hz),
+					cf * NewVector3(-hx,  hy, -hz),
+					cf * NewVector3(-hx, -hy,  hz),
+					cf * NewVector3(-hx, -hy, -hz),
+				}
+				for c = 1, 8 do
+					local screen, onScreen = WorldToViewportPoint(corners[c])
+					if onScreen and screen.Z > 0 then
+						anyOnScreen = true
+						local sx, sy = screen.X, screen.Y
+						if sx < minX then minX = sx end
+						if sy < minY then minY = sy end
+						if sx > maxX then maxX = sx end
+						if sy > maxY then maxY = sy end
+					end
+				end
+			else
+				local screen, onScreen = WorldToViewportPoint(part.Position)
+				if onScreen and screen.Z > 0 then
+					anyOnScreen = true
+					local sx, sy = screen.X, screen.Y
+					local half = math.max(size.X, size.Y) * 0.5
+					local scale = 50 / math.max(dist, 1)
+					local ext = half * scale * 8
+					if sx - ext < minX then minX = sx - ext end
+					if sy - ext < minY then minY = sy - ext end
+					if sx + ext > maxX then maxX = sx + ext end
+					if sy + ext > maxY then maxY = sy + ext end
+				end
+			end
+		end
+	end
+
+	if not anyOnScreen then
+		return nil, nil, nil, nil, false
+	end
+
 	local W = (maxX - minX) + PadX
 	local H = (maxY - minY) + PadY
 	if W < 4 then W = 4 end
 	if H < 6 then H = 6 end
-	local X = minX - PadX * 0.5
-	local Y = minY - PadY * 0.5
-	return W, H, X, Y, true
+	return W, H, minX - PadX * 0.5, minY - PadY * 0.5, true
 end
+
 local function lerpColor(a, b, t)
 	return Color3.new(
 		a.R + (b.R - a.R) * t,
@@ -529,6 +505,7 @@ local function lerpColor(a, b, t)
 		a.B + (b.B - a.B) * t
 	)
 end
+
 local function healthColor(ratio, cfg)
 	ratio = Clamp(ratio, 0, 1)
 	if ratio > 0.5 then
@@ -536,19 +513,14 @@ local function healthColor(ratio, cfg)
 	end
 	return lerpColor(cfg.Bot, cfg.Mid, ratio * 2)
 end
+
 function Library:CollectFlags(Player, Data)
 	local result = {}
 	local FlagsCfg = Table.Flags
-	if not FlagsCfg or not FlagsCfg.Enabled then
-		return result
-	end
-	if not Table.CustomData or type(Table.CustomData.GetFlags) ~= "function" then
-		return result
-	end
+	if not FlagsCfg or not FlagsCfg.Enabled then return result end
+	if not Table.CustomData or type(Table.CustomData.GetFlags) ~= "function" then return result end
 	local ok, flags = pcall(Table.CustomData.GetFlags, Player, Data.Character)
-	if not ok or type(flags) ~= "table" then
-		return result
-	end
+	if not ok or type(flags) ~= "table" then return result end
 	for name, active in pairs(flags) do
 		if active then
 			local cfg = FlagsCfg.List[name]
@@ -560,17 +532,17 @@ function Library:CollectFlags(Player, Data)
 	end
 	return result
 end
-function Library:Update(Player, Data)
+
+function Library:Update(Player, Data, dist)
 	local Objects = Data.Objects
 	if not Objects or not Objects.Box then
 		self:InitEsp(Data)
 		Objects = Data.Objects
 	end
-	local W, H, X, Y, onScreen = self:CalculateBox(Data)
-	local Distance = 0
-	if Data.RootPart then
-		Distance = Floor((CameraPosition - Data.RootPart.Position).Magnitude)
-	end
+
+	local W, H, X, Y, onScreen = self:CalculateBox(Data, dist)
+	local Distance = Floor(dist)
+
 	local oovCfg = Table.OOV
 	local isOov = oovCfg and oovCfg.Enabled and not onScreen and self.OOVAllowed and self.OOVAllowed[Player]
 	if isOov and Data.RootPart then
@@ -617,21 +589,27 @@ function Library:Update(Player, Data)
 			Objects.OOVWeapon.Position = tip + NewVector2(0, yOff)
 			Objects.OOVWeapon.Visible = true
 		end
+		self:UpdateChams(Player, Data, Table.Chams.Enabled)
 		return
 	end
+
 	if not onScreen or not W then
 		self:HideAllVisuals(Data)
+		self:UpdateChams(Player, Data, false)
 		return
 	end
+
 	if Objects.OOVArrow then Objects.OOVArrow.Visible = false end
 	if Objects.OOVArrowOutline then Objects.OOVArrowOutline.Visible = false end
 	if Objects.OOVName then Objects.OOVName.Visible = false end
 	if Objects.OOVDistance then Objects.OOVDistance.Visible = false end
 	if Objects.OOVWeapon then Objects.OOVWeapon.Visible = false end
+
 	W, H, X, Y = Floor(W), Floor(H), Floor(X), Floor(Y)
 	local pos = NewVector2(X, Y)
 	local size = NewVector2(W, H)
 	local BoxesCfg = Table.Boxes
+
 	if BoxesCfg.Enabled then
 		Objects.BoxOutline.Position = pos
 		Objects.BoxOutline.Size = size
@@ -655,45 +633,44 @@ function Library:Update(Player, Data)
 		Objects.BoxOutline.Visible = false
 		Objects.BoxFill.Visible = false
 	end
+
 	local TextsCfg = Table.Texts
 	local topY = Y
 	local botY = Y + H
-	local nameSize = (TextsCfg.Name and TextsCfg.Name.Size) or TextSizeMain
-	local distSize = (TextsCfg.Distance and TextsCfg.Distance.Size) or TextSizeSmall
-	local wepSize = (TextsCfg.Weapon and TextsCfg.Weapon.Size) or TextSizeSmall
+
 	if TextsCfg.Name.Enabled then
 		local nameText = (TextsCfg.Name.Type == "Name") and Player.Name or Player.DisplayName
 		Objects.Name.Text = nameText
 		Objects.Name.Color = TextsCfg.Name.Color
-		Objects.Name.Size = nameSize
-		Objects.Name.Font = DrawingFont
+		Objects.Name.Size = TextsCfg.Name.Size or TextSizeMain
 		Objects.Name.Position = NewVector2(X + W * 0.5, topY - Objects.Name.TextBounds.Y - 2)
 		Objects.Name.Visible = true
 	else
 		Objects.Name.Visible = false
 	end
+
 	local below = botY + 2
 	if TextsCfg.Distance.Enabled then
 		Objects.Distance.Text = Format("%dst", Distance)
 		Objects.Distance.Color = TextsCfg.Distance.Color
-		Objects.Distance.Size = distSize
-		Objects.Distance.Font = DrawingFont
+		Objects.Distance.Size = TextsCfg.Distance.Size or TextSizeSmall
 		Objects.Distance.Position = NewVector2(X + W * 0.5, below)
 		Objects.Distance.Visible = true
 		below = below + Objects.Distance.TextBounds.Y + 1
 	else
 		Objects.Distance.Visible = false
 	end
+
 	if TextsCfg.Weapon.Enabled then
 		Objects.Weapon.Text = Data.CurrentTool or "none"
 		Objects.Weapon.Color = TextsCfg.Weapon.Color
-		Objects.Weapon.Size = wepSize
-		Objects.Weapon.Font = DrawingFont
+		Objects.Weapon.Size = TextsCfg.Weapon.Size or TextSizeSmall
 		Objects.Weapon.Position = NewVector2(X + W * 0.5, below)
 		Objects.Weapon.Visible = true
 	else
 		Objects.Weapon.Visible = false
 	end
+
 	local HealthCfg = Table.Bars["Health Bar"]
 	if HealthCfg.Enabled then
 		local Health = Data.Health or 0
@@ -721,6 +698,7 @@ function Library:Update(Player, Data)
 		Objects.HealthBar.Visible = false
 		Objects.HealthText.Visible = false
 	end
+
 	local ArmorCfg = Table.Bars["Armor Bar"]
 	if ArmorCfg.Enabled then
 		local Ratio = Clamp((Data.Armor or 0) / math.max(Data.MaxArmor or 100, 1), 0, 1)
@@ -737,43 +715,46 @@ function Library:Update(Player, Data)
 		Objects.ArmorBarOutline.Visible = false
 		Objects.ArmorBar.Visible = false
 	end
-	local flagLines = self:CollectFlags(Player, Data)
-	if not Objects.Flags then Objects.Flags = {} end
-	local flagSize = (Table.Flags and Table.Flags.Size) or TextSizeSmall
-	local flagX = X + W + 4
-	local flagY = Y
-	for i, entry in ipairs(flagLines) do
-		local d = Objects.Flags[i]
-		if not d then
-			d = CreateDrawing("Text", {
-				Visible = false,
-				Center = false,
-				Outline = true,
-				Size = flagSize,
-				Font = DrawingFont,
-				ZIndex = 3,
-			})
-			Objects.Flags[i] = d
+
+	if Table.Flags.Enabled and dist <= LOD_MID then
+		local flagLines = self:CollectFlags(Player, Data)
+		if not Objects.Flags then Objects.Flags = {} end
+		local flagSize = Table.Flags.Size or TextSizeSmall
+		local flagX = X + W + 4
+		local flagY = Y
+		for i, entry in ipairs(flagLines) do
+			local d = Objects.Flags[i]
+			if not d then
+				d = CreateDrawing("Text", {
+					Visible = false, Center = false, Outline = true,
+					Size = flagSize, Font = DrawingFont, ZIndex = 3,
+				})
+				Objects.Flags[i] = d
+			end
+			d.Text = entry.Text
+			d.Color = entry.Color
+			d.Size = flagSize
+			d.Position = NewVector2(flagX, flagY + (i - 1) * (flagSize + 2))
+			d.Visible = true
 		end
-		d.Text = entry.Text
-		d.Color = entry.Color
-		d.Size = flagSize
-		d.Font = DrawingFont
-		d.Position = NewVector2(flagX, flagY + (i - 1) * (flagSize + 2))
-		d.Visible = true
+		for i = #flagLines + 1, #Objects.Flags do
+			if Objects.Flags[i] then Objects.Flags[i].Visible = false end
+		end
+	elseif Objects.Flags then
+		for _, f in pairs(Objects.Flags) do
+			if f then f.Visible = false end
+		end
 	end
-	for i = #flagLines + 1, #Objects.Flags do
-		if Objects.Flags[i] then Objects.Flags[i].Visible = false end
-	end
+
 	local SkelCfg = Table.Skeleton
-	if SkelCfg.Enabled and Data.Character and Objects.Skeleton then
+	if SkelCfg.Enabled and Data.Character and Objects.Skeleton and dist <= LOD_NEAR then
 		local Char = Data.Character
 		for _, bone in ipairs(Objects.Skeleton) do
 			local PartA = Char:FindFirstChild(bone.From)
 			local PartB = Char:FindFirstChild(bone.To)
 			if PartA and PartB and PartA:IsA("BasePart") and PartB:IsA("BasePart") then
-				local PosA, OnA = WorldToViewportPoint(Camera, PartA.Position)
-				local PosB, OnB = WorldToViewportPoint(Camera, PartB.Position)
+				local PosA, OnA = WorldToViewportPoint(PartA.Position)
+				local PosB, OnB = WorldToViewportPoint(PartB.Position)
 				if OnA and OnB and PosA.Z > 0 and PosB.Z > 0 then
 					bone.Line.From = NewVector2(PosA.X, PosA.Y)
 					bone.Line.To = NewVector2(PosB.X, PosB.Y)
@@ -788,19 +769,17 @@ function Library:Update(Player, Data)
 				bone.Line.Visible = false
 			end
 		end
-	else
-		if Objects.Skeleton then
-			for _, bone in ipairs(Objects.Skeleton) do
-				bone.Line.Visible = false
-			end
+	elseif Objects.Skeleton then
+		for _, bone in ipairs(Objects.Skeleton) do
+			bone.Line.Visible = false
 		end
 	end
-	self:UpdateChams(Player, Data)
+
+	self:UpdateChams(Player, Data, Table.Chams.Enabled)
 end
+
 function Library:AddTarget(Player)
-	if Player == LocalPlayer or self.Cache[Player] then
-		return
-	end
+	if Player == LocalPlayer or self.Cache[Player] then return end
 	local Data = {
 		Player = Player,
 		Objects = {},
@@ -808,14 +787,18 @@ function Library:AddTarget(Player)
 		Character = nil,
 		RootPart = nil,
 		Humanoid = nil,
-		Children = nil,
+		Parts = {},
+		HeadPart = nil,
+		LowestPart = nil,
 		Health = 0,
 		MaxHealth = 100,
 		Armor = 100,
 		MaxArmor = 100,
 		CurrentTool = nil,
 		Alive = false,
+		LastToolCheck = 0,
 	}
+
 	function Data.BindHealth(Hum)
 		if Data.Conns.Health then Data.Conns.Health:Disconnect() end
 		if Data.Conns.MaxHealth then Data.Conns.MaxHealth:Disconnect() end
@@ -831,8 +814,15 @@ function Library:AddTarget(Player)
 			Data.MaxHealth = Hum.MaxHealth
 		end)
 	end
-	function Data.BindChildren(Char)
-		Data.Children = GetBodyParts(Char)
+
+	function Data.RefreshParts(Char)
+		local parts, head, lowest = CacheBodyParts(Char)
+		Data.Parts = parts
+		Data.HeadPart = head
+		Data.LowestPart = lowest
+	end
+
+	function Data.RefreshTool(Char)
 		local tool = Char:FindFirstChildOfClass("Tool")
 		Data.CurrentTool = tool and tool.Name or nil
 		local eq = Char:FindFirstChild("Equipped")
@@ -859,6 +849,7 @@ function Library:AddTarget(Player)
 			end
 		end
 	end
+
 	function Data.TryBind()
 		local Char = Player.Character
 		local folder = Workspace:FindFirstChild("Characters")
@@ -875,12 +866,15 @@ function Library:AddTarget(Player)
 		Data.Humanoid = Hum
 		Data.Alive = Hum.Health > 0
 		Data.BindHealth(Hum)
-		Data.BindChildren(Char)
+		Data.RefreshParts(Char)
+		Data.RefreshTool(Char)
 		Library:BuildChamsForPlayer(Player)
 	end
+
 	self.Cache[Player] = Data
 	self:InitEsp(Data)
 	Data.TryBind()
+
 	Data.Conns.CharAdded = Player.CharacterAdded:Connect(function()
 		task.defer(Data.TryBind)
 		task.delay(0.3, Data.TryBind)
@@ -889,11 +883,15 @@ function Library:AddTarget(Player)
 		Data.Character = nil
 		Data.RootPart = nil
 		Data.Humanoid = nil
+		Data.Parts = {}
+		Data.HeadPart = nil
+		Data.LowestPart = nil
 		Data.Alive = false
 		Library:HideAllVisuals(Data)
 		Library:ClearChamsForPlayer(Player)
 	end)
 end
+
 function Library:RemoveTarget(Player)
 	local Data = self.Cache[Player]
 	if not Data then return end
@@ -911,6 +909,7 @@ function Library:RemoveTarget(Player)
 	self:ClearChamsForPlayer(Player)
 	self.Cache[Player] = nil
 end
+
 Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 	if not Table.Enabled then
 		for _, Data in Library.Cache do
@@ -924,52 +923,54 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 		end
 		return
 	end
+
 	local Now = os.clock()
-	if Now - Updates < Frame then
-		return
-	end
+	if Now - Updates < Frame then return end
 	Updates = Now
+
 	local cam = Workspace.CurrentCamera
 	if not cam then return end
 	Camera = cam
 	CameraPosition = cam.CFrame.Position
+
 	local maxDist = tonumber(Table.Distance) or 7520
 	local OOVCandidates = {}
+	local toolTick = Now
+
 	for Player, Data in Library.Cache do
 		if not Player.Parent then
 			Library:RemoveTarget(Player)
 			continue
 		end
-		if Data.Character and Data.RootPart then
-			Data.BindChildren(Data.Character)
-		end
+
 		if not Data.RootPart or not Data.Alive then
 			Library:HideAllVisuals(Data)
-			local hl = Library.PlayerChams[Player]
-			if hl then
-				hl.Enabled = false
-				hl.Adornee = nil
-			end
+			Library:UpdateChams(Player, Data, false)
 			continue
 		end
+
 		local dist = (CameraPosition - Data.RootPart.Position).Magnitude
 		if dist > maxDist then
 			Library:HideAllVisuals(Data)
-			local hl = Library.PlayerChams[Player]
-			if hl then
-				hl.Enabled = false
-				hl.Adornee = nil
-			end
+			Library:UpdateChams(Player, Data, false)
 			continue
 		end
+
+		if toolTick - (Data.LastToolCheck or 0) > 0.35 and Data.Character then
+			Data.LastToolCheck = toolTick
+			Data.RefreshTool(Data.Character)
+		end
+
 		if Table.OOV and Table.OOV.Enabled then
-			local _, onScreen = WorldToViewportPoint(Camera, Data.RootPart.Position)
+			local _, onScreen = WorldToViewportPoint(Data.RootPart.Position)
 			if not onScreen then
 				OOVCandidates[#OOVCandidates + 1] = {Player = Player, Dist = dist}
 			end
 		end
-		Library:Update(Player, Data)
+
+		Library:Update(Player, Data, dist)
 	end
+
 	table.sort(OOVCandidates, function(a, b)
 		return a.Dist < b.Dist
 	end)
@@ -980,6 +981,7 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 	end
 	Library.OOVAllowed = allowed
 end)
+
 local function RefreshAllPlayers()
 	Camera = Workspace.CurrentCamera or Camera
 	for _, Player in Players:GetPlayers() do
@@ -994,11 +996,12 @@ local function RefreshAllPlayers()
 		end
 	end
 end
+
 RefreshAllPlayers()
 task.defer(RefreshAllPlayers)
-task.delay(0.25, RefreshAllPlayers)
-task.delay(1, RefreshAllPlayers)
-task.delay(3, RefreshAllPlayers)
+task.delay(0.5, RefreshAllPlayers)
+task.delay(2, RefreshAllPlayers)
+
 Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
 	Library:AddTarget(Player)
 	task.defer(function()
@@ -1006,18 +1009,20 @@ Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
 		if Data and Data.TryBind then Data.TryBind() end
 	end)
 end)
+
 Library:CreateThreads("LocalCharacterAdded", LocalPlayer.CharacterAdded, function()
 	Camera = Workspace.CurrentCamera
 	CameraCache()
 	task.defer(RefreshAllPlayers)
-	task.delay(0.5, RefreshAllPlayers)
 end)
+
 if LocalPlayer.Character then
 	task.defer(RefreshAllPlayers)
 end
+
 Library:CreateThreads("RebindMissing", RunService.Heartbeat, function()
 	local now = os.clock()
-	if now - (Library._lastRebind or 0) < 0.35 then return end
+	if now - (Library._lastRebind or 0) < 0.5 then return end
 	Library._lastRebind = now
 	for Player, Data in pairs(Library.Cache) do
 		if Player.Parent and Data and (not Data.RootPart or not Data.RootPart.Parent or not Data.Alive) then
@@ -1025,9 +1030,11 @@ Library:CreateThreads("RebindMissing", RunService.Heartbeat, function()
 		end
 	end
 end)
+
 Library:CreateThreads("PlayerRemoving", Players.PlayerRemoving, function(Player)
 	Library:RemoveTarget(Player)
 end)
+
 function Library:Unload()
 	for Player in self.Cache do
 		self:RemoveTarget(Player)
@@ -1050,6 +1057,7 @@ function Library:Unload()
 		getgenv().ESP = nil
 	end
 end
+
 do
 	local function bindCharsFolder(folder)
 		if not folder then return end
@@ -1074,5 +1082,6 @@ do
 		end)
 	end
 end
+
 getgenv().ESP = Library
 return Library
