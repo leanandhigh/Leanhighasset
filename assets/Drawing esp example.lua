@@ -14,8 +14,8 @@ Config.Boxes.Filled.Top = Color3.fromRGB(0, 255, 255)
 Config.Boxes.Filled.Bot = Color3.fromRGB(0, 120, 255)
 Config.Boxes.Filled.Transparency = {0.85, 0.85}
 
-Config.Bars["Health Bar"].Enabled = false
-Config.Bars["Health Bar"].ShowText = false
+Config.Bars["Health Bar"].Enabled = true
+Config.Bars["Health Bar"].ShowText = true
 Config.Bars["Health Bar"].Top = Color3.fromRGB(0, 255, 0)
 Config.Bars["Health Bar"].Mid = Color3.fromRGB(255, 255, 0)
 Config.Bars["Health Bar"].Bot = Color3.fromRGB(255, 0, 0)
@@ -37,26 +37,11 @@ Config.Texts.Weapon.Color = Color3.fromRGB(255, 200, 100)
 
 Config.Flags.Enabled = true
 Config.Flags.List = {
-	Walking = {
-		Text = "Walking",
-		Color = Color3.fromRGB(255, 255, 255),
-	},
-	Jumping = {
-		Text = "Jumping",
-		Color = Color3.fromRGB(255, 200, 50),
-	},
-	Running = {
-		Text = "Running",
-		Color = Color3.fromRGB(100, 200, 255),
-	},
-	Ragdoll = {
-		Text = "Ragdoll",
-		Color = Color3.fromRGB(128, 128, 128),
-	},
-	Dead = {
-		Text = "Dead",
-		Color = Color3.fromRGB(255, 50, 50),
-	},
+	Walking = { Text = "Walking", Color = Color3.fromRGB(255, 255, 255) },
+	Jumping = { Text = "Jumping", Color = Color3.fromRGB(255, 200, 50) },
+	Running = { Text = "Running", Color = Color3.fromRGB(100, 200, 255) },
+	Ragdoll = { Text = "Ragdoll", Color = Color3.fromRGB(128, 128, 128) },
+	Dead = { Text = "Dead", Color = Color3.fromRGB(255, 50, 50) },
 }
 
 Config.Chams.Enabled = true
@@ -67,6 +52,9 @@ Config.Chams.OutlineTransparency = 0.21
 
 Config.OOV.Enabled = true
 Config.OOV.Color = Color3.fromRGB(0, 255, 255)
+Config.OOV.NameColor = Color3.fromRGB(255, 255, 255)
+Config.OOV.DistanceColor = Color3.fromRGB(180, 180, 180)
+Config.OOV.WeaponColor = Color3.fromRGB(255, 200, 100)
 Config.OOV.Size = 18
 Config.OOV.Radius = 0.35
 Config.OOV.Limit = 6
@@ -78,6 +66,45 @@ Config.Skeleton.Enabled = false
 Config.Skeleton.Color = Color3.fromRGB(255, 255, 255)
 Config.Skeleton.Thickness = 1.5
 Config.Skeleton.Transparency = 0
+
+Config.CustomGetBodyParts = function(Character)
+	if not Character then return {} end
+	local Parts = {}
+	for _, Obj in Character:GetDescendants() do
+		if Obj:IsA("BasePart")
+			and Obj.Transparency < 1
+			and not Obj:FindFirstAncestorOfClass("Accessory")
+			and not Obj:FindFirstAncestorOfClass("Tool")
+			and Obj.Name ~= "HumanoidRootPart"
+			and Obj.Name ~= "Handle"
+		then
+			Parts[#Parts + 1] = Obj
+		end
+	end
+	return Parts
+end
+
+Config.CustomSkeletonJoints = {
+	{"Head", "UpperTorso"},
+	{"UpperTorso", "LowerTorso"},
+	{"UpperTorso", "LeftUpperArm"},
+	{"LeftUpperArm", "LeftLowerArm"},
+	{"LeftLowerArm", "LeftHand"},
+	{"UpperTorso", "RightUpperArm"},
+	{"RightUpperArm", "RightLowerArm"},
+	{"RightLowerArm", "RightHand"},
+	{"LowerTorso", "LeftUpperLeg"},
+	{"LeftUpperLeg", "LeftLowerLeg"},
+	{"LeftLowerLeg", "LeftFoot"},
+	{"LowerTorso", "RightUpperLeg"},
+	{"RightUpperLeg", "RightLowerLeg"},
+	{"RightLowerLeg", "RightFoot"},
+	{"Head", "Torso"},
+	{"Torso", "Left Arm"},
+	{"Torso", "Right Arm"},
+	{"Torso", "Left Leg"},
+	{"Torso", "Right Leg"},
+}
 
 Config.CustomData.GetHealth = function(Player, Character)
 	local hum = Character and Character:FindFirstChildOfClass("Humanoid")
@@ -111,4 +138,4 @@ Config.CustomData.GetFlags = function(Player, Character)
 	}
 end
 
--- ESP:Unload()
+--Esp:Unload()
