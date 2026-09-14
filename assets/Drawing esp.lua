@@ -9,10 +9,11 @@ local Camera = Workspace.CurrentCamera
 local NewVector3, NewVector2 = Vector3.new, Vector2.new
 local Format, Clear, Floor, Clamp, Huge = string.format, table.clear, math.floor, math.clamp, math.huge
 local WorldToViewportPoint = function(worldPos)
-	local cam = Camera or Workspace.CurrentCamera
+	local cam = Workspace.CurrentCamera
 	if not cam or not worldPos then
 		return NewVector3(0, 0, 0), false
 	end
+	Camera = cam
 	return cam:WorldToViewportPoint(worldPos)
 end
 
@@ -111,6 +112,9 @@ local Library = {
 		OOV = {
 			Enabled = true,
 			Color = Color3.fromRGB(0, 255, 255),
+			NameColor = Color3.fromRGB(0, 255, 255),
+			DistanceColor = Color3.fromRGB(0, 255, 255),
+			WeaponColor = Color3.fromRGB(0, 255, 255),
 			Size = 18,
 			Radius = 0.35,
 			Limit = 6,
@@ -511,21 +515,24 @@ function Library:Update(Player, Data, dist)
 	local isOov = oovCfg and oovCfg.Enabled and not onScreen and self.OOVAllowed and self.OOVAllowed[Player]
 	if isOov and Data.RootPart then
 		self:HideAllVisuals(Data)
-		local center = Camera.ViewportSize / 2
-		local relative = Camera.CFrame:PointToObjectSpace(Data.RootPart.Position)
+		local cam = Workspace.CurrentCamera
+		if not cam then return end
+		Camera = cam
+		local center = cam.ViewportSize / 2
+		local relative = cam.CFrame:PointToObjectSpace(Data.RootPart.Position)
 		local ang = math.atan2(-relative.Y, relative.X)
 		local dir = NewVector2(math.cos(ang), math.sin(ang))
-		local radius = (oovCfg.Radius or 0.35) * math.min(Camera.ViewportSize.X, Camera.ViewportSize.Y) * 0.5
+		local radius = (oovCfg.Radius or 0.35) * math.min(cam.ViewportSize.X, cam.ViewportSize.Y) * 0.5
 		local size = oovCfg.Size or 18
 		local tip = center + dir * radius
 		local perp = NewVector2(-dir.Y, dir.X)
 		local left = tip - dir * (size * 0.55) + perp * (size * 0.42)
 		local right = tip - dir * (size * 0.55) - perp * (size * 0.42)
-		local col = oovCfg.Color
+		local arrowCol = oovCfg.Color
 		Objects.OOVArrow.PointA = tip
 		Objects.OOVArrow.PointB = left
 		Objects.OOVArrow.PointC = right
-		Objects.OOVArrow.Color = col
+		Objects.OOVArrow.Color = arrowCol
 		Objects.OOVArrow.Visible = true
 		Objects.OOVArrowOutline.PointA = tip
 		Objects.OOVArrowOutline.PointB = left
@@ -535,21 +542,21 @@ function Library:Update(Player, Data, dist)
 		if oovCfg.ShowName then
 			local nameText = (Table.Texts.Name.Type == "Name") and Player.Name or Player.DisplayName
 			Objects.OOVName.Text = nameText
-			Objects.OOVName.Color = col
+			Objects.OOVName.Color = oovCfg.NameColor or arrowCol
 			Objects.OOVName.Position = tip + NewVector2(0, yOff)
 			Objects.OOVName.Visible = true
 			yOff = yOff + Objects.OOVName.TextBounds.Y + 2
 		end
 		if oovCfg.ShowDistance then
 			Objects.OOVDistance.Text = Format("%dst", Distance)
-			Objects.OOVDistance.Color = col
+			Objects.OOVDistance.Color = oovCfg.DistanceColor or arrowCol
 			Objects.OOVDistance.Position = tip + NewVector2(0, yOff)
 			Objects.OOVDistance.Visible = true
 			yOff = yOff + Objects.OOVDistance.TextBounds.Y + 2
 		end
 		if oovCfg.ShowWeapon then
 			Objects.OOVWeapon.Text = Data.CurrentTool or "none"
-			Objects.OOVWeapon.Color = col
+			Objects.OOVWeapon.Color = oovCfg.WeaponColor or arrowCol
 			Objects.OOVWeapon.Position = tip + NewVector2(0, yOff)
 			Objects.OOVWeapon.Visible = true
 		end
@@ -651,8 +658,14 @@ function Library:Update(Player, Data, dist)
 		Objects.HealthBar.Color = healthColor(Ratio, HealthCfg)
 		Objects.HealthBar.Visible = true
 		if HealthCfg.ShowText then
-			Objects.HealthText.Text = Format("%d", Floor(Health))
-			Objects.HealthText.Position = NewVector2(barX - Objects.HealthText.TextBounds.X - 2, Y + (H - fillH) - Objects.HealthText.TextBounds.Y * 0.5)
+			local healthStr = Format("%d", Floor(Health))
+			Objects.HealthText.Text = healthStr
+			local tw = Objects.HealthText.TextBounds.X
+			local th = Objects.HealthText.TextBounds.Y
+			if tw < 1 then
+				tw = #healthStr * (Objects.HealthText.Size * 0.55)
+			end
+			Objects.HealthText.Position = NewVector2(barX - tw - 3, Y + (H - fillH) - th * 0.5)
 			Objects.HealthText.Visible = true
 		else
 			Objects.HealthText.Visible = false
@@ -896,6 +909,7 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 	if not cam then return end
 	Camera = cam
 	CameraPosition = cam.CFrame.Position
+	CameraCache()
 
 	local maxDist = tonumber(Table.Distance) or 7520
 	local OOVCandidates = {}
