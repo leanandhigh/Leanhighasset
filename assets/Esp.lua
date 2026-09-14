@@ -14,7 +14,7 @@ local NumSeq = NumberSequence.new
 local NumKey = NumberSequenceKeypoint.new
 
 local function WorldToViewportPoint(a, b)
-    local worldPos = b or a
+    local worldPos = typeof(a) == "Vector3" and a or b
     local cam = Workspace.CurrentCamera
     if not cam or not worldPos then
         return NewVector3(0, 0, 0), false
@@ -181,7 +181,9 @@ local Library = {
         OOV = {
             Enabled = true,
             Color = Color3.fromRGB(0, 255, 255),
-            Shape = "Chevron",
+            NameColor = Color3.fromRGB(0, 255, 255),
+            DistanceColor = Color3.fromRGB(0, 255, 255),
+            WeaponColor = Color3.fromRGB(0, 255, 255),
             Size = 18,
             DynamicSize = true,
             MinSize = 12,
@@ -1713,17 +1715,20 @@ function Library:Update(Player, Data)
         local OOV = Table.OOV
         local oovAllowed = Library.OOVAllowed and Library.OOVAllowed[Player]
         if OOV.Enabled and oovAllowed then
-            local Viewport = Camera.ViewportSize
+            local cam = Workspace.CurrentCamera
+            if not cam then return end
+            Camera = cam
+            local Viewport = cam.ViewportSize
             local cx, cy = Viewport.X * 0.5, Viewport.Y * 0.5
 
-            local screenPos = WorldToViewportPoint(Camera, RootPos)
+            local screenPos = WorldToViewportPoint(RootPos)
             local sx, sy = screenPos.X, screenPos.Y
             if screenPos.Z < 0 then
                 sx = Viewport.X - sx
                 sy = Viewport.Y - sy
             end
 
-            local camCF = Camera.CFrame
+            local camCF = cam.CFrame
             local localPos = camCF:PointToObjectSpace(RootPos)
             local dx, dy = localPos.X, -localPos.Y
             local len = math.sqrt(dx * dx + dy * dy)
@@ -1793,7 +1798,7 @@ function Library:Update(Player, Data)
                 Objects.OOVName.FontFace = Library.TahomaBold
                 Objects.OOVName.TextSize = 11
                 Objects.OOVName.Text = NameText
-                Objects.OOVName.TextColor3 = oovColor
+                Objects.OOVName.TextColor3 = toColor3(OOV.NameColor or OOV.Color)
                 Objects.OOVName.TextTransparency = 1 - Alpha
                 Objects.OOVName.Position = DimOffset(CenterX, CenterY - Size * 0.62 - 2)
                 Objects.OOVName.Visible = true
@@ -1806,7 +1811,7 @@ function Library:Update(Player, Data)
             if OOV.ShowDistance then
                 Objects.OOVDistance.TextSize = 9
                 Objects.OOVDistance.Text = Format("%dst", Distance)
-                Objects.OOVDistance.TextColor3 = oovColor
+                Objects.OOVDistance.TextColor3 = toColor3(OOV.DistanceColor or OOV.Color)
                 Objects.OOVDistance.TextTransparency = 1 - Alpha
                 Objects.OOVDistance.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVDistance.Visible = true
@@ -1818,7 +1823,7 @@ function Library:Update(Player, Data)
             if OOV.ShowWeapon then
                 Objects.OOVWeapon.TextSize = 9
                 Objects.OOVWeapon.Text = Data.CurrentTool or "none"
-                Objects.OOVWeapon.TextColor3 = oovColor
+                Objects.OOVWeapon.TextColor3 = toColor3(OOV.WeaponColor or OOV.Color)
                 Objects.OOVWeapon.TextTransparency = 1 - Alpha
                 Objects.OOVWeapon.Position = DimOffset(CenterX, CenterY + OffsetY)
                 Objects.OOVWeapon.Visible = true
@@ -1848,10 +1853,13 @@ function Library:Update(Player, Data)
                 Objects.OOVHealthOutline.Visible = true
 
                 if OOV.ShowHealthText then
-                    Objects.OOVHealthText.Text = Format("%d", Floor(Health))
+                    local healthStr = Format("%d", Floor(Health))
+                    Objects.OOVHealthText.Text = healthStr
                     Objects.OOVHealthText.TextTransparency = 1 - Alpha
+                    local tw = Objects.OOVHealthText.TextBounds.X
+                    if tw < 1 then tw = #healthStr * 6 end
                     Objects.OOVHealthText.AnchorPoint = NewVector2(1, 0.5)
-                    Objects.OOVHealthText.Position = DimOffset(CenterX - Size * 0.62 - 9, CenterY + (BarH * 0.5) - (BarH * Ratio))
+                    Objects.OOVHealthText.Position = DimOffset(BarX - 3, CenterY + (BarH * 0.5) - (BarH * Ratio))
                     Objects.OOVHealthText.Visible = true
                 else
                     Objects.OOVHealthText.Visible = false
@@ -2091,11 +2099,10 @@ function Library:Update(Player, Data)
                 Objects.HealthBarText.Visible = true
             end
             local FlooredHealth = Floor(Health)
-            if Data.LastHealthFloor ~= FlooredHealth then
-                Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-                Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
-                Data.LastHealthFloor = FlooredHealth
-            end
+            Objects.HealthBarText.Text = Format("%d", FlooredHealth)
+            Objects.HealthBarText.AnchorPoint = NewVector2(1, 0.5)
+            Objects.HealthBarText.Position = Dim2(0, -3, 1 - Ratio, 0)
+            Data.LastHealthFloor = FlooredHealth
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
