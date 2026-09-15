@@ -210,6 +210,7 @@ local Library = {
         },
 
         CustomData = {
+            -- return the Model to draw on (custom folders, UserId names, etc.)
             GetCharacter = nil,
             GetHealth = nil,
             GetArmor = nil,
@@ -247,6 +248,8 @@ local function GetBodyParts(Character)
     return Parts
 end
 
+
+-- Resolve character model (custom folder / UserId / Name / DisplayName / Player.Character)
 local function ResolvePlayerCharacter(Player, Fallback)
     if not Player then return nil end
     local CD = Table.CustomData
@@ -1560,26 +1563,66 @@ function Library:AddTarget(Player)
         end
         Data.HeadPart = head
         Data.LowestPart = lowest
-        if not Table.CustomData.GetHealth then
-            Data.BindHealth(Humanoid)
-        else
+        if Table.CustomData.GetHealth then
             local h, mh = Table.CustomData.GetHealth(Player, Character)
             Data.Health = h or 0
             Data.MaxHealth = mh or 100
             Data.Alive = Data.Health > 0
-        end
-        if not Table.CustomData.GetArmor then
-            Data.Armor = 100
-            Data.MaxArmor = 100
         else
+            local attrH = Character:GetAttribute("Health")
+            local attrM = Character:GetAttribute("MaxHealth")
+            if typeof(attrH) == "number" then
+                Data.Health = attrH
+                Data.MaxHealth = typeof(attrM) == "number" and attrM > 0 and attrM or 100
+                Data.Alive = Character:GetAttribute("Dead") ~= true and attrH > 0
+                Data.Conns.AttrHealth = Character:GetAttributeChangedSignal("Health"):Connect(function()
+                    local h = Character:GetAttribute("Health")
+                    Data.Health = typeof(h) == "number" and h or 0
+                    Data.Alive = Character:GetAttribute("Dead") ~= true and Data.Health > 0
+                end)
+                Data.Conns.AttrDead = Character:GetAttributeChangedSignal("Dead"):Connect(function()
+                    Data.Alive = Character:GetAttribute("Dead") ~= true and Data.Health > 0
+                end)
+            else
+                Data.BindHealth(Humanoid)
+            end
+        end
+        if Table.CustomData.GetArmor then
             local a, ma = Table.CustomData.GetArmor(Player, Character)
             Data.Armor = a or 0
             Data.MaxArmor = ma or 100
-        end
-        if not Table.CustomData.GetWeapon then
-            Data.CurrentTool = nil
         else
+            local raw = Player:GetAttribute("Armor")
+            local armorHp = 0
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(function()
+                    return HttpService:JSONDecode(raw)
+                end)
+                if ok and type(data) == "table" then
+                    armorHp = tonumber(data.Health) or 0
+                end
+            elseif typeof(raw) == "number" then
+                armorHp = raw
+            end
+            Data.Armor = armorHp
+            Data.MaxArmor = 100
+        end
+        if Table.CustomData.GetWeapon then
             Data.CurrentTool = Table.CustomData.GetWeapon(Player, Character) or "none"
+        else
+            local raw = Player:GetAttribute("CurrentEquipped")
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(function()
+                    return HttpService:JSONDecode(raw)
+                end)
+                if ok and type(data) == "table" and typeof(data.Name) == "string" then
+                    Data.CurrentTool = data.Name
+                else
+                    Data.CurrentTool = "none"
+                end
+            else
+                Data.CurrentTool = nil
+            end
         end
         Data.BindFlags(Humanoid)
         if Table.CustomData.GetFlags then
@@ -1669,19 +1712,50 @@ end
 function Library:Update(Player, Data)
     local Objects = Data.Objects
 
-    if Table.CustomData.GetHealth and Data.Character then
-        local h, mh = Table.CustomData.GetHealth(Player, Data.Character)
-        Data.Health = h or 0
-        Data.MaxHealth = mh or 100
-        Data.Alive = Data.Health > 0
-    end
-    if Table.CustomData.GetArmor and Data.Character then
-        local a, ma = Table.CustomData.GetArmor(Player, Data.Character)
-        Data.Armor = a or 0
-        Data.MaxArmor = ma or 100
-    end
-    if Table.CustomData.GetWeapon and Data.Character then
-        Data.CurrentTool = Table.CustomData.GetWeapon(Player, Data.Character) or "none"
+    if Data.Character then
+        if Table.CustomData.GetHealth then
+            local h, mh = Table.CustomData.GetHealth(Player, Data.Character)
+            Data.Health = h or 0
+            Data.MaxHealth = mh or 100
+            Data.Alive = Data.Health > 0
+        else
+            local attrH = Data.Character:GetAttribute("Health")
+            if typeof(attrH) == "number" then
+                Data.Health = attrH
+                local attrM = Data.Character:GetAttribute("MaxHealth")
+                Data.MaxHealth = typeof(attrM) == "number" and attrM > 0 and attrM or Data.MaxHealth or 100
+                Data.Alive = Data.Character:GetAttribute("Dead") ~= true and attrH > 0
+            end
+        end
+        if Table.CustomData.GetArmor then
+            local a, ma = Table.CustomData.GetArmor(Player, Data.Character)
+            Data.Armor = a or 0
+            Data.MaxArmor = ma or 100
+        else
+            local raw = Player:GetAttribute("Armor")
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(function()
+                    return HttpService:JSONDecode(raw)
+                end)
+                if ok and type(data) == "table" then
+                    Data.Armor = tonumber(data.Health) or 0
+                    Data.MaxArmor = 100
+                end
+            end
+        end
+        if Table.CustomData.GetWeapon then
+            Data.CurrentTool = Table.CustomData.GetWeapon(Player, Data.Character) or "none"
+        else
+            local raw = Player:GetAttribute("CurrentEquipped")
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(function()
+                    return HttpService:JSONDecode(raw)
+                end)
+                if ok and type(data) == "table" and typeof(data.Name) == "string" then
+                    Data.CurrentTool = data.Name
+                end
+            end
+        end
     end
     if Table.CustomData.GetFlags and Data.Character then
         local flags = Table.CustomData.GetFlags(Player, Data.Character)
@@ -2461,6 +2535,7 @@ do
             local plr = ResolvePlayerFromModel(child)
             if plr and Library.Cache[plr] then
                 local Data = Library.Cache[plr]
+                -- only clear if this was the bound model
                 if Data.Character == child then
                     Data.Character = nil
                     Data.RootPart = nil
