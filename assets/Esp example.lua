@@ -1,6 +1,22 @@
-local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Esp.lua"))()
+--[[
+	ESP Example — custom models (Workspace.Characters)
+	Core: Esp.lua  (updated with CustomData.GetCharacter)
+
+	Usage:
+	  1) load the core
+	  2) set Config (visuals)
+	  3) set Config.CustomData.GetCharacter  ← most important for custom models
+	  4) optional: GetHealth / GetArmor / GetWeapon / GetFlags / CustomGetBodyParts
+]]
+
+local ESP = loadstring(readfile("Esp.lua"))()  -- or HttpGet your hosted Esp.lua
+-- local ESP = loadstring(game:HttpGet("YOUR_URL/Esp.lua"))()
+
 local Config = ESP.Table
 
+----------------------------------------------------------------
+-- Visuals
+----------------------------------------------------------------
 Config.Enabled = true
 Config.Distance = 500
 
@@ -25,7 +41,6 @@ Config.Bars["Health Bar"].ShowText = true
 Config.Bars["Health Bar"].Top = Color3.fromRGB(0, 255, 0)
 Config.Bars["Health Bar"].Mid = Color3.fromRGB(255, 255, 0)
 Config.Bars["Health Bar"].Bot = Color3.fromRGB(255, 0, 0)
-
 Config.Bars["Armor Bar"].Enabled = true
 Config.Bars["Armor Bar"].Top = Color3.fromRGB(255, 255, 255)
 Config.Bars["Armor Bar"].Mid = Color3.fromRGB(220, 220, 220)
@@ -34,10 +49,8 @@ Config.Bars["Armor Bar"].Bot = Color3.fromRGB(180, 180, 180)
 Config.Texts.Name.Enabled = true
 Config.Texts.Name.Color = Color3.fromRGB(0, 255, 255)
 Config.Texts.Name.Type = "DisplayName"
-
 Config.Texts.Distance.Enabled = true
 Config.Texts.Distance.Color = Color3.fromRGB(0, 255, 255)
-
 Config.Texts.Weapon.Enabled = true
 Config.Texts.Weapon.Color = Color3.fromRGB(0, 255, 255)
 
@@ -60,35 +73,45 @@ Config.Chams.FillColor = Color3.fromRGB(0, 255, 255)
 Config.Chams.OutlineColor = Color3.fromRGB(0, 0, 0)
 Config.Chams.FillTransparency = 0.61
 Config.Chams.OutlineTransparency = 0.21
-Config.Chams.Shading = Enum.AdornShading.Default
-Config.Chams.ShadingOutline = Enum.AdornShading.Default
 
 Config.OOV.Enabled = true
 Config.OOV.Color = Color3.fromRGB(0, 255, 255)
-Config.OOV.NameColor = Color3.fromRGB(255, 255, 255)
-Config.OOV.DistanceColor = Color3.fromRGB(180, 180, 180)
-Config.OOV.WeaponColor = Color3.fromRGB(255, 200, 100)
-Config.OOV.Size = 18
-Config.OOV.DynamicSize = true
-Config.OOV.MinSize = 12
-Config.OOV.MaxSize = 22
-Config.OOV.Radius = 0.35
-Config.OOV.DynamicRadius = true
-Config.OOV.MinRadius = 0.18
-Config.OOV.MaxRadius = 0.42
 Config.OOV.Limit = 20
 Config.OOV.ShowName = true
 Config.OOV.ShowDistance = true
 Config.OOV.ShowWeapon = true
-Config.OOV.ShowHealth = true
-Config.OOV.ShowHealthText = true
-Config.OOV.Blink = false
-Config.OOV.BlinkSpeed = 4
 
 Config.Skeleton.Enabled = true
 Config.Skeleton.Color = Color3.fromRGB(255, 255, 255)
 Config.Skeleton.Thickness = 1.5
-Config.Skeleton.Transparency = 0
+
+----------------------------------------------------------------
+-- CUSTOM MODEL  (BloxStrike / similar)
+-- Models live under Workspace.Characters
+-- Named by UserId or Player.Name
+-- Deleted on death, re-created on respawn
+--
+-- Core already:
+--   • watches Characters.ChildAdded / ChildRemoved
+--   • resolves UserId → Name → DisplayName → Player.Character
+-- Override GetCharacter only if your path differs.
+----------------------------------------------------------------
+Config.CustomData.GetCharacter = function(Player)
+	if not Player then return nil end
+	local folder = workspace:FindFirstChild("Characters")
+	if folder then
+		local m = folder:FindFirstChild(tostring(Player.UserId))
+			or folder:FindFirstChild(Player.Name)
+		if not m and Player.DisplayName then
+			m = folder:FindFirstChild(Player.DisplayName)
+		end
+		if m and m:IsA("Model") and m.Parent then
+			return m
+		end
+	end
+	-- fallback default character
+	return Player.Character
+end
 
 Config.CustomGetBodyParts = function(Character)
 	if not Character then return {} end
@@ -131,24 +154,22 @@ Config.CustomSkeletonJoints = {
 
 Config.CustomData.GetHealth = function(Player, Character)
 	local hum = Character and Character:FindFirstChildOfClass("Humanoid")
-	if hum then
-		return hum.Health, hum.MaxHealth
-	end
-	local healthVal = Character and Character:FindFirstChild("Health")
-	local maxHealthVal = Character and Character:FindFirstChild("MaxHealth")
-	return (healthVal and healthVal.Value or 0), (maxHealthVal and maxHealthVal.Value or 100)
+	if hum then return hum.Health, hum.MaxHealth end
+	local h = Character and Character:FindFirstChild("Health")
+	local m = Character and Character:FindFirstChild("MaxHealth")
+	return (h and h.Value or 0), (m and m.Value or 100)
 end
 
 Config.CustomData.GetArmor = function(Player, Character)
-	local armorVal = Character and Character:FindFirstChild("Armor")
-	local maxArmorVal = Character and Character:FindFirstChild("MaxArmor")
-	return (armorVal and armorVal.Value or 0), (maxArmorVal and maxArmorVal.Value or 100)
+	local a = Character and Character:FindFirstChild("Armor")
+	local m = Character and Character:FindFirstChild("MaxArmor")
+	return (a and a.Value or 0), (m and m.Value or 100)
 end
 
 Config.CustomData.GetWeapon = function(Player, Character)
 	if not Character then return "none" end
-	local weaponVal = Character:FindFirstChild("CurrentWeapon")
-	if weaponVal then return weaponVal.Value end
+	local w = Character:FindFirstChild("CurrentWeapon")
+	if w then return w.Value end
 	return Character:GetAttribute("CurrentWeapon") or "none"
 end
 
@@ -158,16 +179,11 @@ Config.CustomData.GetFlags = function(Player, Character)
 		flags[name] = false
 	end
 	if not Character then return flags end
-
 	local hum = Character:FindFirstChildOfClass("Humanoid")
 	if not hum then return flags end
-
 	local stateName = ""
 	pcall(function() stateName = hum:GetState().Name end)
-
-	local moveDir = hum.MoveDirection
-	local moving = moveDir and moveDir.Magnitude > 0.08
-
+	local moving = hum.MoveDirection and hum.MoveDirection.Magnitude > 0.08
 	flags.Walking   = moving and stateName ~= "Jumping" and stateName ~= "Freefall"
 	flags.Jumping   = stateName == "Jumping" or stateName == "Freefall"
 	flags.Sprinting = Character:GetAttribute("Sprinting") == true
@@ -178,8 +194,7 @@ Config.CustomData.GetFlags = function(Player, Character)
 	flags.Falling   = stateName == "FallingDown"
 	flags.Ragdoll   = stateName == "Physics" or stateName == "Ragdoll"
 	flags.Dead      = hum.Health <= 0
-
 	return flags
 end
 
---Esp:Unload()
+-- ESP:Unload()
