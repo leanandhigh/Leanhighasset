@@ -210,7 +210,6 @@ local Library = {
         },
 
         CustomData = {
-            -- return the Model to draw on (custom folders, UserId names, etc.)
             GetCharacter = nil,
             GetHealth = nil,
             GetArmor = nil,
@@ -248,8 +247,6 @@ local function GetBodyParts(Character)
     return Parts
 end
 
-
--- Resolve character model (custom folder / UserId / Name / DisplayName / Player.Character)
 local function ResolvePlayerCharacter(Player, Fallback)
     if not Player then return nil end
     local CD = Table.CustomData
@@ -1083,7 +1080,7 @@ function Library:InitEsp(Data)
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
     Objects.HealthBarText = self:CreateObjects("TextLabel", {
-        Parent = Objects.HealthBarOutline,
+        Parent = Objects.HealthBar,
         FontFace = Library.SmallestPixel,
         TextSize = 9,
         ZIndex = 10,
@@ -1540,15 +1537,12 @@ function Library:AddTarget(Player)
 
         local RootPart = FindFirstChild(Character, "HumanoidRootPart")
         if not RootPart then
-            RootPart = Character:WaitForChild("HumanoidRootPart", 1)
+            RootPart = Character:WaitForChild("HumanoidRootPart", 2)
         end
-        local Humanoid = FindFirstChildOfClass(Character, "Humanoid")
-        if not Humanoid then
-            Humanoid = Character:WaitForChild("Humanoid", 1)
-        end
-        if not RootPart or not Humanoid or not Character.Parent then
+        if not RootPart or not Character.Parent then
             return
         end
+        local Humanoid = FindFirstChildOfClass(Character, "Humanoid")
 
         Data.RootPart = RootPart
         Data.Humanoid = Humanoid
@@ -1583,8 +1577,12 @@ function Library:AddTarget(Player)
                 Data.Conns.AttrDead = Character:GetAttributeChangedSignal("Dead"):Connect(function()
                     Data.Alive = Character:GetAttribute("Dead") ~= true and Data.Health > 0
                 end)
-            else
+            elseif Humanoid then
                 Data.BindHealth(Humanoid)
+            else
+                Data.Health = 100
+                Data.MaxHealth = 100
+                Data.Alive = Character:GetAttribute("Dead") ~= true
             end
         end
         if Table.CustomData.GetArmor then
@@ -1624,7 +1622,7 @@ function Library:AddTarget(Player)
                 Data.CurrentTool = nil
             end
         end
-        Data.BindFlags(Humanoid)
+        if Humanoid then Data.BindFlags(Humanoid) end
         if Table.CustomData.GetFlags then
             local flags = Table.CustomData.GetFlags(Player, Character)
             if flags then
@@ -2200,8 +2198,9 @@ function Library:Update(Player, Data)
             end
             local FlooredHealth = Floor(Health)
             Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-            Objects.HealthBarText.AnchorPoint = NewVector2(1, 0.5)
-            Objects.HealthBarText.Position = Dim2(0, -3, 1 - Ratio, 0)
+            Objects.HealthBarText.AnchorPoint = NewVector2(0.5, 0.5)
+            Objects.HealthBarText.Position = Dim2(0.5, 0, 1 - Ratio * 0.5, 0)
+            Objects.HealthBarText.ZIndex = 5
             Data.LastHealthFloor = FlooredHealth
         else
             if Objects.HealthBarText.Visible then
@@ -2422,16 +2421,27 @@ local function RefreshAllPlayers()
                         if Char and Char.Parent then
                             local Root = Char:FindFirstChild("HumanoidRootPart")
                             local Hum = Char:FindFirstChildOfClass("Humanoid")
-                            if Root and Hum then
+                            if Root then
                                 Data.Character = Char
                                 Data.RootPart = Root
                                 Data.Humanoid = Hum
-                                Data.Alive = Hum.Health > 0
-                                Data.Health = Hum.Health
-                                Data.MaxHealth = Hum.MaxHealth
-                                if Data.BindHealth then Data.BindHealth(Hum) end
+                                local h = Char:GetAttribute("Health")
+                                local m = Char:GetAttribute("MaxHealth")
+                                if typeof(h) == "number" then
+                                    Data.Health = h
+                                    Data.MaxHealth = typeof(m) == "number" and m > 0 and m or 100
+                                    Data.Alive = Char:GetAttribute("Dead") ~= true and h > 0
+                                elseif Hum then
+                                    Data.Health = Hum.Health
+                                    Data.MaxHealth = Hum.MaxHealth
+                                    Data.Alive = Hum.Health > 0
+                                    if Data.BindHealth then Data.BindHealth(Hum) end
+                                else
+                                    Data.Health, Data.MaxHealth = 100, 100
+                                    Data.Alive = Char:GetAttribute("Dead") ~= true
+                                end
                                 if Data.BindChildren then Data.BindChildren(Char) end
-                                if Data.BindFlags then Data.BindFlags(Hum) end
+                                if Hum and Data.BindFlags then Data.BindFlags(Hum) end
                                 Library:BuildChamsForPlayer(Player)
                             end
                         end
@@ -2535,7 +2545,6 @@ do
             local plr = ResolvePlayerFromModel(child)
             if plr and Library.Cache[plr] then
                 local Data = Library.Cache[plr]
-                -- only clear if this was the bound model
                 if Data.Character == child then
                     Data.Character = nil
                     Data.RootPart = nil
