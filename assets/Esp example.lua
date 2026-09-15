@@ -9,8 +9,7 @@
 	  4) optional: GetHealth / GetArmor / GetWeapon / GetFlags / CustomGetBodyParts
 ]]
 
-local ESP = loadstring(readfile("Esp.lua"))()  -- or HttpGet your hosted Esp.lua
--- local ESP = loadstring(game:HttpGet("YOUR_URL/Esp.lua"))()
+local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Esp.lua"))()
 
 local Config = ESP.Table
 
