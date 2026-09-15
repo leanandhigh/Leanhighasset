@@ -210,6 +210,7 @@ local Library = {
         },
 
         CustomData = {
+            GetCharacter = nil,
             GetHealth = nil,
             GetArmor = nil,
             GetWeapon = nil,
@@ -244,6 +245,51 @@ local function GetBodyParts(Character)
         end
     end
     return Parts
+end
+
+local function ResolvePlayerCharacter(Player, Fallback)
+    if not Player then return nil end
+    local CD = Table.CustomData
+    if CD and type(CD.GetCharacter) == "function" then
+        local ok, result = pcall(CD.GetCharacter, Player)
+        if ok and result and typeof(result) == "Instance" and result.Parent then
+            return result
+        end
+    end
+    local folder = Workspace:FindFirstChild("Characters")
+    if folder then
+        local m = folder:FindFirstChild(tostring(Player.UserId))
+            or folder:FindFirstChild(Player.Name)
+        if (not m) and Player.DisplayName then
+            m = folder:FindFirstChild(Player.DisplayName)
+        end
+        if m and m:IsA("Model") and m.Parent then
+            return m
+        end
+    end
+    if Fallback and Fallback.Parent and Fallback:IsA("Model") then
+        return Fallback
+    end
+    if Player.Character and Player.Character.Parent then
+        return Player.Character
+    end
+    return nil
+end
+
+local function ResolvePlayerFromModel(child)
+    if not child then return nil end
+    local plr = Players:FindFirstChild(child.Name)
+    if plr then return plr end
+    local uid = tonumber(child.Name)
+    if uid then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.UserId == uid then return p end
+        end
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.DisplayName == child.Name then return p end
+    end
+    return nil
 end
 
 local function CreateDrawing(Type, Props)
@@ -370,14 +416,7 @@ function Library:BuildChamsForPlayer(Player)
         end
     end
 
-    local Character = Player.Character
-    do
-        local folder = Workspace:FindFirstChild("Characters")
-        if folder then
-            local m = folder:FindFirstChild(Player.Name)
-            if m and m:IsA("Model") then Character = m end
-        end
-    end
+    local Character = ResolvePlayerCharacter(Player, Player.Character)
     local Parts = GetBodyParts(Character)
     local list = {}
     local S = Table.Chams
@@ -1476,20 +1515,7 @@ function Library:AddTarget(Player)
     Data.BindFlags = BindFlags
 
     local function ResolveCharacter(Character)
-        if Character and Character.Parent and Character:IsA("Model") then
-            return Character
-        end
-        local folder = Workspace:FindFirstChild("Characters")
-        if folder then
-            local m = folder:FindFirstChild(Player.Name)
-            if m and m:IsA("Model") and m.Parent then
-                return m
-            end
-        end
-        if Player.Character and Player.Character.Parent then
-            return Player.Character
-        end
-        return nil
+        return ResolvePlayerCharacter(Player, Character)
     end
 
     local function OnCharacter(Character)
@@ -2318,12 +2344,7 @@ local function RefreshAllPlayers()
                     pcall(Data.TryBind)
                 else
                     pcall(function()
-                        local Char = Player.Character
-                        local folder = Workspace:FindFirstChild("Characters")
-                        if folder then
-                            local m = folder:FindFirstChild(Player.Name)
-                            if m and m:IsA("Model") then Char = m end
-                        end
+                        local Char = ResolvePlayerCharacter(Player, Player.Character)
                         if Char and Char.Parent then
                             local Root = Char:FindFirstChild("HumanoidRootPart")
                             local Hum = Char:FindFirstChildOfClass("Humanoid")
@@ -2422,36 +2443,33 @@ do
         if not folder then return end
         folder.ChildAdded:Connect(function(child)
             if not child:IsA("Model") then return end
-            local plr = Players:FindFirstChild(child.Name)
+            local plr = ResolvePlayerFromModel(child)
             if plr and plr ~= LocalPlayer then
                 task.defer(function()
                     if not Library.Cache[plr] then
                         Library:AddTarget(plr)
                     end
                     local Data = Library.Cache[plr]
-                    if Data then
-                        pcall(function()
-                            local Root = child:FindFirstChild("HumanoidRootPart")
-                            local Hum = child:FindFirstChildOfClass("Humanoid")
-                            if Root and Hum then
-                                if Data.TryBind then
-                                    Data.TryBind()
-                                else
-                                    Data.Character = child
-                                    Data.RootPart = Root
-                                    Data.Humanoid = Hum
-                                    Data.Alive = Hum.Health > 0
-                                    Data.Health = Hum.Health
-                                    Data.MaxHealth = Hum.MaxHealth
-                                    if Data.BindHealth then Data.BindHealth(Hum) end
-                                    if Data.BindChildren then Data.BindChildren(child) end
-                                    if Data.BindFlags then Data.BindFlags(Hum) end
-                                    Library:BuildChamsForPlayer(plr)
-                                end
-                            end
-                        end)
+                    if Data and Data.TryBind then
+                        pcall(Data.TryBind)
                     end
                 end)
+            end
+        end)
+        folder.ChildRemoved:Connect(function(child)
+            if not child:IsA("Model") then return end
+            local plr = ResolvePlayerFromModel(child)
+            if plr and Library.Cache[plr] then
+                local Data = Library.Cache[plr]
+                if Data.Character == child then
+                    Data.Character = nil
+                    Data.RootPart = nil
+                    Data.Humanoid = nil
+                    Data.Alive = false
+                    Data.Parts = nil
+                    Library:HideAllVisuals(Data)
+                    Library:ClearChamsForPlayer(plr)
+                end
             end
         end)
     end
