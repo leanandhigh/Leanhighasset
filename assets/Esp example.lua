@@ -1,16 +1,9 @@
 --[[
-	ESP Example — custom models (Workspace.Characters)
-	Core: Esp.lua  (updated with CustomData.GetCharacter)
-
-	Usage:
-	  1) load the core
-	  2) set Config (visuals)
-	  3) set Config.CustomData.GetCharacter  ← most important for custom models
-	  4) optional: GetHealth / GetArmor / GetWeapon / GetFlags / CustomGetBodyParts
+	ESP Example — full optional hooks (BloxStrike / Workspace.Characters)
 ]]
 
 local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Esp.lua"))()
-
+-- local ESP = loadstring(readfile("Esp.lua"))()
 local Config = ESP.Table
 
 ----------------------------------------------------------------
@@ -40,6 +33,7 @@ Config.Bars["Health Bar"].ShowText = true
 Config.Bars["Health Bar"].Top = Color3.fromRGB(0, 255, 0)
 Config.Bars["Health Bar"].Mid = Color3.fromRGB(255, 255, 0)
 Config.Bars["Health Bar"].Bot = Color3.fromRGB(255, 0, 0)
+
 Config.Bars["Armor Bar"].Enabled = true
 Config.Bars["Armor Bar"].Top = Color3.fromRGB(255, 255, 255)
 Config.Bars["Armor Bar"].Mid = Color3.fromRGB(220, 220, 220)
@@ -83,4 +77,159 @@ Config.OOV.ShowWeapon = true
 Config.Skeleton.Enabled = true
 Config.Skeleton.Color = Color3.fromRGB(255, 255, 255)
 Config.Skeleton.Thickness = 1.5
+
+----------------------------------------------------------------
+-- Body parts (R15 shells under Workspace.Characters)
+----------------------------------------------------------------
+Config.CustomGetBodyParts = function(Character)
+	if not Character then return {} end
+	local Names = {
+		Head = true, UpperTorso = true, LowerTorso = true,
+		LeftUpperArm = true, LeftLowerArm = true, LeftHand = true,
+		RightUpperArm = true, RightLowerArm = true, RightHand = true,
+		LeftUpperLeg = true, LeftLowerLeg = true, LeftFoot = true,
+		RightUpperLeg = true, RightLowerLeg = true, RightFoot = true,
+	}
+	local Parts = {}
+	for _, Obj in Character:GetChildren() do
+		if Names[Obj.Name] and Obj:IsA("BasePart") and Obj.Transparency < 1 then
+			Parts[#Parts + 1] = Obj
+		end
+	end
+	if #Parts == 0 then
+		for _, Obj in Character:GetDescendants() do
+			if Names[Obj.Name] and Obj:IsA("BasePart") and Obj.Transparency < 1 then
+				Parts[#Parts + 1] = Obj
+			end
+		end
+	end
+	return Parts
+end
+
+Config.CustomSkeletonJoints = {
+	{"Head", "UpperTorso"},
+	{"UpperTorso", "LowerTorso"},
+	{"UpperTorso", "LeftUpperArm"},
+	{"LeftUpperArm", "LeftLowerArm"},
+	{"LeftLowerArm", "LeftHand"},
+	{"UpperTorso", "RightUpperArm"},
+	{"RightUpperArm", "RightLowerArm"},
+	{"RightLowerArm", "RightHand"},
+	{"LowerTorso", "LeftUpperLeg"},
+	{"LeftUpperLeg", "LeftLowerLeg"},
+	{"LeftLowerLeg", "LeftFoot"},
+	{"LowerTorso", "RightUpperLeg"},
+	{"RightUpperLeg", "RightLowerLeg"},
+	{"RightLowerLeg", "RightFoot"},
+}
+
+----------------------------------------------------------------
+-- Full optional CustomData (overrides core defaults)
+----------------------------------------------------------------
+Config.CustomData = Config.CustomData or {}
+
+Config.CustomData.GetCharacter = function(Player)
+	if not Player then return nil end
+	local folder = workspace:FindFirstChild("Characters")
+	if folder then
+		local m = folder:FindFirstChild(Player.Name)
+			or folder:FindFirstChild(tostring(Player.UserId))
+		if not m and Player.DisplayName then
+			m = folder:FindFirstChild(Player.DisplayName)
+		end
+		if m and m:IsA("Model") and m.Parent then
+			return m
+		end
+	end
+	local pc = Player.Character
+	if pc and pc.Parent and pc:GetAttribute("CharacterType") == "PlayerCustomCharacter" then
+		return pc
+	end
+	return pc
+end
+
+Config.CustomData.GetHealth = function(Player, Character)
+	if not Character then return 0, 100 end
+	local h = Character:GetAttribute("Health")
+	local m = Character:GetAttribute("MaxHealth")
+	if typeof(h) == "number" then
+		return h, (typeof(m) == "number" and m > 0 and m) or 100
+	end
+	local hum = Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		return hum.Health, hum.MaxHealth
+	end
+	return 0, 100
+end
+
+Config.CustomData.GetArmor = function(Player, Character)
+	local raw = Player and Player:GetAttribute("Armor")
+	if typeof(raw) == "string" and raw ~= "" then
+		local ok, data = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(raw)
+		end)
+		if ok and type(data) == "table" then
+			return tonumber(data.Health) or 0, 100
+		end
+	elseif typeof(raw) == "number" then
+		return raw, 100
+	end
+	return 0, 100
+end
+
+Config.CustomData.GetWeapon = function(Player, Character)
+	local raw = Player and Player:GetAttribute("CurrentEquipped")
+	if typeof(raw) == "string" and raw ~= "" then
+		local ok, data = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(raw)
+		end)
+		if ok and type(data) == "table" and typeof(data.Name) == "string" then
+			return data.Name
+		end
+	end
+	if Character then
+		local w = Character:FindFirstChild("CurrentWeapon")
+		if w then return w.Value end
+		local attr = Character:GetAttribute("CurrentWeapon")
+		if attr then return attr end
+	end
+	return "none"
+end
+
+Config.CustomData.GetFlags = function(Player, Character)
+	local flags = {
+		Walking = false,
+		Jumping = false,
+		Sprinting = false,
+		Crouching = false,
+		Flying = false,
+		Swimming = false,
+		Climbing = false,
+		Falling = false,
+		Ragdoll = false,
+		Dead = false,
+	}
+	if not Character then return flags end
+
+	flags.Dead = Character:GetAttribute("Dead") == true
+		or (typeof(Character:GetAttribute("Health")) == "number" and Character:GetAttribute("Health") <= 0)
+	flags.Sprinting = Character:GetAttribute("Sprinting") == true
+	flags.Crouching = Character:GetAttribute("Crouching") == true
+
+	local hum = Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		local stateName = ""
+		pcall(function() stateName = hum:GetState().Name end)
+		local moving = hum.MoveDirection and hum.MoveDirection.Magnitude > 0.08
+		flags.Walking = moving and stateName ~= "Jumping" and stateName ~= "Freefall"
+		flags.Jumping = stateName == "Jumping" or stateName == "Freefall"
+		flags.Flying = stateName == "Flying" or Character:GetAttribute("Flying") == true
+		flags.Swimming = stateName == "Swimming"
+		flags.Climbing = stateName == "Climbing"
+		flags.Falling = stateName == "FallingDown"
+		flags.Ragdoll = stateName == "Physics" or stateName == "Ragdoll"
+	end
+	return flags
+end
+
 -- ESP:Unload()
