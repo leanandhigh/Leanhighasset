@@ -402,8 +402,8 @@ do
 end
 
 Library.ChamsFolder = Library:CreateObjects("Folder", {
-    Name = "Chams",
-    Parent = Library.Holder,
+    Name = "LeanESP_Chams",
+    Parent = Workspace,
 })
 
 function Library:BuildChamsForPlayer(Player)
@@ -1083,16 +1083,16 @@ function Library:InitEsp(Data)
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
     Objects.HealthBarText = self:CreateObjects("TextLabel", {
-        Parent = self.Holder,
+        Parent = Objects.HealthBarOutline,
         FontFace = Library.SmallestPixel,
         TextSize = 9,
-        ZIndex = 55,
+        ZIndex = 10,
         TextColor3 = Color3.fromRGB(255, 255, 255),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Right,
         TextYAlignment = Enum.TextYAlignment.Center,
-        AnchorPoint = NewVector2(1, 0.5),
-        Position = DimOffset(0, 0),
+        AnchorPoint = NewVector2(1, 0),
+        Position = Dim2(1, -10, 1, 1),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
@@ -2200,18 +2200,11 @@ function Library:Update(Player, Data)
                 Objects.HealthBarText.Visible = true
             end
             local FlooredHealth = Floor(Health)
-            Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-            -- same as OOV: screen-space left of bar at fill top
-            local barAbs = Objects.HealthBarOutline.AbsolutePosition
-            local barSize = Objects.HealthBarOutline.AbsoluteSize
-            Objects.HealthBarText.AnchorPoint = NewVector2(1, 0.5)
-            Objects.HealthBarText.Position = DimOffset(
-                barAbs.X - 3,
-                barAbs.Y + barSize.Y * (1 - Ratio)
-            )
-            Objects.HealthBarText.ZIndex = 55
-            Objects.HealthBarText.Visible = true
-            Data.LastHealthFloor = FlooredHealth
+            if Data.LastHealthFloor ~= FlooredHealth then
+                Objects.HealthBarText.Text = Format("%d", FlooredHealth)
+                Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
+                Data.LastHealthFloor = FlooredHealth
+            end
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
