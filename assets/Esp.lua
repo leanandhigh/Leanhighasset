@@ -1089,10 +1089,10 @@ function Library:InitEsp(Data)
         ZIndex = 10,
         TextColor3 = Color3.fromRGB(255, 255, 255),
         Text = "",
-        TextXAlignment = Enum.TextXAlignment.Right,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        AnchorPoint = NewVector2(1, 0),
-        Position = Dim2(1, -10, 1, 1),
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Bottom,
+        AnchorPoint = NewVector2(0.5, 1),
+        Position = Dim2(0.5, 0, 0, 0),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
@@ -2202,9 +2202,10 @@ function Library:Update(Player, Data)
             local FlooredHealth = Floor(Health)
             if Data.LastHealthFloor ~= FlooredHealth then
                 Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-                Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
                 Data.LastHealthFloor = FlooredHealth
             end
+            -- keep text at the top of the filled portion, centered inside the bar
+            Objects.HealthBarText.Position = Dim2(0.5, 0, 1 - Ratio, 0)
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
