@@ -590,6 +590,9 @@ function Library:HideAllVisuals(Data)
             end
         end
     end
+    if Objects.HealthBarText then
+        Objects.HealthBarText.Visible = false
+    end
 end
 
 function Library:InitEsp(Data)
@@ -1080,16 +1083,16 @@ function Library:InitEsp(Data)
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
     Objects.HealthBarText = self:CreateObjects("TextLabel", {
-        Parent = Objects.HealthBarOutline,
+        Parent = self.Holder,
         FontFace = Library.SmallestPixel,
         TextSize = 9,
-        ZIndex = 10,
+        ZIndex = 55,
         TextColor3 = Color3.fromRGB(255, 255, 255),
         Text = "",
         TextXAlignment = Enum.TextXAlignment.Right,
         TextYAlignment = Enum.TextYAlignment.Center,
         AnchorPoint = NewVector2(1, 0.5),
-        Position = Dim2(0, -3, 1, 0),
+        Position = DimOffset(0, 0),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
@@ -2198,10 +2201,16 @@ function Library:Update(Player, Data)
             end
             local FlooredHealth = Floor(Health)
             Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-            -- beside left health bar (same idea as OOV health text)
+            -- same as OOV: screen-space left of bar at fill top
+            local barAbs = Objects.HealthBarOutline.AbsolutePosition
+            local barSize = Objects.HealthBarOutline.AbsoluteSize
             Objects.HealthBarText.AnchorPoint = NewVector2(1, 0.5)
-            Objects.HealthBarText.Position = Dim2(0, -3, 1 - Ratio, 0)
-            Objects.HealthBarText.ZIndex = 10
+            Objects.HealthBarText.Position = DimOffset(
+                barAbs.X - 3,
+                barAbs.Y + barSize.Y * (1 - Ratio)
+            )
+            Objects.HealthBarText.ZIndex = 55
+            Objects.HealthBarText.Visible = true
             Data.LastHealthFloor = FlooredHealth
         else
             if Objects.HealthBarText.Visible then
