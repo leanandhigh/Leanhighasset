@@ -6958,7 +6958,62 @@ do
             return Tab
         end
         
-        function Library:CreateWatermark()
+        
+    function Library:AddKeybindFrame(Mode, Name, Key, Section)
+        if Library.KeyList and Library.KeyList.Add then
+            return Library.KeyList:Add(Mode, Name, Key, Section)
+        end
+    end
+
+    function Library:RemoveKeybindFrame(Name, Section)
+        if Library.KeyList and Library.KeyList.Remove then
+            Library.KeyList:Remove(Name, Section)
+        end
+    end
+
+    function Library:UpdateKeybindFrame(Mode, Name, Key, Section)
+        if Library.KeyList and Library.KeyList.Update then
+            Library.KeyList:Update(Mode, Name, Key, Section)
+        end
+    end
+
+    function Library:ToggleKeybindList(State)
+        if Library.KeyList and Library.KeyList.SetVisibility then
+            Library.KeyList:SetVisibility(State)
+        end
+    end
+
+    function Library:AddSpectator(Player)
+        if Library.SpectatorList and Library.SpectatorList.Add then
+            return Library.SpectatorList:Add(Player)
+        end
+    end
+
+    function Library:RemoveSpectator(Player)
+        if Library.SpectatorList and Library.SpectatorList.Remove then
+            Library.SpectatorList:Remove(Player)
+        end
+    end
+
+    function Library:ClearSpectators()
+        if Library.SpectatorList and Library.SpectatorList.Clear then
+            Library.SpectatorList:Clear()
+        end
+    end
+
+    function Library:ToggleSpectatorList(State)
+        if Library.SpectatorList and Library.SpectatorList.SetVisibility then
+            Library.SpectatorList:SetVisibility(State)
+        end
+    end
+
+    function Library:ToggleWatermark(State)
+        if Library.WatermarkToggle then
+            Library.WatermarkToggle(State)
+        end
+    end
+
+function Library:CreateWatermark()
             local Watermark = {
                 CanUse = true,
                 Tick = tick(),
@@ -7032,9 +7087,14 @@ do
             }, true)
             
             do 
-                function Library:ToggleWatermark(State)
+                Library.WatermarkToggle = function(State)
                     Watermark.CanUse = State
                     MainWatermark.Visible = State
+                end
+                function Library:ToggleWatermark(State)
+                    if Library.WatermarkToggle then
+                        Library.WatermarkToggle(State)
+                    end
                 end
                 
                 function Library:UpdateWatermark(Text)
@@ -7345,26 +7405,6 @@ do
                     Dragging = false
                 end
             end)
-            function Library:AddKeybindFrame(Mode, Name, Key, Section)
-                if Library.KeyList then
-                    Library.KeyList:Add(Mode, Name, Key, Section)
-                end
-            end
-            function Library:RemoveKeybindFrame(Name, Section)
-                if Library.KeyList then
-                    Library.KeyList:Remove(Name, Section)
-                end
-            end
-            function Library:UpdateKeybindFrame(Mode, Name, Key, Section)
-                if Library.KeyList then
-                    Library.KeyList:Update(Mode, Name, Key, Section)
-                end
-            end
-            function Library:ToggleKeybindList(State)
-                if Library.KeyList then
-                    Library.KeyList:SetVisibility(State)
-                end
-            end
             UpdateSize()
             return KeybindList
         end
@@ -7638,26 +7678,6 @@ do
                     Dragging = false
                 end
             end)
-            function Library:AddSpectator(Player)
-                if Library.SpectatorList then
-                    return Library.SpectatorList:Add(Player)
-                end
-            end
-            function Library:RemoveSpectator(Player)
-                if Library.SpectatorList then
-                    Library.SpectatorList:Remove(Player)
-                end
-            end
-            function Library:ClearSpectators()
-                if Library.SpectatorList then
-                    Library.SpectatorList:Clear()
-                end
-            end
-            function Library:ToggleSpectatorList(State)
-                if Library.SpectatorList then
-                    Library.SpectatorList:SetVisibility(State)
-                end
-            end
             UpdateSize()
             return SpectatorList
         end
