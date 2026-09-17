@@ -424,14 +424,49 @@ do
         end
     end
     
+    function Library:GetHumanoid(Model)
+        if not Model then return nil end
+        local Hum = Model:FindFirstChildOfClass("Humanoid")
+        if Hum then return Hum end
+        Hum = Model:FindFirstChild("Humanoid", true)
+        return Hum
+    end
+
     function Library:ViewPlayer(Player)
-        if not Library.UI.Viewing then
-            Camera.CameraSubject = Player.Character.Humanoid
-        else
-            Camera.CameraSubject = Client.Character.Humanoid
+        local function ResolveCharacter(Plr)
+            if not Plr then return nil end
+            local folder = Workspace:FindFirstChild("Characters")
+            if folder then
+                local m = folder:FindFirstChild(tostring(Plr.UserId))
+                    or folder:FindFirstChild(Plr.Name)
+                if (not m) and Plr.DisplayName then
+                    m = folder:FindFirstChild(Plr.DisplayName)
+                end
+                if m and m:IsA("Model") then
+                    return m
+                end
+            end
+            if Plr.Character and Plr.Character.Parent then
+                return Plr.Character
+            end
+            return nil
         end
-        
-        Library.UI.Viewing = not Library.UI.Viewing
+
+        if not Library.UI.Viewing then
+            local Char = ResolveCharacter(Player)
+            local Hum = Library:GetHumanoid(Char)
+            if Hum then
+                Camera.CameraSubject = Hum
+                Library.UI.Viewing = true
+            end
+        else
+            local Char = ResolveCharacter(Client)
+            local Hum = Library:GetHumanoid(Char)
+            if Hum then
+                Camera.CameraSubject = Hum
+            end
+            Library.UI.Viewing = false
+        end
     end
     
     function Library:GetTableLength(Table)
@@ -2161,7 +2196,8 @@ do
                 Keybind.SelectArmed = false
                 
                 Library:TweenObject(KeybindObject, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(255, 0, 0)})
-
+                
+                -- delay so the click that opened select mode is not bound as M1
                 task.delay(0.2, function()
                     if Keybind.SelectingKeybind then
                         Keybind.SelectArmed = true
@@ -2207,6 +2243,8 @@ do
             
             Library:Connection(UserInputService.InputBegan, function(Input, Processed)
                 if Keybind.SelectingKeybind then return end
+                -- do not block on Processed so game-used keys (M1/M2 etc.) still fire
+                
                 if KeybindMatches(Input) then
                     if Keybind.Mode == "Always on" then
                         Keybind:Toggle(true)
@@ -7776,17 +7814,33 @@ function Library:Notify(Options)
         end
         
         function Library:Unload()
-            Camera.CameraSubject = Client.Character.Humanoid
+            local Char = Client.Character
+            local folder = Workspace:FindFirstChild("Characters")
+            if folder then
+                local m = folder:FindFirstChild(tostring(Client.UserId))
+                    or folder:FindFirstChild(Client.Name)
+                if m and m:IsA("Model") then
+                    Char = m
+                end
+            end
+            local Hum = Library:GetHumanoid(Char)
+            if Hum then
+                Camera.CameraSubject = Hum
+            end
             
             for Index, Value in Library.Connections do
                 Value:Disconnect()
             end
             
             for _, Objects in Library.Objects do
-                Objects[1]:Destroy()
+                if Objects[1] and Objects[1].Destroy then
+                    pcall(function() Objects[1]:Destroy() end)
+                end
             end
             
-            MainUI:Destroy()
+            if MainUI then
+                pcall(function() MainUI:Destroy() end)
+            end
         end
         
         function Library:Disable()
