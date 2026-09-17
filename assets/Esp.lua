@@ -27,15 +27,13 @@ local Format, Clear, Floor, Clamp, Abs, Tan, Rad, Huge, Remove = string.format, 
 local Frame, ZeroVector3, CameraPosition, ViewPortY, Updates = 1 / 60, NewVector3(0, 0, 0), NewVector3(0, 0, 0), 0, 0
 
 local function toColor3(c)
-    if typeof(c) == "Color3" then
+    local t = typeof(c)
+    if t == "Color3" then
         return c
     end
-    if type(c) == "table" then
-        if c.R and c.G and c.B then
-            return Color3.new(c.R, c.G, c.B)
-        end
-        if c[1] and c[2] and c[3] then
-            local r, g, b = c[1], c[2], c[3]
+    if t == "table" then
+        local r, g, b = c.R or c[1], c.G or c[2], c.B or c[3]
+        if r then
             if r > 1 or g > 1 or b > 1 then
                 return Color3.fromRGB(r, g, b)
             end
@@ -54,17 +52,7 @@ local MathConfig = {
     dynamicXSize = false,
 }
 
--- Performance: distance LOD + update staggering
-local Perf = {
-    NearDist = 80,
-    MidDist = 200,
-    NearEvery = 1,   -- frames
-    MidEvery = 2,
-    FarEvery = 4,
-    ChamsMaxDist = 150,
-    BoxSimpleDist = 120, -- past this use HRP-only box (cheaper)
-    FrameSkip = 0,
-}
+
 
 local function calculateXSize(armScreenPositionX, baseScreenPositionX, distanceFromCamera, fieldOfView)
     return math.max(math.abs(armScreenPositionX - baseScreenPositionX) * 3, (500 / math.max(distanceFromCamera, 1)) / ((fieldOfView or 70) / 70))
@@ -490,7 +478,7 @@ function Library:UpdateChams(Player, Data)
     end
 
     local dist = (CameraPosition - Root.Position).Magnitude
-    if dist > Perf.ChamsMaxDist or dist > Table.Distance then
+    if dist > Table.Distance then
         local list = self.PlayerChams[Player]
         if list then
             for i = 1, #list do
@@ -1353,18 +1341,6 @@ function Library:CalculateBox(Data)
     local PadX = (BoundingBox and BoundingBox.BoxX) or 0
     local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
-    -- Cheap path: HRP-based box (far players / LOD)
-    if Data._SimpleBox then
-        local pos, onScreen = WorldToViewportPoint(cam, RootPart.Position)
-        if not onScreen or pos.Z <= 0 then
-            return nil, nil, nil, nil, false
-        end
-        local scale = 1000 / math.max(pos.Z, 1)
-        local W = math.max(scale * 2.2, 8) + PadX
-        local H = math.max(scale * 4.5, 14) + PadY
-        return W, H, pos.X - W * 0.5, pos.Y - H * 0.5, true
-    end
-
     local parts = Data.Parts
     if not parts or #parts == 0 then
         parts = GetBodyParts(Character)
@@ -1665,42 +1641,46 @@ function Library:AddTarget(Player)
                 Data.Alive = Character:GetAttribute("Dead") ~= true
             end
         end
+        local function ParseArmor(raw)
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(HttpService.JSONDecode, HttpService, raw)
+                if ok and type(data) == "table" then
+                    return tonumber(data.Health) or 0
+                end
+            elseif typeof(raw) == "number" then
+                return raw
+            end
+            return 0
+        end
+        local function ParseWeapon(raw)
+            if typeof(raw) == "string" and raw ~= "" then
+                local ok, data = pcall(HttpService.JSONDecode, HttpService, raw)
+                if ok and type(data) == "table" and typeof(data.Name) == "string" then
+                    return data.Name
+                end
+            end
+            return "none"
+        end
         if Table.CustomData.GetArmor then
             local a, ma = Table.CustomData.GetArmor(Player, Character)
             Data.Armor = a or 0
             Data.MaxArmor = ma or 100
         else
-            local raw = Player:GetAttribute("Armor")
-            local armorHp = 0
-            if typeof(raw) == "string" and raw ~= "" then
-                local ok, data = pcall(function()
-                    return HttpService:JSONDecode(raw)
-                end)
-                if ok and type(data) == "table" then
-                    armorHp = tonumber(data.Health) or 0
-                end
-            elseif typeof(raw) == "number" then
-                armorHp = raw
-            end
-            Data.Armor = armorHp
+            Data.Armor = ParseArmor(Player:GetAttribute("Armor"))
             Data.MaxArmor = 100
+            if Data.Conns.AttrArmor then Data.Conns.AttrArmor:Disconnect() end
+            Data.Conns.AttrArmor = Player:GetAttributeChangedSignal("Armor"):Connect(function()
+                Data.Armor = ParseArmor(Player:GetAttribute("Armor"))
+            end)
         end
         if Table.CustomData.GetWeapon then
             Data.CurrentTool = Table.CustomData.GetWeapon(Player, Character) or "none"
         else
-            local raw = Player:GetAttribute("CurrentEquipped")
-            if typeof(raw) == "string" and raw ~= "" then
-                local ok, data = pcall(function()
-                    return HttpService:JSONDecode(raw)
-                end)
-                if ok and type(data) == "table" and typeof(data.Name) == "string" then
-                    Data.CurrentTool = data.Name
-                else
-                    Data.CurrentTool = "none"
-                end
-            else
-                Data.CurrentTool = nil
-            end
+            Data.CurrentTool = ParseWeapon(Player:GetAttribute("CurrentEquipped"))
+            if Data.Conns.AttrWeapon then Data.Conns.AttrWeapon:Disconnect() end
+            Data.Conns.AttrWeapon = Player:GetAttributeChangedSignal("CurrentEquipped"):Connect(function()
+                Data.CurrentTool = ParseWeapon(Player:GetAttribute("CurrentEquipped"))
+            end)
         end
         if Humanoid then Data.BindFlags(Humanoid) end
         if Table.CustomData.GetFlags then
@@ -1789,62 +1769,34 @@ end
 
 function Library:Update(Player, Data)
     local Objects = Data.Objects
+    local CD = Table.CustomData
 
-    if Data.Character then
-        if Table.CustomData.GetHealth then
-            local h, mh = Table.CustomData.GetHealth(Player, Data.Character)
+    -- Health/Armor/Weapon are event-driven (see Bind*). Only call custom getters when provided.
+    if Data.Character and CD then
+        if CD.GetHealth then
+            local h, mh = CD.GetHealth(Player, Data.Character)
             Data.Health = h or 0
             Data.MaxHealth = mh or 100
             Data.Alive = Data.Health > 0
-        else
-            local attrH = Data.Character:GetAttribute("Health")
-            if typeof(attrH) == "number" then
-                Data.Health = attrH
-                local attrM = Data.Character:GetAttribute("MaxHealth")
-                Data.MaxHealth = typeof(attrM) == "number" and attrM > 0 and attrM or Data.MaxHealth or 100
-                Data.Alive = Data.Character:GetAttribute("Dead") ~= true and attrH > 0
-            end
         end
-        if Table.CustomData.GetArmor then
-            local a, ma = Table.CustomData.GetArmor(Player, Data.Character)
+        if CD.GetArmor then
+            local a, ma = CD.GetArmor(Player, Data.Character)
             Data.Armor = a or 0
             Data.MaxArmor = ma or 100
-        else
-            local raw = Player:GetAttribute("Armor")
-            if typeof(raw) == "string" and raw ~= "" then
-                local ok, data = pcall(function()
-                    return HttpService:JSONDecode(raw)
-                end)
-                if ok and type(data) == "table" then
-                    Data.Armor = tonumber(data.Health) or 0
-                    Data.MaxArmor = 100
-                end
-            end
         end
-        if Table.CustomData.GetWeapon then
-            Data.CurrentTool = Table.CustomData.GetWeapon(Player, Data.Character) or "none"
-        else
-            local raw = Player:GetAttribute("CurrentEquipped")
-            if typeof(raw) == "string" and raw ~= "" then
-                local ok, data = pcall(function()
-                    return HttpService:JSONDecode(raw)
-                end)
-                if ok and type(data) == "table" and typeof(data.Name) == "string" then
-                    Data.CurrentTool = data.Name
-                end
-            end
+        if CD.GetWeapon then
+            Data.CurrentTool = CD.GetWeapon(Player, Data.Character) or "none"
         end
-    end
-    if Table.CustomData.GetFlags and Data.Character then
-        local flags = Table.CustomData.GetFlags(Player, Data.Character)
-        if flags then
-            for k, v in pairs(flags) do
-                Data.FlagStates[k] = v
-            end
-            self:UpdateFlagVisibility(Data)
-        else
-            for k, _ in pairs(Data.FlagStates) do
-                Data.FlagStates[k] = false
+        if CD.GetFlags then
+            local flags = CD.GetFlags(Player, Data.Character)
+            if flags then
+                for k, v in pairs(flags) do
+                    Data.FlagStates[k] = v
+                end
+            else
+                for k in pairs(Data.FlagStates) do
+                    Data.FlagStates[k] = false
+                end
             end
             self:UpdateFlagVisibility(Data)
         end
@@ -2442,7 +2394,6 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
         return
     end
     Updates = Now
-    Perf.FrameSkip = (Perf.FrameSkip + 1) % 256
 
     local cam = Workspace.CurrentCamera
     if not cam then return end
@@ -2451,8 +2402,15 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
 
     local maxDist = tonumber(Table.Distance) or 7520
     local oovOn = Table.OOV and Table.OOV.Enabled
-    local OOVCandidates = oovOn and {} or nil
-    local frame = Perf.FrameSkip
+    local OOVCandidates = Library._OOVCandidates
+    if oovOn then
+        if not OOVCandidates then
+            OOVCandidates = {}
+            Library._OOVCandidates = OOVCandidates
+        else
+            table.clear(OOVCandidates)
+        end
+    end
 
     for Player, Data in Library.Cache do
         if not Player.Parent then
@@ -2492,18 +2450,8 @@ Library:CreateThreads("Renderer", RunService.RenderStepped, function()
             continue
         end
 
-        -- distance LOD: far players update less often
-        local every = dist <= Perf.NearDist and Perf.NearEvery
-            or dist <= Perf.MidDist and Perf.MidEvery
-            or Perf.FarEvery
-        local slot = (Player.UserId % every)
-        if (frame % every) ~= slot then
-            continue
-        end
-
-        Data._ChamsSkipSize = (frame % 8) ~= 0
-        Data._SimpleBox = dist > Perf.BoxSimpleDist
         Data._wasVisible = true
+        Data._ChamsSkipSize = false
 
         if oovOn then
             local _, onScreen = WorldToViewportPoint(Camera, Root.Position)
