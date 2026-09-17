@@ -72,6 +72,7 @@ do
             NewFont = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
             FontSize = 13,
             DraggingGui = nil,
+            IsSelectingKeybind = false,
             Notifications = {TopLeft = {}, Middle = {}},
             Keys = {
                 [Enum.KeyCode.LeftShift] = "LSHF",
@@ -1829,6 +1830,8 @@ do
                 
                 if ValidKey then
                     Keybind.Keybind = KeyString
+                    Keybind.KeyEnumString = tostring(Key)
+                    Keybind.RegKeybind = Key
                     KeybindObject.Text = "[" .. KeyString:upper() .. "]"
                     Options.Callback(Key)
                     Library.Flags[Options.Flag] = Keybind
@@ -1837,6 +1840,8 @@ do
                     end
                 else
                     Keybind.Keybind = "[-]"
+                    Keybind.KeyEnumString = nil
+                    Keybind.RegKeybind = nil
                     KeybindObject.Text = Keybind.Keybind
                 end
                 
@@ -2202,79 +2207,94 @@ do
                 Keybind:ToggleFrame()
             end)
             
+            -- MouseButton1Click fires on RELEASE, so the click that opened pick is already finished.
+            -- Next InputBegan (keyboard or mouse) is the real bind — same pattern as scoot/samet UI.
             Library:Connection(Button_4.MouseButton1Click, function()
                 if Keybind.Connection then
                     Keybind.Connection:Disconnect()
                     Keybind.Connection = nil
                 end
-                
+
                 Keybind.SelectingKeybind = true
-                Keybind.SelectArmed = false
-                
+                Library.UI.IsSelectingKeybind = true
+
                 Library:TweenObject(KeybindObject, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(255, 0, 0)})
-                
-                -- delay so the click that opened select mode is not bound as M1
-                task.delay(0.2, function()
-                    if Keybind.SelectingKeybind then
-                        Keybind.SelectArmed = true
-                    end
-                end)
-                
+                KeybindObject.Text = "[...]"
+
                 Keybind.Connection = Library:Connection(UserInputService.InputBegan, function(Input)
-                    if not Keybind.SelectArmed then return end
-                    
-                    local IsKeyboard = Input.UserInputType == Enum.UserInputType.Keyboard
-                    local IsMouse = Input.UserInputType == Enum.UserInputType.MouseButton1
+                    if not Keybind.SelectingKeybind then return end
+
+                    local Key
+                    if Input.UserInputType == Enum.UserInputType.Keyboard then
+                        if Input.KeyCode == Enum.KeyCode.Escape or Input.KeyCode == Enum.KeyCode.Backspace then
+                            Keybind.Keybind = "[-]"
+                            Keybind.RegKeybind = nil
+                            Keybind.KeyEnumString = nil
+                            KeybindObject.Text = "[-]"
+                            Library:TweenObject(KeybindObject, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(117, 117, 117)})
+                            KeybindObject.Size = UDim2.new(0, KeybindObject.TextBounds.X + 2, 0, 7)
+                            if Keybind.Connection then
+                                Keybind.Connection:Disconnect()
+                                Keybind.Connection = nil
+                            end
+                            Keybind.SelectingKeybind = false
+                            Library.UI.IsSelectingKeybind = false
+                            return
+                        end
+                        Key = Input.KeyCode
+                    elseif Input.UserInputType == Enum.UserInputType.MouseButton1
                         or Input.UserInputType == Enum.UserInputType.MouseButton2
-                        or Input.UserInputType == Enum.UserInputType.MouseButton3
-                    
-                    if not IsKeyboard and not IsMouse then return end
-                    
-                    local Key = IsKeyboard and Input.KeyCode or Input.UserInputType
+                        or Input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        Key = Input.UserInputType
+                    else
+                        return
+                    end
+
                     Keybind:Set(Key)
-                    
+
                     if Keybind.Connection then
                         Keybind.Connection:Disconnect()
                         Keybind.Connection = nil
                     end
                     Keybind.SelectingKeybind = false
-                    Keybind.SelectArmed = false
+                    Library.UI.IsSelectingKeybind = false
                 end)
             end)
-            
+
             local function KeybindMatches(Input)
-                if Keybind.Keybind == "[-]" or not Keybind.RegKeybind then
+                if Keybind.Keybind == "[-]" or not Keybind.KeyEnumString then
                     return false
                 end
+                -- match like scoot: tostring of KeyCode OR UserInputType
                 if Input.UserInputType == Enum.UserInputType.Keyboard then
-                    return Input.KeyCode == Keybind.RegKeybind
+                    return tostring(Input.KeyCode) == Keybind.KeyEnumString
                 end
-                if Input.UserInputType == Enum.UserInputType.MouseButton1
-                    or Input.UserInputType == Enum.UserInputType.MouseButton2
-                    or Input.UserInputType == Enum.UserInputType.MouseButton3 then
-                    return Input.UserInputType == Keybind.RegKeybind
-                end
-                return false
+                return tostring(Input.UserInputType) == Keybind.KeyEnumString
             end
-            
-            Library:Connection(UserInputService.InputBegan, function(Input, Processed)
-                if Keybind.SelectingKeybind then return end
-                -- do not block on Processed so game-used keys (M1/M2 etc.) still fire
-                
-                if KeybindMatches(Input) then
-                    if Keybind.Mode == "Always on" then
-                        Keybind:Toggle(true)
-                    else
-                        Keybind:Toggle()
-                    end
+
+            Library:Connection(UserInputService.InputBegan, function(Input)
+                if Keybind.SelectingKeybind or Library.UI.IsSelectingKeybind then return end
+                if Keybind.Keybind == "[-]" then return end
+                if not KeybindMatches(Input) then return end
+
+                if Keybind.Mode == "Toggle" then
+                    Keybind:Toggle()
+                elseif Keybind.Mode == "On hotkey" then
+                    Keybind:Toggle(true)
+                elseif Keybind.Mode == "Always on" then
+                    Keybind:Toggle(true)
                 end
             end)
-            
-            Library:Connection(UserInputService.InputEnded, function(Input, Processed)
-                if Keybind.SelectingKeybind then return end
-                
-                if Keybind.Mode == "On hotkey" and KeybindMatches(Input) then
-                    Keybind:Toggle()
+
+            Library:Connection(UserInputService.InputEnded, function(Input)
+                if Keybind.SelectingKeybind or Library.UI.IsSelectingKeybind then return end
+                if Keybind.Keybind == "[-]" then return end
+                if not KeybindMatches(Input) then return end
+
+                if Keybind.Mode == "On hotkey" then
+                    Keybind:Toggle(false)
+                elseif Keybind.Mode == "Always on" then
+                    Keybind:Toggle(true)
                 end
             end)
         end
