@@ -2154,30 +2154,63 @@ do
             Library:Connection(Button_4.MouseButton1Click, function()
                 if Keybind.Connection then
                     Keybind.Connection:Disconnect()
+                    Keybind.Connection = nil
                 end
                 
                 Keybind.SelectingKeybind = true
+                Keybind.SelectArmed = false
                 
                 Library:TweenObject(KeybindObject, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(255, 0, 0)})
                 
+                -- delay so the click that opened select mode is not bound as M1
+                task.delay(0.2, function()
+                    if Keybind.SelectingKeybind then
+                        Keybind.SelectArmed = true
+                    end
+                end)
+                
                 Keybind.Connection = Library:Connection(UserInputService.InputBegan, function(Input)
-                    Keybind:Set(Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode or Input.UserInputType)
+                    if not Keybind.SelectArmed then return end
+                    
+                    local IsKeyboard = Input.UserInputType == Enum.UserInputType.Keyboard
+                    local IsMouse = Input.UserInputType == Enum.UserInputType.MouseButton1
+                        or Input.UserInputType == Enum.UserInputType.MouseButton2
+                        or Input.UserInputType == Enum.UserInputType.MouseButton3
+                    
+                    if not IsKeyboard and not IsMouse then return end
+                    
+                    local Key = IsKeyboard and Input.KeyCode or Input.UserInputType
+                    Keybind:Set(Key)
                     
                     if Keybind.Connection then
                         Keybind.Connection:Disconnect()
-                        
-                        task.delay(0.1, function()
-                            Keybind.Connection = nil
-                            Keybind.SelectingKeybind = false
-                        end)
+                        Keybind.Connection = nil
                     end
+                    Keybind.SelectingKeybind = false
+                    Keybind.SelectArmed = false
                 end)
             end)
             
-            Library:Connection(UserInputService.InputBegan, function(Input, Proccessed)
-                if Proccessed then return end
+            local function KeybindMatches(Input)
+                if Keybind.Keybind == "[-]" or not Keybind.RegKeybind then
+                    return false
+                end
+                if Input.UserInputType == Enum.UserInputType.Keyboard then
+                    return Input.KeyCode == Keybind.RegKeybind
+                end
+                if Input.UserInputType == Enum.UserInputType.MouseButton1
+                    or Input.UserInputType == Enum.UserInputType.MouseButton2
+                    or Input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    return Input.UserInputType == Keybind.RegKeybind
+                end
+                return false
+            end
+            
+            Library:Connection(UserInputService.InputBegan, function(Input, Processed)
+                if Keybind.SelectingKeybind then return end
+                -- do not block on Processed so game-used keys (M1/M2 etc.) still fire
                 
-                if (Input.UserInputType == Enum.UserInputType.Keyboard and Keybind.Keybind ~= "[-]" and Input.KeyCode == Keybind.RegKeybind) or (Input.UserInputType == Enum.UserInputType.MouseButton1 and (Keybind.Keybind == "MB1" or Keybind.Keybind == "M1")) or (Input.UserInputType == Enum.UserInputType.MouseButton2 and (Keybind.Keybind == "MB2" or Keybind.Keybind == "M2")) or (Input.UserInputType == Enum.UserInputType.MouseButton3 and (Keybind.Keybind == "MMB" or Keybind.Keybind == "M3")) then
+                if KeybindMatches(Input) then
                     if Keybind.Mode == "Always on" then
                         Keybind:Toggle(true)
                     else
@@ -2186,13 +2219,11 @@ do
                 end
             end)
             
-            Library:Connection(UserInputService.InputEnded, function(Input, Proccessed)
-                if Proccessed then return end
+            Library:Connection(UserInputService.InputEnded, function(Input, Processed)
+                if Keybind.SelectingKeybind then return end
                 
-                if Keybind.Mode == "On hotkey" then
-                    if (Input.UserInputType == Enum.UserInputType.Keyboard and Keybind.Keybind ~= "[-]" and Input.KeyCode == Keybind.RegKeybind) or (Input.UserInputType == Enum.UserInputType.MouseButton1 and (Keybind.Keybind == "MB1" or Keybind.Keybind == "M1")) or (Input.UserInputType == Enum.UserInputType.MouseButton2 and (Keybind.Keybind == "MB2" or Keybind.Keybind == "M2")) or (Input.UserInputType == Enum.UserInputType.MouseButton3 and (Keybind.Keybind == "MMB" or Keybind.Keybind == "M3")) then
-                        Keybind:Toggle()
-                    end
+                if Keybind.Mode == "On hotkey" and KeybindMatches(Input) then
+                    Keybind:Toggle()
                 end
             end)
         end
