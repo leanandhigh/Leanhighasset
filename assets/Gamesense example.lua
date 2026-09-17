@@ -138,6 +138,18 @@ do -- Settings
             Library:ToggleKeybindList(State)
         end
     })
+    SettingsSection:Toggle({
+        Name = "Spectator List",
+        Default = true,
+        Flag = "ShowSpectatorList",
+        Callback = function(State)
+            Library:ToggleSpectatorList(State)
+        end
+    })
+    Library:AddSpectator(Player)
+    Library:RemoveSpectator(Player)
+    Library:ClearSpectators()
+    Library:ToggleSpectatorList(true)
     SettingsSection:Button({Name = "Unload", Callback = Library.Unload})
     SettingsSection:Button({Name = "Disable all", Callback = Library.Disable})
 end
