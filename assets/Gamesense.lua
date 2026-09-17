@@ -887,7 +887,9 @@ do
                     Size = UDim2.new(1, 0, 1, 0),
                     BorderSizePixel = 0,
                     TextTransparency = 1,
-                    ZIndex = 250,
+                    ZIndex = 260,
+                    Active = true,
+                    AutoButtonColor = false,
                     TextSize = Library.UI.FontSize,
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     Parent = MainPicker
@@ -978,7 +980,9 @@ do
                     Size = UDim2.new(1, 0, 1, 0),
                     BorderSizePixel = 0,
                     TextTransparency = 1,
-                    ZIndex = 250,
+                    ZIndex = 260,
+                    Active = true,
+                    AutoButtonColor = false,
                     TextSize = Library.UI.FontSize,
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     Parent = SaturationSlider
@@ -1077,7 +1081,9 @@ do
                     Size = UDim2.new(1, 0, 1, 0),
                     BorderSizePixel = 0,
                     TextTransparency = 1,
-                    ZIndex = 250,
+                    ZIndex = 260,
+                    Active = true,
+                    AutoButtonColor = false,
                     TextSize = Library.UI.FontSize,
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     Parent = HueSlider
@@ -1282,6 +1288,25 @@ do
                     end
                 end
                 
+                -- visual layers must not block mouse input
+                MainPickerColor.Active = false
+                BackImage.Active = false
+                DraggingMainOutline.Active = false
+                DraggingMain.Active = false
+                SaturationColor.Active = false
+                if BackImage_1 then BackImage_1.Active = false end
+                DraggingSatOutline.Active = false
+                DraggingSatMain.Active = false
+                BackImage_2.Active = false
+                DraggingHueOutline.Active = false
+                DraggingHueMain.Active = false
+                Button_91.ZIndex = 260
+                Button_915241.ZIndex = 260
+                Button_9141.ZIndex = 260
+                Button_91.Active = true
+                Button_915241.Active = true
+                Button_9141.Active = true
+
                 do 
                     Library:Connection(Button_91.InputBegan, function(Input)
                         if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1353,6 +1378,7 @@ do
                 end
                 
                 ColorPicker:Update()
+                ColorPickerOutline.Active = true
                 Library:Fade(true, Library:GetObjectsTable(ColorPickerOutline, true), ColorPickerOutline, 0.1)
             end
             
