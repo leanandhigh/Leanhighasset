@@ -1307,71 +1307,64 @@ do
                 Button_915241.Active = true
                 Button_9141.Active = true
 
-                do 
-                    Library:Connection(Button_91.InputBegan, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            Library.UI.DraggingGui = MainPickerColor
-                            
-                            local InputPosition = Vector2.new(Input.Position.X, Input.Position.Y)
+                do
+                    local DragKind = nil
+
+                    local function MousePos()
+                        local p = UserInputService:GetMouseLocation()
+                        return Vector2.new(p.X, p.Y)
+                    end
+
+                    local function ApplyDrag()
+                        if not DragKind then return end
+                        local InputPosition = MousePos()
+                        if DragKind == "main" then
                             local Percentage = (InputPosition - MainPickerColor.AbsolutePosition) / MainPickerColor.AbsoluteSize
-                            
                             ColorPicker:UpdateSaturation(Percentage.X, Percentage.Y)
-                        end
-                    end)
-                    
-                    Library:Connection(Button_915241.InputBegan, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            Library.UI.DraggingGui = SaturationColor
-                            
-                            local InputPosition = Vector2.new(Input.Position.X, Input.Position.Y)
+                        elseif DragKind == "alpha" then
                             local GuiPosition = SaturationColor.AbsolutePosition.X
                             local GuiSize = SaturationColor.AbsoluteSize.X
-                            local Percentage = ((GuiPosition + GuiSize - InputPosition.X) / GuiSize)
-                            
-                            ColorPicker:UpdateAlpha(Percentage)
-                        end
-                    end)
-                    
-                    Library:Connection(Button_9141.InputBegan, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            Library.UI.DraggingGui = BackImage_2
-                            
-                            local InputPosition = Vector2.new(Input.Position.X, Input.Position.Y)
-                            local Percentage = (InputPosition - BackImage_2.AbsolutePosition) / BackImage_2.AbsoluteSize
-                            
-                            ColorPicker:UpdateHue(Percentage.Y)
-                        end
-                    end)
-                    
-                    Library:Connection(UserInputService.InputChanged, function(Input)
-                        if (Library.UI.DraggingGui ~= SaturationColor and Library.UI.DraggingGui ~= MainPickerColor and Library.UI.DraggingGui ~= BackImage_2) then return end
-                        
-                        if not (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)) then
-                            Library.UI.DraggingGui = nil
-                            return
-                        end
-                        
-                        local InputPosition = Vector2.new(Input.Position.X, Input.Position.Y)
-                        
-                        if (Input.UserInputType == Enum.UserInputType.MouseMovement) then
-                            if Library.UI.DraggingGui == MainPickerColor then
-                                local Percentage = (InputPosition - MainPickerColor.AbsolutePosition) / MainPickerColor.AbsoluteSize
-                                
-                                ColorPicker:UpdateSaturation(Percentage.X, Percentage.Y)
-                            end
-                            
-                            if Library.UI.DraggingGui == SaturationColor then
-                                local GuiPosition = SaturationColor.AbsolutePosition.X
-                                local GuiSize = SaturationColor.AbsoluteSize.X
+                            if GuiSize ~= 0 then
                                 local Percentage = ((GuiPosition + GuiSize - InputPosition.X) / GuiSize)
-                                
                                 ColorPicker:UpdateAlpha(Percentage)
                             end
-                            
-                            if Library.UI.DraggingGui == BackImage_2 then
-                                local Percentage = (InputPosition - BackImage_2.AbsolutePosition) / BackImage_2.AbsoluteSize
-                                
-                                ColorPicker:UpdateHue(Percentage.Y)
+                        elseif DragKind == "hue" then
+                            local Percentage = (InputPosition - BackImage_2.AbsolutePosition) / BackImage_2.AbsoluteSize
+                            ColorPicker:UpdateHue(Percentage.Y)
+                        end
+                    end
+
+                    Library:Connection(Button_91.MouseButton1Down, function()
+                        DragKind = "main"
+                        Library.UI.DraggingGui = MainPickerColor
+                        ApplyDrag()
+                    end)
+
+                    Library:Connection(Button_915241.MouseButton1Down, function()
+                        DragKind = "alpha"
+                        Library.UI.DraggingGui = SaturationColor
+                        ApplyDrag()
+                    end)
+
+                    Library:Connection(Button_9141.MouseButton1Down, function()
+                        DragKind = "hue"
+                        Library.UI.DraggingGui = BackImage_2
+                        ApplyDrag()
+                    end)
+
+                    Library:Connection(UserInputService.InputChanged, function(Input)
+                        if not DragKind then return end
+                        if Input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                        ApplyDrag()
+                    end)
+
+                    Library:Connection(UserInputService.InputEnded, function(Input)
+                        if Input.UserInputType == Enum.UserInputType.MouseButton1 and DragKind then
+                            DragKind = nil
+                            if Library.UI.DraggingGui == MainPickerColor
+                                or Library.UI.DraggingGui == SaturationColor
+                                or Library.UI.DraggingGui == BackImage_2 then
+                                Library.UI.DraggingGui = nil
                             end
                         end
                     end)
