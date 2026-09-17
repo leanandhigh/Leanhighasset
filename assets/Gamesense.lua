@@ -1310,14 +1310,8 @@ do
                 do
                     local DragKind = nil
 
-                    local function MousePos()
-                        local p = UserInputService:GetMouseLocation()
-                        return Vector2.new(p.X, p.Y)
-                    end
-
-                    local function ApplyDrag()
-                        if not DragKind then return end
-                        local InputPosition = MousePos()
+                    local function ApplyDrag(InputPosition)
+                        if not DragKind or not InputPosition then return end
                         if DragKind == "main" then
                             local Percentage = (InputPosition - MainPickerColor.AbsolutePosition) / MainPickerColor.AbsoluteSize
                             ColorPicker:UpdateSaturation(Percentage.X, Percentage.Y)
@@ -1334,28 +1328,31 @@ do
                         end
                     end
 
-                    Library:Connection(Button_91.MouseButton1Down, function()
+                    Library:Connection(Button_91.InputBegan, function(Input)
+                        if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                         DragKind = "main"
                         Library.UI.DraggingGui = MainPickerColor
-                        ApplyDrag()
+                        ApplyDrag(Vector2.new(Input.Position.X, Input.Position.Y))
                     end)
 
-                    Library:Connection(Button_915241.MouseButton1Down, function()
+                    Library:Connection(Button_915241.InputBegan, function(Input)
+                        if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                         DragKind = "alpha"
                         Library.UI.DraggingGui = SaturationColor
-                        ApplyDrag()
+                        ApplyDrag(Vector2.new(Input.Position.X, Input.Position.Y))
                     end)
 
-                    Library:Connection(Button_9141.MouseButton1Down, function()
+                    Library:Connection(Button_9141.InputBegan, function(Input)
+                        if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                         DragKind = "hue"
                         Library.UI.DraggingGui = BackImage_2
-                        ApplyDrag()
+                        ApplyDrag(Vector2.new(Input.Position.X, Input.Position.Y))
                     end)
 
                     Library:Connection(UserInputService.InputChanged, function(Input)
                         if not DragKind then return end
                         if Input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                        ApplyDrag()
+                        ApplyDrag(Vector2.new(Input.Position.X, Input.Position.Y))
                     end)
 
                     Library:Connection(UserInputService.InputEnded, function(Input)
