@@ -54,6 +54,18 @@ local MathConfig = {
     dynamicXSize = false,
 }
 
+-- Performance: distance LOD + update staggering
+local Perf = {
+    NearDist = 80,
+    MidDist = 200,
+    NearEvery = 1,   -- frames
+    MidEvery = 2,
+    FarEvery = 4,
+    ChamsMaxDist = 150,
+    BoxSimpleDist = 120, -- past this use HRP-only box (cheaper)
+    FrameSkip = 0,
+}
+
 local function calculateXSize(armScreenPositionX, baseScreenPositionX, distanceFromCamera, fieldOfView)
     return math.max(math.abs(armScreenPositionX - baseScreenPositionX) * 3, (500 / math.max(distanceFromCamera, 1)) / ((fieldOfView or 70) / 70))
 end
@@ -225,25 +237,37 @@ local Table = Library.Table
 local OutlineOffset = Vector3.new(0.09, 0.09, 0.09)
 local InlineOffset = Vector3.new(-0.05, -0.05, -0.05)
 
-local function GetBodyParts(Character)
+local BodyPartsCache = setmetatable({}, {__mode = "k"})
+
+local function GetBodyParts(Character, Force)
     if Table.CustomGetBodyParts then
         return Table.CustomGetBodyParts(Character)
     end
     if not Character then
         return {}
     end
+    local cached = BodyPartsCache[Character]
+    if cached and not Force then
+        return cached
+    end
     local Parts = {}
-    for _, Obj in Character:GetDescendants() do
+    for _, Obj in Character:GetChildren() do
         if Obj:IsA("BasePart")
             and Obj.Transparency < 1
-            and not Obj:FindFirstAncestorOfClass("Accessory")
-            and not Obj:FindFirstAncestorOfClass("Tool")
             and Obj.Name ~= "HumanoidRootPart"
             and Obj.Name ~= "Handle"
         then
-            table.insert(Parts, Obj)
+            Parts[#Parts + 1] = Obj
+        elseif Obj:IsA("Model") or Obj:IsA("Folder") then
+            -- one level deeper only (R15 limbs) — avoid full GetDescendants
+            for _, Sub in Obj:GetChildren() do
+                if Sub:IsA("BasePart") and Sub.Transparency < 1 and Sub.Name ~= "Handle" then
+                    Parts[#Parts + 1] = Sub
+                end
+            end
         end
     end
+    BodyPartsCache[Character] = Parts
     return Parts
 end
 
@@ -417,7 +441,7 @@ function Library:BuildChamsForPlayer(Player)
     end
 
     local Character = ResolvePlayerCharacter(Player, Player.Character)
-    local Parts = GetBodyParts(Character)
+    local Parts = GetBodyParts(Character, true)
     local list = {}
     local S = Table.Chams
 
@@ -445,61 +469,97 @@ end
 
 function Library:UpdateChams(Player, Data)
     local S = Table.Chams
-    local Character = Data.Character or Player.Character
-    local PlayerChams = self.PlayerChams
-
-    if not PlayerChams[Player] then
-        self:BuildChamsForPlayer(Player)
-    end
-
-    local list = PlayerChams[Player]
-    if not list then
+    if not S.Enabled or not Table.Enabled then
+        local list = self.PlayerChams[Player]
+        if list then
+            for i = 1, #list do
+                local adorn = list[i][1]
+                if adorn.Visible then
+                    adorn.Visible = false
+                    adorn.Adornee = nil
+                end
+            end
+        end
         return
     end
 
-    local enabled = S.Enabled
-        and Table.Enabled
-        and Character ~= nil
-        and Data.RootPart ~= nil
-        and Data.Alive
-        and (CameraPosition - Data.RootPart.Position).Magnitude <= Table.Distance
+    local Character = Data.Character
+    local Root = Data.RootPart
+    if not Character or not Root or not Data.Alive then
+        return
+    end
+
+    local dist = (CameraPosition - Root.Position).Magnitude
+    if dist > Perf.ChamsMaxDist or dist > Table.Distance then
+        local list = self.PlayerChams[Player]
+        if list then
+            for i = 1, #list do
+                local adorn = list[i][1]
+                if adorn.Visible then
+                    adorn.Visible = false
+                    adorn.Adornee = nil
+                end
+            end
+        end
+        return
+    end
+
+    local PlayerChams = self.PlayerChams
+    if not PlayerChams[Player] then
+        self:BuildChamsForPlayer(Player)
+    end
+    local list = PlayerChams[Player]
+    if not list then return end
 
     local CurrentParts = Data.Parts
     if not CurrentParts or #CurrentParts == 0 then
         CurrentParts = GetBodyParts(Character)
         Data.Parts = CurrentParts
     end
-    if list and CurrentParts and #list ~= #CurrentParts * 2 then
+    if #list ~= #CurrentParts * 2 then
         self:BuildChamsForPlayer(Player)
         list = PlayerChams[Player]
+        if not list then return end
     end
 
-    for _, data in ipairs(list) do
+    local fillCol = toColor3(S.FillColor)
+    local outCol = toColor3(S.OutlineColor)
+    local fillT, outT = S.FillTransparency, S.OutlineTransparency
+    local shade = S.Shading or Enum.AdornShading.Default
+    local shadeOut = S.ShadingOutline or Enum.AdornShading.Default
+
+    for i = 1, #list do
+        local data = list[i]
         local adorn, Part, IsOutline = data[1], data[2], data[3]
-        if not enabled or not Character or not Part or not Part.Parent then
-            adorn.Adornee = nil
-            adorn.Visible = false
-            continue
-        end
-
-        local IsHead = Part.Name == "Head"
-        local Size = Part.Size
-        if IsHead then
-            adorn.Height = Size.Y + 0.35
-            adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
+        if not Part or not Part.Parent then
+            if adorn.Visible then
+                adorn.Visible = false
+                adorn.Adornee = nil
+            end
         else
-            adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
-        end
-
-        adorn.Adornee = Part
-        adorn.Visible = true
-        adorn.Shading = IsOutline and (S.ShadingOutline or Enum.AdornShading.Default) or (S.Shading or Enum.AdornShading.Default)
-        if IsOutline then
-            adorn.Color3 = toColor3(S.OutlineColor)
-            adorn.Transparency = S.OutlineTransparency
-        else
-            adorn.Color3 = toColor3(S.FillColor)
-            adorn.Transparency = S.FillTransparency
+            if adorn.Adornee ~= Part then
+                adorn.Adornee = Part
+            end
+            if not adorn.Visible then
+                adorn.Visible = true
+            end
+            -- size only when part size may change (skip most frames via stagger flag)
+            if not Data._ChamsSkipSize then
+                local Size = Part.Size
+                if Part.Name == "Head" then
+                    adorn.Height = Size.Y + 0.35
+                    adorn.Radius = (Size.X / 2) + (IsOutline and 0.15 or 0.05)
+                else
+                    adorn.Size = Size + (IsOutline and OutlineOffset or InlineOffset)
+                end
+            end
+            if IsOutline then
+                if data[4] ~= outCol then adorn.Color3 = outCol; data[4] = outCol end
+                if data[5] ~= outT then adorn.Transparency = outT; data[5] = outT end
+            else
+                if data[4] ~= fillCol then adorn.Color3 = fillCol; data[4] = fillCol end
+                if data[5] ~= fillT then adorn.Transparency = fillT; data[5] = fillT end
+            end
         end
     end
 end
@@ -1289,41 +1349,58 @@ function Library:CalculateBox(Data)
         return nil, nil, nil, nil, false
     end
 
+    local BoundingBox = Table.Boxes["Bounding Box"]
+    local PadX = (BoundingBox and BoundingBox.BoxX) or 0
+    local PadY = (BoundingBox and BoundingBox.BoxY) or 0
+
+    -- Cheap path: HRP-based box (far players / LOD)
+    if Data._SimpleBox then
+        local pos, onScreen = WorldToViewportPoint(cam, RootPart.Position)
+        if not onScreen or pos.Z <= 0 then
+            return nil, nil, nil, nil, false
+        end
+        local scale = 1000 / math.max(pos.Z, 1)
+        local W = math.max(scale * 2.2, 8) + PadX
+        local H = math.max(scale * 4.5, 14) + PadY
+        return W, H, pos.X - W * 0.5, pos.Y - H * 0.5, true
+    end
+
     local parts = Data.Parts
     if not parts or #parts == 0 then
         parts = GetBodyParts(Character)
         Data.Parts = parts
     end
     if #parts == 0 then
-        return nil, nil, nil, nil, false
+        local pos, onScreen = WorldToViewportPoint(cam, RootPart.Position)
+        if not onScreen or pos.Z <= 0 then
+            return nil, nil, nil, nil, false
+        end
+        local scale = 1000 / math.max(pos.Z, 1)
+        return scale * 2.2, scale * 4.5, pos.X - scale, pos.Y - scale * 2, true
     end
-
-    local BoundingBox = Table.Boxes["Bounding Box"]
-    local PadX = (BoundingBox and BoundingBox.BoxX) or 0
-    local PadY = (BoundingBox and BoundingBox.BoxY) or 0
 
     local minX, minY = Huge, Huge
     local maxX, maxY = -Huge, -Huge
     local anyOnScreen = false
 
+    -- Use 2 vertical extremes per part instead of 8 corners (4x fewer W2V calls)
     for i = 1, #parts do
         local part = parts[i]
         if part and part.Parent then
             local cf = part.CFrame
             local size = part.Size
-            local hx, hy, hz = size.X * 0.5, size.Y * 0.5, size.Z * 0.5
-            local corners = {
-                cf * NewVector3( hx,  hy,  hz),
-                cf * NewVector3( hx,  hy, -hz),
-                cf * NewVector3( hx, -hy,  hz),
-                cf * NewVector3( hx, -hy, -hz),
-                cf * NewVector3(-hx,  hy,  hz),
-                cf * NewVector3(-hx,  hy, -hz),
-                cf * NewVector3(-hx, -hy,  hz),
-                cf * NewVector3(-hx, -hy, -hz),
+            local hy = size.Y * 0.5
+            local top = cf * NewVector3(0, hy, 0)
+            local bot = cf * NewVector3(0, -hy, 0)
+            local hx = size.X * 0.5
+            local pts = {
+                top,
+                bot,
+                cf * NewVector3(hx, 0, 0),
+                cf * NewVector3(-hx, 0, 0),
             }
-            for c = 1, 8 do
-                local screen, onScreen = WorldToViewportPoint(cam, corners[c])
+            for c = 1, 4 do
+                local screen, onScreen = WorldToViewportPoint(cam, pts[c])
                 if onScreen and screen.Z > 0 then
                     anyOnScreen = true
                     local sx, sy = screen.X, screen.Y
@@ -2301,18 +2378,28 @@ function Library:Update(Player, Data)
     local SkelCfg = Table.Skeleton
     if SkelCfg.Enabled and Data.Character and Objects.Skeleton then
         local Char = Data.Character
-        for _, bone in ipairs(Objects.Skeleton) do
-            local PartA = Char:FindFirstChild(bone.From)
-            local PartB = Char:FindFirstChild(bone.To)
-            if PartA and PartB and PartA:IsA("BasePart") and PartB:IsA("BasePart") then
+        if Data._SkelChar ~= Char then
+            Data._SkelChar = Char
+            for _, bone in ipairs(Objects.Skeleton) do
+                bone.PartA = Char:FindFirstChild(bone.From)
+                bone.PartB = Char:FindFirstChild(bone.To)
+            end
+        end
+        local skCol = toColor3(SkelCfg.Color)
+        local skTh = SkelCfg.Thickness
+        local skTr = 1 - SkelCfg.Transparency
+        for i = 1, #Objects.Skeleton do
+            local bone = Objects.Skeleton[i]
+            local PartA, PartB = bone.PartA, bone.PartB
+            if PartA and PartB and PartA.Parent and PartB.Parent then
                 local PosA, OnA = WorldToViewportPoint(Camera, PartA.Position)
                 local PosB, OnB = WorldToViewportPoint(Camera, PartB.Position)
                 if OnA and OnB and PosA.Z > 0 and PosB.Z > 0 then
                     bone.Line.From = NewVector2(PosA.X, PosA.Y)
                     bone.Line.To = NewVector2(PosB.X, PosB.Y)
-                    bone.Line.Color = toColor3(SkelCfg.Color)
-                    bone.Line.Thickness = SkelCfg.Thickness
-                    bone.Line.Transparency = 1 - SkelCfg.Transparency
+                    bone.Line.Color = skCol
+                    bone.Line.Thickness = skTh
+                    bone.Line.Transparency = skTr
                     bone.Line.Visible = true
                 else
                     bone.Line.Visible = false
@@ -2323,8 +2410,8 @@ function Library:Update(Player, Data)
         end
     else
         if Objects.Skeleton then
-            for _, bone in ipairs(Objects.Skeleton) do
-                bone.Line.Visible = false
+            for i = 1, #Objects.Skeleton do
+                Objects.Skeleton[i].Line.Visible = false
             end
         end
     end
@@ -2334,77 +2421,109 @@ end
 
 Library:CreateThreads("Renderer", RunService.RenderStepped, function()
     if not Table.Enabled then
-        for _, Data in Library.Cache do
-            Library:HideAllVisuals(Data)
-        end
-        for _, list in pairs(Library.PlayerChams) do
-            for _, data in ipairs(list) do
-                data[1].Visible = false
-                data[1].Adornee = nil
+        if not Library._hiddenAll then
+            for _, Data in Library.Cache do
+                Library:HideAllVisuals(Data)
             end
+            for _, list in pairs(Library.PlayerChams) do
+                for i = 1, #list do
+                    list[i][1].Visible = false
+                    list[i][1].Adornee = nil
+                end
+            end
+            Library._hiddenAll = true
         end
         return
     end
+    Library._hiddenAll = false
 
     local Now = os.clock()
     if Now - Updates < Frame then
         return
     end
     Updates = Now
+    Perf.FrameSkip = (Perf.FrameSkip + 1) % 256
+
     local cam = Workspace.CurrentCamera
-    if not cam then
-        return
-    end
+    if not cam then return end
     Camera = cam
     CameraPosition = cam.CFrame.Position
 
     local maxDist = tonumber(Table.Distance) or 7520
-    local OOVCandidates = {}
+    local oovOn = Table.OOV and Table.OOV.Enabled
+    local OOVCandidates = oovOn and {} or nil
+    local frame = Perf.FrameSkip
+
     for Player, Data in Library.Cache do
         if not Player.Parent then
             Library:RemoveTarget(Player)
             continue
         end
-        if not Data.RootPart or not Data.Alive then
-            Library:HideAllVisuals(Data)
-            local list = Library.PlayerChams[Player]
-            if list then
-                for _, d in ipairs(list) do
-                    d[1].Visible = false
-                    d[1].Adornee = nil
+
+        local Root = Data.RootPart
+        if not Root or not Root.Parent or not Data.Alive then
+            if Data._wasVisible then
+                Library:HideAllVisuals(Data)
+                Data._wasVisible = false
+                local list = Library.PlayerChams[Player]
+                if list then
+                    for i = 1, #list do
+                        list[i][1].Visible = false
+                        list[i][1].Adornee = nil
+                    end
                 end
             end
             continue
         end
-        local dist = (CameraPosition - Data.RootPart.Position).Magnitude
+
+        local dist = (CameraPosition - Root.Position).Magnitude
         if dist > maxDist then
-            Library:HideAllVisuals(Data)
-            local list = Library.PlayerChams[Player]
-            if list then
-                for _, d in ipairs(list) do
-                    d[1].Visible = false
-                    d[1].Adornee = nil
+            if Data._wasVisible then
+                Library:HideAllVisuals(Data)
+                Data._wasVisible = false
+                local list = Library.PlayerChams[Player]
+                if list then
+                    for i = 1, #list do
+                        list[i][1].Visible = false
+                        list[i][1].Adornee = nil
+                    end
                 end
             end
             continue
         end
-        if Table.OOV and Table.OOV.Enabled then
-            local _, onScreen = WorldToViewportPoint(Camera, Data.RootPart.Position)
+
+        -- distance LOD: far players update less often
+        local every = dist <= Perf.NearDist and Perf.NearEvery
+            or dist <= Perf.MidDist and Perf.MidEvery
+            or Perf.FarEvery
+        local slot = (Player.UserId % every)
+        if (frame % every) ~= slot then
+            continue
+        end
+
+        Data._ChamsSkipSize = (frame % 8) ~= 0
+        Data._SimpleBox = dist > Perf.BoxSimpleDist
+        Data._wasVisible = true
+
+        if oovOn then
+            local _, onScreen = WorldToViewportPoint(Camera, Root.Position)
             if not onScreen then
                 OOVCandidates[#OOVCandidates + 1] = {Player = Player, Dist = dist}
             end
         end
+
         Library:Update(Player, Data)
     end
-    table.sort(OOVCandidates, function(a, b)
-        return a.Dist < b.Dist
-    end)
-    local allowed = {}
-    local maxArrows = math.max(Table.OOV and Table.OOV.Limit or 6, 0)
-    for i = 1, math.min(#OOVCandidates, maxArrows) do
-        allowed[OOVCandidates[i].Player] = true
+
+    if oovOn then
+        table.sort(OOVCandidates, function(a, b) return a.Dist < b.Dist end)
+        local allowed = {}
+        local maxArrows = math.max(Table.OOV.Limit or 6, 0)
+        for i = 1, math.min(#OOVCandidates, maxArrows) do
+            allowed[OOVCandidates[i].Player] = true
+        end
+        Library.OOVAllowed = allowed
     end
-    Library.OOVAllowed = allowed
 end)
 
 local function RefreshAllPlayers()
@@ -2457,9 +2576,7 @@ end
 
 RefreshAllPlayers()
 task.defer(RefreshAllPlayers)
-task.delay(0.25, RefreshAllPlayers)
 task.delay(1, RefreshAllPlayers)
-task.delay(3, RefreshAllPlayers)
 
 Library:CreateThreads("PlayerAdded", Players.PlayerAdded, function(Player)
     Library:AddTarget(Player)
@@ -2485,7 +2602,7 @@ end
 
 Library:CreateThreads("RebindMissing", RunService.Heartbeat, function()
     local now = os.clock()
-    if now - (Library._lastRebind or 0) < 0.35 then
+    if now - (Library._lastRebind or 0) < 1.0 then
         return
     end
     Library._lastRebind = now
