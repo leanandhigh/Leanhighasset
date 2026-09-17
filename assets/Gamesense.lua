@@ -7308,6 +7308,299 @@ do
             return KeybindList
         end
 
+
+        function Library:CreateSpectatorList()
+            local SpectatorList = {
+                Items = {},
+                Visible = true,
+            }
+            Library.SpectatorList = SpectatorList
+            local MainFrame = Library:CreateObject("Frame", {
+                Name = "SpectatorList",
+                Position = UDim2.new(1, -180, 0.5, -80),
+                BorderColor3 = Color3.fromRGB(0, 0, 0),
+                Size = UDim2.new(0, 160, 0, 24),
+                BorderSizePixel = 0,
+                BackgroundTransparency = 1,
+                ZIndex = 10000,
+                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                Parent = Library.UI.ScreenGUI
+            }, true)
+            local TitleBar = Library:CreateObject("Frame", {
+                Name = "TitleBar",
+                Position = UDim2.new(0, 0, 0, 0),
+                BorderColor3 = Color3.fromRGB(0, 0, 0),
+                Size = UDim2.new(1, 0, 0, 22),
+                BorderSizePixel = 0,
+                ZIndex = 10000,
+                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                Parent = MainFrame
+            }, true)
+            local TitleGradient = Library:CreateObject("UIGradient", {
+                Transparency = NumberSequence.new{
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.25, 0.612),
+                    NumberSequenceKeypoint.new(0.5, 0.625),
+                    NumberSequenceKeypoint.new(0.75, 0.625),
+                    NumberSequenceKeypoint.new(1, 1)
+                },
+                Parent = TitleBar
+            }, true)
+            local TitleStroke = Library:CreateObject("UIStroke", {
+                Parent = TitleBar,
+                Color = Color3.fromRGB(40, 40, 40),
+                LineJoinMode = Enum.LineJoinMode.Miter,
+            }, true)
+            local TitleStrokeGradient = Library:CreateObject("UIGradient", {
+                Transparency = NumberSequence.new{
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.232, 0.4),
+                    NumberSequenceKeypoint.new(0.5, 0.4),
+                    NumberSequenceKeypoint.new(0.75, 0.4),
+                    NumberSequenceKeypoint.new(1, 1)
+                },
+                Parent = TitleStroke
+            }, true)
+            local Title = Library:CreateObject("TextLabel", {
+                FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+                TextColor3 = Color3.fromRGB(208, 208, 208),
+                BorderColor3 = Color3.fromRGB(0, 0, 0),
+                Text = "Spectators",
+                Name = "Title",
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                BorderSizePixel = 0,
+                ZIndex = 10000,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                TextSize = 13,
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                Parent = TitleBar
+            }, true)
+            local TitleTextStroke = Library:CreateObject("UIStroke", {
+                Parent = Title,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Color = Color3.fromRGB(50, 50, 50),
+            }, true)
+            local Content = Library:CreateObject("Frame", {
+                Name = "Content",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 24),
+                BorderColor3 = Color3.fromRGB(0, 0, 0),
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BorderSizePixel = 0,
+                ZIndex = 10000,
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                Parent = MainFrame
+            }, true)
+            local UIListLayout = Library:CreateObject("UIListLayout", {
+                Padding = UDim.new(0, 4),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                HorizontalAlignment = Enum.HorizontalAlignment.Left,
+                Parent = Content
+            }, true)
+            local ContentPadding = Library:CreateObject("UIPadding", {
+                PaddingTop = UDim.new(0, 2),
+                PaddingLeft = UDim.new(0, 4),
+                PaddingRight = UDim.new(0, 4),
+                PaddingBottom = UDim.new(0, 4),
+                Parent = Content
+            }, true)
+            local function UpdateSize()
+                task.wait()
+                local Count = 0
+                for _, Child in Content:GetChildren() do
+                    if Child:IsA("Frame") and Child.Visible then
+                        Count += 1
+                    end
+                end
+                local RowH = 28
+                local ContentH = Count > 0 and (2 + Count * RowH + (Count - 1) * 4 + 4) or 0
+                local NewH = 24 + ContentH
+                Library:TweenObject(MainFrame, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(0, 160, 0, math.max(NewH, 24))
+                })
+            end
+            function SpectatorList:Add(Player)
+                if typeof(Player) ~= "Instance" or not Player:IsA("Player") then
+                    return
+                end
+                local Id = tostring(Player.UserId)
+                if SpectatorList.Items[Id] then
+                    return SpectatorList.Items[Id]
+                end
+                local Item = {
+                    Player = Player,
+                    Visible = false,
+                    Token = 0,
+                    PendingRemove = false,
+                }
+                local Row = Library:CreateObject("Frame", {
+                    Name = Id,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 28),
+                    BorderSizePixel = 0,
+                    Visible = false,
+                    ZIndex = 10000,
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    Parent = Content
+                }, true)
+                local Avatar = Library:CreateObject("ImageLabel", {
+                    Name = "Avatar",
+                    BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(0, 24, 0, 24),
+                    Position = UDim2.new(0, 2, 0.5, 0),
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    ZIndex = 10001,
+                    Image = "",
+                    Parent = Row
+                }, true)
+                local AvatarCorner = Library:CreateObject("UICorner", {
+                    CornerRadius = UDim.new(0, 4),
+                    Parent = Avatar
+                }, true)
+                local AvatarStroke = Library:CreateObject("UIStroke", {
+                    Parent = Avatar,
+                    Color = Color3.fromRGB(50, 50, 50),
+                    Thickness = 1,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                }, true)
+                task.spawn(function()
+                    local ok, url = pcall(function()
+                        return Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                    end)
+                    if ok and url and Avatar and Avatar.Parent then
+                        Avatar.Image = url
+                    end
+                end)
+                local NameLabel = Library:CreateObject("TextLabel", {
+                    FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+                    TextColor3 = Color3.fromRGB(220, 220, 220),
+                    BorderColor3 = Color3.fromRGB(0, 0, 0),
+                    Text = Player.DisplayName ~= Player.Name and (Player.DisplayName .. " (@" .. Player.Name .. ")") or Player.Name,
+                    Name = "Name",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -34, 1, 0),
+                    Position = UDim2.new(0, 30, 0, 0),
+                    BorderSizePixel = 0,
+                    ZIndex = 10001,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Center,
+                    TextTransparency = 1,
+                    TextSize = 12,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    Parent = Row
+                }, true)
+                local NameStroke = Library:CreateObject("UIStroke", {
+                    Parent = NameLabel,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Color3.fromRGB(40, 40, 40),
+                    Transparency = 1,
+                }, true)
+                Item.Row = Row
+                Item.Avatar = Avatar
+                Item.NameLabel = NameLabel
+                Item.NameStroke = NameStroke
+                SpectatorList.Items[Id] = Item
+                function Item:SetStatus(Bool)
+                    Item.Token = (Item.Token or 0) + 1
+                    local Token = Item.Token
+                    if Bool then
+                        Item.PendingRemove = false
+                        Row.Visible = true
+                        Item.Visible = true
+                        UpdateSize()
+                        Library:TweenObject(NameLabel, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextTransparency = 0})
+                        Library:TweenObject(NameStroke, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Transparency = 0.4})
+                        Library:TweenObject(Avatar, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {ImageTransparency = 0})
+                    else
+                        Item.PendingRemove = true
+                        Library:TweenObject(NameLabel, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextTransparency = 1})
+                        Library:TweenObject(NameStroke, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Transparency = 1})
+                        Library:TweenObject(Avatar, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {ImageTransparency = 1}, function()
+                            if Item.Token ~= Token then return end
+                            if not Item.PendingRemove then return end
+                            Row.Visible = false
+                            Item.Visible = false
+                            UpdateSize()
+                        end)
+                    end
+                end
+                Item:SetStatus(true)
+                return Item
+            end
+            function SpectatorList:Remove(Player)
+                local Id = typeof(Player) == "Instance" and tostring(Player.UserId) or tostring(Player)
+                local Item = SpectatorList.Items[Id]
+                if not Item then return end
+                Item:SetStatus(false)
+                local Token = Item.Token
+                task.delay(Library.UI.TweenSpeed + 0.08, function()
+                    local Current = SpectatorList.Items[Id]
+                    if Current == Item and Current.Token == Token and Current.PendingRemove then
+                        if Current.Row then
+                            Current.Row:Destroy()
+                        end
+                        SpectatorList.Items[Id] = nil
+                        UpdateSize()
+                    end
+                end)
+            end
+            function SpectatorList:Clear()
+                for Id, Item in pairs(SpectatorList.Items) do
+                    SpectatorList:Remove(Item.Player or Id)
+                end
+            end
+            function SpectatorList:SetVisibility(Bool)
+                SpectatorList.Visible = Bool
+                MainFrame.Visible = Bool
+            end
+            local Dragging, DragStart, StartPos
+            Library:Connection(TitleBar.InputBegan, function(Input)
+                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    Dragging = true
+                    DragStart = Input.Position
+                    StartPos = MainFrame.Position
+                end
+            end)
+            Library:Connection(UserInputService.InputChanged, function(Input)
+                if Dragging and Input.UserInputType == Enum.UserInputType.MouseMovement then
+                    local Delta = Input.Position - DragStart
+                    MainFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + Delta.X, StartPos.Y.Scale, StartPos.Y.Offset + Delta.Y)
+                end
+            end)
+            Library:Connection(UserInputService.InputEnded, function(Input)
+                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    Dragging = false
+                end
+            end)
+            function Library:AddSpectator(Player)
+                if Library.SpectatorList then
+                    return Library.SpectatorList:Add(Player)
+                end
+            end
+            function Library:RemoveSpectator(Player)
+                if Library.SpectatorList then
+                    Library.SpectatorList:Remove(Player)
+                end
+            end
+            function Library:ClearSpectators()
+                if Library.SpectatorList then
+                    Library.SpectatorList:Clear()
+                end
+            end
+            function Library:ToggleSpectatorList(State)
+                if Library.SpectatorList then
+                    Library.SpectatorList:SetVisibility(State)
+                end
+            end
+            UpdateSize()
+            return SpectatorList
+        end
+
 function Library:Notify(Options)
             Options = Library:Validate({
                 Message = "Notification",
@@ -7477,6 +7770,7 @@ function Library:Notify(Options)
             Library.UI.Initialized = true
             Library:CreateWatermark()
             Library:CreateKeybindList()
+            Library:CreateSpectatorList()
             Library:Connection(Camera:GetPropertyChangedSignal("ViewportSize"), function()
                 Viewport = Camera.ViewportSize
                 
