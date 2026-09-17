@@ -1083,7 +1083,7 @@ function Library:InitEsp(Data)
         Transparency = NumSeq({NumKey(0, 0), NumKey(1, 0)}),
     })
     Objects.HealthBarText = self:CreateObjects("TextLabel", {
-        Parent = Objects.HealthBarOutline,
+        Parent = Objects.HealthBar,
         FontFace = Library.SmallestPixel,
         TextSize = 9,
         ZIndex = 10,
@@ -2201,9 +2201,9 @@ function Library:Update(Player, Data)
             end
             local FlooredHealth = Floor(Health)
             Objects.HealthBarText.Text = Format("%d", FlooredHealth)
-            -- top of outline fill (not above the bar)
             Objects.HealthBarText.AnchorPoint = NewVector2(1, 0)
-            Objects.HealthBarText.Position = Dim2(0, -10, 1 - Ratio, 0)
+            Objects.HealthBarText.TextYAlignment = Enum.TextYAlignment.Top
+            Objects.HealthBarText.Position = Dim2(0, -10, 0, 0)
             Data.LastHealthFloor = FlooredHealth
         else
             if Objects.HealthBarText.Visible then
