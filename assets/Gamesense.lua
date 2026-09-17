@@ -2161,8 +2161,7 @@ do
                 Keybind.SelectArmed = false
                 
                 Library:TweenObject(KeybindObject, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(255, 0, 0)})
-                
-                -- delay so the click that opened select mode is not bound as M1
+
                 task.delay(0.2, function()
                     if Keybind.SelectingKeybind then
                         Keybind.SelectArmed = true
@@ -2208,8 +2207,6 @@ do
             
             Library:Connection(UserInputService.InputBegan, function(Input, Processed)
                 if Keybind.SelectingKeybind then return end
-                -- do not block on Processed so game-used keys (M1/M2 etc.) still fire
-                
                 if KeybindMatches(Input) then
                     if Keybind.Mode == "Always on" then
                         Keybind:Toggle(true)
