@@ -1141,12 +1141,12 @@ function Library:InitEsp(Data)
         TextXAlignment = Enum.TextXAlignment.Right,
         TextYAlignment = Enum.TextYAlignment.Center,
         AnchorPoint = NewVector2(1, 0.5),
-        Position = Dim2(1, -1, 1, 0),
+        Position = Dim2(0, -3, 1, 0),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
-        AutomaticSize = Enum.AutomaticSize.None,
-        Size = Dim2(0, 18, 0, 10),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Size = Dim2(0, 0, 0, 0),
     })
     self:CreateObjects("UIStroke", {
         Parent = Objects.HealthBarText,
@@ -2232,12 +2232,11 @@ function Library:Update(Player, Data)
             end
             local FlooredHealth = Floor(Health)
             if Data.LastHealthFloor ~= FlooredHealth then
-                -- fixed-width number so 9 / 99 / 100 don't leave a gap
-                Objects.HealthBarText.Text = Format("%3d", FlooredHealth)
+                Objects.HealthBarText.Text = Format("%d", FlooredHealth)
                 Data.LastHealthFloor = FlooredHealth
             end
-            -- right edge of text flush to bar, 4px padding
-            Objects.HealthBarText.Position = Dim2(1, -1, 1 - Ratio, 0)
+            -- same stick as OOV health text (3px left of bar), height still tracks fill
+            Objects.HealthBarText.Position = Dim2(0, -3, 1 - Ratio, 0)
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
