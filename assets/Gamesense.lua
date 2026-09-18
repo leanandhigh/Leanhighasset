@@ -7924,6 +7924,7 @@ function Library:Notify(Options)
                 Skins = {},
                 CurrentWeapon = nil,
                 Selected = nil,
+                SelectedByWeapon = {}, -- remember selection per weapon
                 Visible = true,
                 _MainOffsetApplied = false,
             }
@@ -8180,6 +8181,7 @@ function Library:Notify(Options)
                 end
             end
 
+            local SetSkinSelected
             local function SetWeaponSelected(WeaponName)
                 SkinChanger.CurrentWeapon = WeaponName
                 for wName, wEntry in pairs(SkinChanger.Weapons) do
@@ -8189,13 +8191,27 @@ function Library:Notify(Options)
                     wEntry.Label.TextColor3 = on and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(160, 160, 160)
                 end
                 RefreshSkinVisibility()
+                -- restore this weapon's remembered skin (or clear highlight if none)
+                local remembered = WeaponName and SkinChanger.SelectedByWeapon[WeaponName]
+                SkinChanger.Selected = remembered
+                SetSkinSelected(remembered)
             end
 
-            local function SetSkinSelected(SkinName)
+            SetSkinSelected = function(SkinName)
                 SkinChanger.Selected = SkinName
+                if SkinName and SkinChanger.CurrentWeapon then
+                    SkinChanger.SelectedByWeapon[SkinChanger.CurrentWeapon] = SkinName
+                end
                 local accent = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214)
                 for sName, sEntry in pairs(SkinChanger.Skins) do
-                    local on = sName == SkinName
+                    -- mark selected if this skin is the active pick for its weapon (or global)
+                    local remembered = sEntry.Weapon and SkinChanger.SelectedByWeapon[sEntry.Weapon]
+                    local on = (SkinName ~= nil and sName == SkinName)
+                        or (remembered ~= nil and sName == remembered)
+                    -- when filtering one weapon, only highlight that weapon's pick
+                    if SkinChanger.CurrentWeapon and sEntry.Weapon and sEntry.Weapon ~= SkinChanger.CurrentWeapon then
+                        on = (remembered ~= nil and sName == remembered)
+                    end
                     sEntry.Frame.BackgroundColor3 = on and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(16, 16, 16)
                     sEntry.Stroke.Color = on and accent or Color3.fromRGB(40, 40, 40)
                     sEntry.Label.TextColor3 = on and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(170, 170, 170)
@@ -8375,7 +8391,14 @@ function Library:Notify(Options)
             end
 
             function SkinChanger:Get()
-                return SkinChanger.Selected, SkinChanger.CurrentWeapon
+                return SkinChanger.Selected, SkinChanger.CurrentWeapon, SkinChanger.SelectedByWeapon
+            end
+
+            function SkinChanger:GetSelected(WeaponName)
+                if WeaponName then
+                    return SkinChanger.SelectedByWeapon[WeaponName]
+                end
+                return SkinChanger.SelectedByWeapon
             end
 
             Library.SkinChanger = SkinChanger
