@@ -122,7 +122,7 @@ local Library = {
 
         Bars = {
             ["Health Bar"] = {
-                Enabled = false,
+                Enabled = true,
                 ShowText = true,
                 Top = Color3.fromRGB(0, 255, 0),
                 Mid = Color3.fromRGB(255, 170, 0),
@@ -1104,6 +1104,7 @@ function Library:InitEsp(Data)
         Size = Dim2(0, 1, 1, 0),
         BorderSizePixel = 0,
         BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        ClipsDescendants = false,
     })
     self:CreateObjects("UIStroke", {
         Parent = Objects.HealthBarOutline,
@@ -1137,14 +1138,15 @@ function Library:InitEsp(Data)
         ZIndex = 10,
         TextColor3 = Color3.fromRGB(255, 255, 255),
         Text = "",
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextYAlignment = Enum.TextYAlignment.Bottom,
-        AnchorPoint = NewVector2(0.5, 1),
-        Position = Dim2(0.5, 0, 0, 0),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        AnchorPoint = NewVector2(1, 0.5),
+        Position = Dim2(0, -4, 1, 0),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
-        AutomaticSize = Enum.AutomaticSize.XY,
+        AutomaticSize = Enum.AutomaticSize.None,
+        Size = Dim2(0, 22, 0, 12),
     })
     self:CreateObjects("UIStroke", {
         Parent = Objects.HealthBarText,
@@ -2224,17 +2226,18 @@ function Library:Update(Player, Data)
             Data.LastHealthBot = GradBot
         end
 
-        if HealthCfg.ShowText then
+        if HealthCfg.ShowText ~= false then
             if not Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = true
             end
             local FlooredHealth = Floor(Health)
             if Data.LastHealthFloor ~= FlooredHealth then
-                Objects.HealthBarText.Text = Format("%d", FlooredHealth)
+                -- fixed-width number so 9 / 99 / 100 don't leave a gap
+                Objects.HealthBarText.Text = Format("%3d", FlooredHealth)
                 Data.LastHealthFloor = FlooredHealth
             end
-            -- sit at top of current health fill (inside bar column)
-            Objects.HealthBarText.Position = Dim2(0.5, 0, 1 - Ratio, 0)
+            -- right edge of text flush to bar, 4px padding
+            Objects.HealthBarText.Position = Dim2(0, -4, 1 - Ratio, 0)
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
