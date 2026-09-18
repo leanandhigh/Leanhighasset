@@ -7910,26 +7910,28 @@ function Library:Notify(Options)
 
         function Window:CreateSkinChanger(Options)
             Options = Library:Validate({
-                Name = "Cosmetics Changer",
-                Width = 300,
+                Name = "Cosmetics",
+                Width = 280,
                 Gap = 8,
-                Columns = 4,
-                CellSize = 64,
+                Columns = 3,
+                CellSize = 78,
                 Flag = "SkinChanger",
                 Callback = function() end,
             }, Options or {})
+
+            local Accent = Library.Theme.Default.Accent or Color3.fromRGB(153, 196, 39)
+            local SecondAccent = Library.Theme.Default.SecondAccent or Color3.fromRGB(124, 158, 32)
 
             local SkinChanger = {
                 Weapons = {},
                 Skins = {},
                 CurrentWeapon = nil,
                 Selected = nil,
-                SelectedByWeapon = {}, -- remember selection per weapon
+                SelectedByWeapon = {},
                 Visible = true,
-                _MainOffsetApplied = false,
             }
 
-            -- Match main window nesting exactly so it feels equal, not a plain box
+            -- outer shell mirrors main Window (12 / 60 / 40 / 60 / 20)
             local PanelOutline = Library:CreateObject("Frame", {
                 Name = "SkinChangerOutline",
                 BorderSizePixel = 0,
@@ -7938,7 +7940,6 @@ function Library:Notify(Options)
                 Parent = MainUI,
                 ZIndex = 1,
             })
-
             local PanelInline = Library:CreateObject("Frame", {
                 Position = UDim2.new(0, 1, 0, 1),
                 Size = UDim2.new(1, -2, 1, -2),
@@ -7946,7 +7947,6 @@ function Library:Notify(Options)
                 BackgroundColor3 = Color3.fromRGB(60, 60, 60),
                 Parent = PanelOutline,
             })
-
             local PanelInner = Library:CreateObject("Frame", {
                 Position = UDim2.new(0, 1, 0, 1),
                 Size = UDim2.new(1, -2, 1, -2),
@@ -7954,7 +7954,6 @@ function Library:Notify(Options)
                 BackgroundColor3 = Color3.fromRGB(40, 40, 40),
                 Parent = PanelInline,
             })
-
             local PanelOutline1 = Library:CreateObject("Frame", {
                 Position = UDim2.new(0, 3, 0, 3),
                 Size = UDim2.new(1, -6, 1, -6),
@@ -7962,7 +7961,6 @@ function Library:Notify(Options)
                 BackgroundColor3 = Color3.fromRGB(60, 60, 60),
                 Parent = PanelInner,
             })
-
             local PanelBody = Library:CreateObject("Frame", {
                 Position = UDim2.new(0, 1, 0, 1),
                 Size = UDim2.new(1, -2, 1, -2),
@@ -7972,7 +7970,7 @@ function Library:Notify(Options)
                 Parent = PanelOutline1,
             })
 
-            -- accent top bar (same as main)
+            -- top gradient strip (same asset as main)
             local TopBarHold = Library:CreateObject("Frame", {
                 Size = UDim2.new(1, -2, 0, 4),
                 Position = UDim2.new(0, 1, 0, 1),
@@ -7992,7 +7990,7 @@ function Library:Notify(Options)
                 },
                 Parent = TopBarHold,
             })
-            local GradImg = Library:CreateObject("ImageLabel", {
+            Library:CreateObject("ImageLabel", {
                 Image = "rbxassetid://8508019876",
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 1, 0, 1),
@@ -8001,167 +7999,165 @@ function Library:Notify(Options)
                 Parent = TopBarHold,
             })
 
-            local TitleBar = Library:CreateObject("Frame", {
+            -- ===== Section-style weapon filter =====
+            local WeaponSectionOutline = Library:CreateObject("Frame", {
+                Name = "WeaponSection",
                 BackgroundColor3 = Color3.fromRGB(12, 12, 12),
                 BorderSizePixel = 0,
-                Size = UDim2.new(1, -8, 0, 22),
-                Position = UDim2.new(0, 4, 0, 8),
+                Position = UDim2.new(0, 6, 0, 12),
+                Size = UDim2.new(1, -12, 0, 72),
                 Parent = PanelBody,
             })
-            Library:CreateObject("UIStroke", {
-                Color = Color3.fromRGB(40, 40, 40),
-                Thickness = 1,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Parent = TitleBar,
+            local WeaponSectionInline = Library:CreateObject("Frame", {
+                Position = UDim2.new(0, 1, 0, 1),
+                Size = UDim2.new(1, -2, 1, -2),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+                Parent = WeaponSectionOutline,
             })
-            local Title = Library:CreateObject("TextLabel", {
+            local WeaponSectionMain = Library:CreateObject("Frame", {
+                Position = UDim2.new(0, 1, 0, 1),
+                Size = UDim2.new(1, -2, 1, -2),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color3.fromRGB(23, 23, 23),
+                Parent = WeaponSectionInline,
+            })
+            -- title cut into border (gamesense section style)
+            local WeaponTitleInline = Library:CreateObject("Frame", {
+                BackgroundColor3 = Color3.fromRGB(23, 23, 23),
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 8, 0, -1),
+                Size = UDim2.new(0, 0, 0, 2),
+                ZIndex = 5,
+                Parent = WeaponSectionOutline,
+            })
+            local WeaponTitle = Library:CreateObject("TextLabel", {
                 FontFace = Library.UI.NewFont,
-                Text = Options.Name,
-                TextColor3 = Color3.fromRGB(220, 220, 220),
+                Text = " weapons ",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
                 TextSize = Library.UI.FontSize,
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, -10, 1, 0),
-                Position = UDim2.new(0, 6, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                Size = UDim2.new(0, 0, 0, 14),
+                Position = UDim2.new(0, 10, 0, -7),
+                ZIndex = 6,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = TitleBar,
+                Parent = WeaponSectionOutline,
             })
-            local TitleAccent = Library:CreateObject("Frame", {
-                Size = UDim2.new(1, 0, 0, 1),
-                Position = UDim2.new(0, 0, 0, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214),
-                Parent = TitleBar,
-            })
+            task.defer(function()
+                WeaponTitleInline.Size = UDim2.new(0, WeaponTitle.TextBounds.X + 4, 0, 2)
+            end)
 
-            -- weapon section box
-            local WeaponSection = Library:CreateObject("Frame", {
-                BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-                BorderSizePixel = 0,
-                Size = UDim2.new(1, -8, 0, 78),
-                Position = UDim2.new(0, 4, 0, 34),
-                Parent = PanelBody,
-            })
-            Library:CreateObject("UIStroke", {
-                Color = Color3.fromRGB(40, 40, 40),
-                Thickness = 1,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Parent = WeaponSection,
-            })
-            local WeaponSecAccent = Library:CreateObject("Frame", {
-                Size = UDim2.new(1, 0, 0, 1),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214),
-                Parent = WeaponSection,
-            })
-            local WeaponLabel = Library:CreateObject("TextLabel", {
-                FontFace = Library.UI.NewFont,
-                Text = "weapon filter",
-                TextColor3 = Color3.fromRGB(140, 140, 140),
-                TextSize = 11,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, -8, 0, 14),
-                Position = UDim2.new(0, 4, 0, 4),
-                TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = WeaponSection,
-            })
             local WeaponScroll = Library:CreateObject("ScrollingFrame", {
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
-                Position = UDim2.new(0, 4, 0, 20),
-                Size = UDim2.new(1, -8, 0, 52),
-                ScrollBarThickness = 2,
-                ScrollBarImageColor3 = Color3.fromRGB(55, 55, 55),
+                Position = UDim2.new(0, 4, 0, 10),
+                Size = UDim2.new(1, -8, 1, -14),
+                ScrollBarThickness = 0,
                 CanvasSize = UDim2.new(0, 0, 0, 0),
                 AutomaticCanvasSize = Enum.AutomaticSize.X,
                 ScrollingDirection = Enum.ScrollingDirection.X,
-                Parent = WeaponSection,
+                Parent = WeaponSectionMain,
             })
             Library:CreateObject("UIListLayout", {
                 FillDirection = Enum.FillDirection.Horizontal,
-                Padding = UDim.new(0, 4),
+                Padding = UDim.new(0, 3),
                 SortOrder = Enum.SortOrder.LayoutOrder,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
                 Parent = WeaponScroll,
             })
 
-            -- cosmetic section box
-            local CosmeticSection = Library:CreateObject("Frame", {
+            -- ===== Section-style cosmetics grid =====
+            local CosSectionOutline = Library:CreateObject("Frame", {
+                Name = "CosmeticSection",
                 BackgroundColor3 = Color3.fromRGB(12, 12, 12),
                 BorderSizePixel = 0,
-                Size = UDim2.new(1, -8, 1, -120),
-                Position = UDim2.new(0, 4, 0, 116),
+                Position = UDim2.new(0, 6, 0, 92),
+                Size = UDim2.new(1, -12, 1, -98),
                 Parent = PanelBody,
             })
-            Library:CreateObject("UIStroke", {
-                Color = Color3.fromRGB(40, 40, 40),
-                Thickness = 1,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Parent = CosmeticSection,
-            })
-            local CosSecAccent = Library:CreateObject("Frame", {
-                Size = UDim2.new(1, 0, 0, 1),
+            local CosSectionInline = Library:CreateObject("Frame", {
+                Position = UDim2.new(0, 1, 0, 1),
+                Size = UDim2.new(1, -2, 1, -2),
                 BorderSizePixel = 0,
-                BackgroundColor3 = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214),
-                Parent = CosmeticSection,
+                BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+                Parent = CosSectionOutline,
             })
-            local CosmeticLabel = Library:CreateObject("TextLabel", {
+            local CosSectionMain = Library:CreateObject("Frame", {
+                Position = UDim2.new(0, 1, 0, 1),
+                Size = UDim2.new(1, -2, 1, -2),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color3.fromRGB(23, 23, 23),
+                Parent = CosSectionInline,
+            })
+            local CosTitleInline = Library:CreateObject("Frame", {
+                BackgroundColor3 = Color3.fromRGB(23, 23, 23),
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 8, 0, -1),
+                Size = UDim2.new(0, 0, 0, 2),
+                ZIndex = 5,
+                Parent = CosSectionOutline,
+            })
+            local CosTitle = Library:CreateObject("TextLabel", {
                 FontFace = Library.UI.NewFont,
-                Text = "cosmetic filter",
-                TextColor3 = Color3.fromRGB(140, 140, 140),
-                TextSize = 11,
+                Text = " cosmetics ",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = Library.UI.FontSize,
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, -8, 0, 14),
-                Position = UDim2.new(0, 4, 0, 4),
+                AutomaticSize = Enum.AutomaticSize.X,
+                Size = UDim2.new(0, 0, 0, 14),
+                Position = UDim2.new(0, 10, 0, -7),
+                ZIndex = 6,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = CosmeticSection,
+                Parent = CosSectionOutline,
             })
+            task.defer(function()
+                CosTitleInline.Size = UDim2.new(0, CosTitle.TextBounds.X + 4, 0, 2)
+            end)
+
             local SkinScroll = Library:CreateObject("ScrollingFrame", {
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
-                Position = UDim2.new(0, 4, 0, 20),
-                Size = UDim2.new(1, -8, 1, -24),
+                Position = UDim2.new(0, 4, 0, 10),
+                Size = UDim2.new(1, -8, 1, -14),
                 ScrollBarThickness = 2,
-                ScrollBarImageColor3 = Color3.fromRGB(55, 55, 55),
+                ScrollBarImageColor3 = Color3.fromRGB(50, 50, 50),
                 CanvasSize = UDim2.new(0, 0, 0, 0),
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                Parent = CosmeticSection,
+                Parent = CosSectionMain,
             })
             Library:CreateObject("UIGridLayout", {
-                CellSize = UDim2.fromOffset(Options.CellSize, Options.CellSize + 16),
-                CellPadding = UDim2.fromOffset(5, 5),
+                CellSize = UDim2.fromOffset(Options.CellSize, Options.CellSize + 12),
+                CellPadding = UDim2.fromOffset(4, 4),
                 SortOrder = Enum.SortOrder.LayoutOrder,
                 FillDirectionMaxCells = Options.Columns,
                 Parent = SkinScroll,
             })
+            Library:CreateObject("UIPadding", {
+                PaddingTop = UDim.new(0, 2),
+                PaddingBottom = UDim.new(0, 4),
+                Parent = SkinScroll,
+            })
 
-            -- Position: sit LEFT of main, same Y/height — shift main right so the pair is equal/side-by-side
             local function SyncPosition()
                 if not Outline or not Outline.Parent then return end
                 local mainPos = Outline.Position
-                local mainSize = Outline.AbsoluteSize
-                local h = mainSize.Y
-                if h < 1 then
-                    h = Outline.Size.Y.Offset
-                end
-
+                local h = Outline.AbsoluteSize.Y
+                if h < 1 then h = Outline.Size.Y.Offset end
                 PanelOutline.Size = UDim2.fromOffset(Options.Width, h)
-
-                -- place panel immediately left of main using same Position space
                 PanelOutline.Position = UDim2.new(
                     mainPos.X.Scale,
                     mainPos.X.Offset - Options.Width - Options.Gap,
                     mainPos.Y.Scale,
                     mainPos.Y.Offset
                 )
-
                 PanelOutline.Visible = Outline.Visible and SkinChanger.Visible
             end
 
-            -- when first created, nudge main window right so both share the center equally
             do
                 local total = Options.Width + Options.Gap
                 local p = Outline.Position
                 Outline.Position = UDim2.new(p.X.Scale, p.X.Offset + math.floor(total / 2), p.Y.Scale, p.Y.Offset)
-                SkinChanger._MainOffsetApplied = true
             end
 
             Library:Connection(Outline:GetPropertyChangedSignal("Position"), SyncPosition)
@@ -8186,12 +8182,13 @@ function Library:Notify(Options)
                 SkinChanger.CurrentWeapon = WeaponName
                 for wName, wEntry in pairs(SkinChanger.Weapons) do
                     local on = wName == WeaponName
-                    wEntry.Button.BackgroundColor3 = on and Color3.fromRGB(32, 32, 32) or Color3.fromRGB(16, 16, 16)
+                    Library:TweenObject(wEntry.Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = on and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(18, 18, 18)
+                    })
                     wEntry.Accent.BackgroundTransparency = on and 0 or 1
-                    wEntry.Label.TextColor3 = on and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(160, 160, 160)
+                    wEntry.Label.TextColor3 = on and Accent or Color3.fromRGB(160, 160, 160)
                 end
                 RefreshSkinVisibility()
-                -- restore this weapon's remembered skin (or clear highlight if none)
                 local remembered = WeaponName and SkinChanger.SelectedByWeapon[WeaponName]
                 SkinChanger.Selected = remembered
                 SetSkinSelected(remembered)
@@ -8202,19 +8199,21 @@ function Library:Notify(Options)
                 if SkinName and SkinChanger.CurrentWeapon then
                     SkinChanger.SelectedByWeapon[SkinChanger.CurrentWeapon] = SkinName
                 end
-                local accent = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214)
                 for sName, sEntry in pairs(SkinChanger.Skins) do
-                    -- mark selected if this skin is the active pick for its weapon (or global)
                     local remembered = sEntry.Weapon and SkinChanger.SelectedByWeapon[sEntry.Weapon]
                     local on = (SkinName ~= nil and sName == SkinName)
                         or (remembered ~= nil and sName == remembered)
-                    -- when filtering one weapon, only highlight that weapon's pick
                     if SkinChanger.CurrentWeapon and sEntry.Weapon and sEntry.Weapon ~= SkinChanger.CurrentWeapon then
                         on = (remembered ~= nil and sName == remembered)
                     end
-                    sEntry.Frame.BackgroundColor3 = on and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(16, 16, 16)
-                    sEntry.Stroke.Color = on and accent or Color3.fromRGB(40, 40, 40)
-                    sEntry.Label.TextColor3 = on and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(170, 170, 170)
+                    Library:TweenObject(sEntry.Frame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = on and Color3.fromRGB(28, 28, 28) or Color3.fromRGB(18, 18, 18)
+                    })
+                    sEntry.Stroke.Color = on and Accent or Color3.fromRGB(35, 35, 35)
+                    sEntry.Label.TextColor3 = on and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(165, 165, 165)
+                    if sEntry.TopLine then
+                        sEntry.TopLine.BackgroundTransparency = on and 0 or 1
+                    end
                 end
             end
 
@@ -8225,29 +8224,47 @@ function Library:Notify(Options)
                 local Btn = Library:CreateObject("TextButton", {
                     AutoButtonColor = false,
                     Text = "",
-                    Size = UDim2.fromOffset(50, 50),
+                    Size = UDim2.fromOffset(48, 52),
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Color3.fromRGB(16, 16, 16),
+                    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
                     Parent = WeaponScroll,
                 })
-                Library:CreateObject("UIStroke", {
-                    Color = Color3.fromRGB(40, 40, 40),
+                local BtnStroke = Library:CreateObject("UIStroke", {
+                    Color = Color3.fromRGB(35, 35, 35),
                     Thickness = 1,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                     Parent = Btn,
                 })
-                local Accent = Library:CreateObject("Frame", {
-                    Size = UDim2.new(1, 0, 0, 2),
+                local AccentBar = Library:CreateObject("Frame", {
+                    Size = UDim2.new(1, 0, 0, 1),
                     Position = UDim2.new(0, 0, 0, 0),
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme.Default.Accent or Color3.fromRGB(159, 149, 214),
+                    BackgroundColor3 = Accent,
                     BackgroundTransparency = 1,
+                    ZIndex = 2,
                     Parent = Btn,
+                })
+                -- subtle bottom shade
+                local Shade = Library:CreateObject("Frame", {
+                    Size = UDim2.new(1, 0, 0, 14),
+                    Position = UDim2.new(0, 0, 1, -14),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                    BackgroundTransparency = 0.55,
+                    Parent = Btn,
+                })
+                Library:CreateObject("UIGradient", {
+                    Rotation = 90,
+                    Transparency = NumberSequence.new{
+                        NumberSequenceKeypoint.new(0, 1),
+                        NumberSequenceKeypoint.new(1, 0),
+                    },
+                    Parent = Shade,
                 })
                 local Icon = Library:CreateObject("ImageLabel", {
                     BackgroundTransparency = 1,
                     Size = UDim2.fromOffset(26, 26),
-                    Position = UDim2.new(0.5, 0, 0, 5),
+                    Position = UDim2.new(0.5, 0, 0, 4),
                     AnchorPoint = Vector2.new(0.5, 0),
                     Image = Data.Image or "rbxassetid://12206409737",
                     ScaleType = Enum.ScaleType.Fit,
@@ -8259,21 +8276,26 @@ function Library:Notify(Options)
                     Text = Name,
                     TextSize = 9,
                     TextColor3 = Color3.fromRGB(160, 160, 160),
-                    Size = UDim2.new(1, -2, 0, 12),
-                    Position = UDim2.new(0, 1, 1, -13),
+                    Size = UDim2.new(1, -2, 0, 11),
+                    Position = UDim2.new(0, 1, 1, -12),
                     TextXAlignment = Enum.TextXAlignment.Center,
                     TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 2,
                     Parent = Btn,
                 })
 
                 Library:Connection(Btn.MouseEnter, function()
                     if SkinChanger.CurrentWeapon ~= Name then
-                        Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+                        Library:TweenObject(Btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+                        })
                     end
                 end)
                 Library:Connection(Btn.MouseLeave, function()
                     if SkinChanger.CurrentWeapon ~= Name then
-                        Btn.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+                        Library:TweenObject(Btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+                        })
                     end
                 end)
                 Library:Connection(Btn.MouseButton1Click, function()
@@ -8284,7 +8306,9 @@ function Library:Notify(Options)
                     end
                 end)
 
-                SkinChanger.Weapons[Name] = {Button = Btn, Accent = Accent, Icon = Icon, Label = Label, Data = Data}
+                SkinChanger.Weapons[Name] = {
+                    Button = Btn, Accent = AccentBar, Icon = Icon, Label = Label, Data = Data,
+                }
                 if not SkinChanger.CurrentWeapon then
                     SetWeaponSelected(Name)
                 end
@@ -8299,21 +8323,45 @@ function Library:Notify(Options)
                     AutoButtonColor = false,
                     Text = "",
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Color3.fromRGB(16, 16, 16),
+                    BackgroundColor3 = Color3.fromRGB(18, 18, 18),
                     Parent = SkinScroll,
                 })
                 local Stroke = Library:CreateObject("UIStroke", {
-                    Color = Color3.fromRGB(40, 40, 40),
+                    Color = Color3.fromRGB(35, 35, 35),
                     Thickness = 1,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                     Parent = Cell,
                 })
+                local TopLine = Library:CreateObject("Frame", {
+                    Size = UDim2.new(1, 0, 0, 1),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Accent,
+                    BackgroundTransparency = 1,
+                    ZIndex = 3,
+                    Parent = Cell,
+                })
+                -- image area
+                local IconHold = Library:CreateObject("Frame", {
+                    BackgroundColor3 = Color3.fromRGB(14, 14, 14),
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, -6, 1, -18),
+                    Position = UDim2.new(0, 3, 0, 3),
+                    Parent = Cell,
+                })
                 local Icon = Library:CreateObject("ImageLabel", {
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(1, -10, 1, -22),
-                    Position = UDim2.new(0, 5, 0, 3),
+                    Size = UDim2.new(1, -4, 1, -4),
+                    Position = UDim2.new(0, 2, 0, 2),
                     Image = Data.Image or "rbxassetid://12206409737",
                     ScaleType = Enum.ScaleType.Fit,
+                    Parent = IconHold,
+                })
+                -- bottom name bar
+                local NameBar = Library:CreateObject("Frame", {
+                    Size = UDim2.new(1, 0, 0, 14),
+                    Position = UDim2.new(0, 0, 1, -14),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Color3.fromRGB(12, 12, 12),
                     Parent = Cell,
                 })
                 local Label = Library:CreateObject("TextLabel", {
@@ -8321,22 +8369,26 @@ function Library:Notify(Options)
                     FontFace = Library.UI.NewFont,
                     Text = Name,
                     TextSize = 9,
-                    TextColor3 = Color3.fromRGB(170, 170, 170),
-                    Size = UDim2.new(1, -4, 0, 12),
-                    Position = UDim2.new(0, 2, 1, -14),
+                    TextColor3 = Color3.fromRGB(165, 165, 165),
+                    Size = UDim2.new(1, -4, 1, 0),
+                    Position = UDim2.new(0, 2, 0, 0),
                     TextXAlignment = Enum.TextXAlignment.Center,
                     TextTruncate = Enum.TextTruncate.AtEnd,
-                    Parent = Cell,
+                    Parent = NameBar,
                 })
 
                 Library:Connection(Cell.MouseEnter, function()
                     if SkinChanger.Selected ~= Name then
-                        Cell.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+                        Library:TweenObject(Cell, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+                        })
                     end
                 end)
                 Library:Connection(Cell.MouseLeave, function()
                     if SkinChanger.Selected ~= Name then
-                        Cell.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+                        Library:TweenObject(Cell, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+                        })
                     end
                 end)
                 Library:Connection(Cell.MouseButton1Click, function()
@@ -8351,7 +8403,7 @@ function Library:Notify(Options)
 
                 SkinChanger.Skins[Name] = {
                     Button = Cell, Frame = Cell, Stroke = Stroke, Icon = Icon, Label = Label,
-                    Data = Data, Weapon = Data.Weapon,
+                    TopLine = TopLine, Data = Data, Weapon = Data.Weapon,
                 }
                 RefreshSkinVisibility()
                 return SkinChanger.Skins[Name]
