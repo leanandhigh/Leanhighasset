@@ -1141,12 +1141,12 @@ function Library:InitEsp(Data)
         TextXAlignment = Enum.TextXAlignment.Right,
         TextYAlignment = Enum.TextYAlignment.Center,
         AnchorPoint = NewVector2(1, 0.5),
-        Position = Dim2(1, -10, 1, 1),
+        Position = Dim2(1, -1, 1, 0),
         BorderSizePixel = 0,
         Visible = false,
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.None,
-        Size = Dim2(0, 22, 0, 12),
+        Size = Dim2(0, 18, 0, 10),
     })
     self:CreateObjects("UIStroke", {
         Parent = Objects.HealthBarText,
@@ -2237,7 +2237,7 @@ function Library:Update(Player, Data)
                 Data.LastHealthFloor = FlooredHealth
             end
             -- right edge of text flush to bar, 4px padding
-            Objects.HealthBarText.Position = Dim2(1, -10, 1 - Ratio, 1)
+            Objects.HealthBarText.Position = Dim2(1, -1, 1 - Ratio, 0)
         else
             if Objects.HealthBarText.Visible then
                 Objects.HealthBarText.Visible = false
