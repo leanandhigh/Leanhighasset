@@ -696,26 +696,40 @@ function Library:Update(Player, Data, dist)
 	if Table.Flags.Enabled then
 		local flagLines = self:CollectFlags(Player, Data)
 		if not Objects.Flags then Objects.Flags = {} end
+	
 		local flagSize = Table.Flags.Size or TextSizeSmall
-		local flagX = X + W + 4
-		local flagY = Y
+		local flagX = X + W + 5
+		local flagY = Y + 1
+	
 		for i, entry in ipairs(flagLines) do
 			local d = Objects.Flags[i]
 			if not d then
 				d = CreateDrawing("Text", {
-					Visible = false, Center = false, Outline = true,
-					Size = flagSize, Font = DrawingFont, ZIndex = 3,
+					Visible = false,
+					Center = false,
+					Outline = true,
+					OutlineColor = Color3.new(0, 0, 0),
+					Size = flagSize,
+					Font = DrawingFont,
+					ZIndex = 4,
 				})
 				Objects.Flags[i] = d
 			end
 			d.Text = entry.Text
 			d.Color = entry.Color
 			d.Size = flagSize
-			d.Position = NewVector2(flagX, flagY + (i - 1) * (flagSize + 2))
+			d.Font = DrawingFont
+			d.Position = NewVector2(flagX, flagY)
 			d.Visible = true
+	
+			local th = d.TextBounds and d.TextBounds.Y or flagSize
+			flagY = flagY + th + 1
 		end
+	
 		for i = #flagLines + 1, #Objects.Flags do
-			if Objects.Flags[i] then Objects.Flags[i].Visible = false end
+			if Objects.Flags[i] then
+				Objects.Flags[i].Visible = false
+			end
 		end
 	elseif Objects.Flags then
 		for _, f in pairs(Objects.Flags) do
