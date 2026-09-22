@@ -300,6 +300,10 @@
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     dragging = true
                     start = input.Position
+                    -- convert scale position to offset so first drag doesn't fling
+                    local abs = frame.AbsolutePosition
+                    frame.AnchorPoint = vec2(0, 0)
+                    frame.Position = dim2(0, abs.X, 0, abs.Y)
                     start_size = frame.Position
                 end
             end)
@@ -482,6 +486,10 @@
 
             if library[ "other" ] then 
                 library[ "other" ]:Destroy()
+            end
+
+            if library[ "overlay" ] then 
+                library[ "overlay" ]:Destroy()
             end 
             
             for index, connection in library.connections do 
@@ -3217,19 +3225,29 @@
 
                 if library.keybind_list and not cfg.ignore_key then
                     local key_str = "NONE"
-                    if type(__text) == "string" and __text ~= "" then
+                    if type(__text) == "string" and __text ~= "" and __text ~= "nil" then
                         key_str = __text
-                    elseif cfg.key ~= nil then
-                        key_str = tostring(cfg.key):gsub("Enum.KeyCode.", ""):gsub("Enum.UserInputType.", ""):gsub("Enum.", "")
+                    elseif typeof(cfg.key) == "EnumItem" then
+                        key_str = tostring(cfg.key.Name)
+                    elseif type(cfg.key) == "string" and cfg.key ~= "NONE" then
+                        key_str = cfg.key
                     end
-                    local name_str = tostring(cfg.name or cfg.flag or "bind")
-                    local mode_str = tostring(cfg.mode or "Toggle")
+
+                    local name_str = "bind"
+                    if type(cfg.name) == "string" and cfg.name ~= "" then
+                        name_str = cfg.name
+                    end
+
+                    local mode_str = type(cfg.mode) == "string" and cfg.mode or "Toggle"
+
                     if not cfg._kbl_entry then
                         cfg._kbl_entry = library.keybind_list:Add(key_str, name_str, mode_str)
                     else
                         cfg._kbl_entry:SetText(key_str, name_str, mode_str)
                     end
-                    cfg._kbl_entry:SetStatus(cfg.active and true or false)
+                    -- only show when active and has a real key
+                    local show = (cfg.active and true or false) and key_str ~= "NONE"
+                    cfg._kbl_entry:SetStatus(show)
                 end
             end
 
@@ -3581,7 +3599,7 @@
             section:button({name = "Load", callback = function() library:load_config(readfile(library.directory .. "/configs/" .. flags["config_name_list"] .. ".cfg"))  library:update_config_list() notifications:create_notification({name = "Configs", info = "Loaded config:\n" .. flags["config_name_list"]}) end})
             section:button({name = "Delete", callback = function() delfile(library.directory .. "/configs/" .. flags["config_name_list"] .. ".cfg")  library:update_config_list() notifications:create_notification({name = "Configs", info = "Deleted config:\n" .. flags["config_name_list"]}) end})
             section:colorpicker({name = "Menu Accent", callback = function(color, alpha) library:update_theme("accent", color) end, color = themes.preset.accent})
-            section:keybind({name = "Menu Bind", callback = function(bool) window.toggle_menu(bool) end, default = true})
+            section:keybind({name = "Menu Bind", ignore = true, callback = function(bool) window.toggle_menu(bool) end, default = true})
         end
     --
 
@@ -3747,7 +3765,22 @@
 
 
 
-    -- Watermark + Keybind List (system from Library.lua, milenium UI base)
+
+    -- Watermark + Keybind List (Library.lua system, milenium UI)
+        local function get_overlay()
+            if library["overlay"] and library["overlay"].Parent then
+                return library["overlay"]
+            end
+            library["overlay"] = library:create("ScreenGui", {
+                Parent = coregui;
+                Name = "\0";
+                Enabled = true;
+                ZIndexBehavior = Enum.ZIndexBehavior.Global;
+                IgnoreGuiInset = true;
+            })
+            return library["overlay"]
+        end
+
         function library:watermark(options)
             options = type(options) == "table" and options or { name = tostring(options or "milenium") }
             local cfg = {
@@ -3757,23 +3790,20 @@
                 items = {};
             }
 
-            if not library["items"] then
-                warn("[milenium] create window before watermark")
-                return cfg
-            end
-
+            local overlay = get_overlay()
             local items = cfg.items
 
             items["holder"] = library:create("Frame", {
-                Parent = library["items"];
+                Parent = overlay;
                 Name = "\0";
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(14, 14, 16);
                 AutomaticSize = Enum.AutomaticSize.XY;
                 Size = dim2(0, 0, 0, 0);
-                Position = dim2(0.5, 0, 0, 12);
-                AnchorPoint = vec2(0.5, 0);
+                Position = dim2(0, 20, 0, 20);
+                AnchorPoint = vec2(0, 0);
                 ZIndex = 100;
+                Active = true;
             })
 
             library:create("UICorner", {
@@ -3809,7 +3839,6 @@
                 ZIndex = 101;
             })
 
-            -- accent liner (slides like Library.lua)
             items["liner"] = library:create("Frame", {
                 Parent = items["holder"];
                 BorderSizePixel = 0;
@@ -3842,12 +3871,16 @@
 
             function cfg.UpdateText(DisplayOptions)
                 local parts = { cfg.BaseName }
-                if DisplayOptions then
+                if type(DisplayOptions) == "table" then
                     for _, Option in ipairs(DisplayOptions) do
+                        Option = tostring(Option)
                         if Option == "User" then
-                            parts[#parts + 1] = "User: " .. lp.Name
+                            parts[#parts + 1] = "User: " .. tostring(lp.Name)
                         elseif Option == "FPS" then
-                            local fps = math.floor(1 / run.RenderStepped:Wait())
+                            local fps = 0
+                            pcall(function()
+                                fps = math.floor(1 / run.RenderStepped:Wait())
+                            end)
                             parts[#parts + 1] = "FPS: " .. tostring(fps)
                         elseif Option == "Memory" then
                             local mem = 0
@@ -3869,7 +3902,7 @@
                         elseif Option == "Players" then
                             parts[#parts + 1] = "Players: " .. tostring(#players:GetPlayers())
                         elseif Option == "Time" then
-                            parts[#parts + 1] = os.date("%H:%M:%S")
+                            parts[#parts + 1] = tostring(os.date("%H:%M:%S"))
                         end
                     end
                 end
@@ -3899,7 +3932,6 @@
                 items["holder"].Visible = cfg.visible
             end
 
-            -- aliases
             cfg.set_visible = cfg.SetVisibility
             cfg.set_text = function(t) items["text"].Text = tostring(t or "") end
 
@@ -3916,22 +3948,19 @@
                 items = {};
             }
 
-            if not library["items"] then
-                warn("[milenium] create window before keybind_list")
-                return cfg
-            end
-
+            local overlay = get_overlay()
             local items = cfg.items
 
             items["holder"] = library:create("Frame", {
-                Parent = library["items"];
+                Parent = overlay;
                 Name = "\0";
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(14, 14, 16);
                 Size = dim2(0, 130, 0, 32);
-                Position = dim2(0, 18, 0.5, -40);
-                AnchorPoint = vec2(0, 0.5);
+                Position = dim2(0, 18, 0, 120);
+                AnchorPoint = vec2(0, 0);
                 ZIndex = 100;
+                Active = true;
             })
 
             library:create("UICorner", {
@@ -4016,9 +4045,17 @@
             end
 
             function cfg.Add(Key, Name, Mode)
-                Key = tostring(Key or "NONE")
-                Name = tostring(Name or "bind")
-                Mode = tostring(Mode or "Toggle")
+                Key = tostring(Key ~= nil and Key or "NONE")
+                Name = tostring(Name ~= nil and Name or "bind")
+                Mode = tostring(Mode ~= nil and Mode or "Toggle")
+
+                -- reject garbage names (table tostring / flagnumber spam on boot)
+                if Name:find("table:", 1, true) or Name == "" then
+                    Name = "bind"
+                end
+                if Key:find("table:", 1, true) or Key == "nil" then
+                    Key = "NONE"
+                end
 
                 local label = library:create("TextLabel", {
                     Parent = items["content"];
@@ -4036,10 +4073,15 @@
                     ZIndex = 102;
                 })
 
-                local entry = {}
+                local entry = { label = label }
 
                 function entry:SetText(K, N, M)
-                    label.Text = tostring(K or "NONE") .. " - " .. tostring(N or "bind") .. " (" .. tostring(M or "Toggle") .. ")"
+                    K = tostring(K ~= nil and K or "NONE")
+                    N = tostring(N ~= nil and N or "bind")
+                    M = tostring(M ~= nil and M or "Toggle")
+                    if N:find("table:", 1, true) then N = "bind" end
+                    if K:find("table:", 1, true) then K = "NONE" end
+                    label.Text = K .. " - " .. N .. " (" .. M .. ")"
                     UpdateSize()
                 end
 
@@ -4068,7 +4110,6 @@
             end
 
             cfg.set_visible = cfg.SetVisibility
-            cfg.Add = cfg.Add
 
             library.keybind_list = cfg
             return cfg
