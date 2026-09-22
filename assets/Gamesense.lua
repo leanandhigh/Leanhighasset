@@ -1134,7 +1134,7 @@ do
                 
                 do 
                     function ColorPicker:UpdateSize()
-                        ColorPickerOutline.Position = UDim2.new(0, ColorPickerOutline_1.AbsolutePosition.X, 0, (ColorPickerOutline_1.AbsolutePosition.Y + ColorPickerOutline_1.AbsoluteSize.Y + GuiService:GetGuiInset().Y + 2))
+                        ColorPickerOutline.Position = UDim2.new(0, ColorPickerOutline_1.AbsolutePosition.X, 0, (ColorPickerOutline_1.AbsolutePosition.Y + ColorPickerOutline_1.AbsoluteSize.Y + 2))
                     end
                     
                     ColorPicker:UpdateSize()
@@ -2461,6 +2461,8 @@ do
         local MultiBoxMainOutline = Library:CreateObject("Frame", {
             Name = "MultiBoxMainOutline",
             Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(0, 0, 0, 0),
+            Visible = false,
             BorderColor3 = Color3.fromRGB(0, 0, 0),
             ZIndex = 10,
             BorderSizePixel = 0,
@@ -2694,15 +2696,18 @@ do
                     if Fast then
                         Library:Fade(false, Library:GetObjectsTable(MultiBoxMainOutline, true), MultiBoxMainOutline, 0)
                         MultiBoxMainOutline.Size = UDim2.new(0, MultiBoxOutline_5.AbsoluteSize.X, 0, 0)
+                        MultiBoxMainOutline.Visible = false
                         Library.Objects[MultiBoxMainOutline] = {MultiBoxMainOutline, OldValues[2], true}
                     else
                         Library:Fade(false, Library:GetObjectsTable(MultiBoxMainOutline, true), MultiBoxMainOutline, 0.1)
                         Library:TweenObject(MultiBoxMainOutline, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, MultiBoxOutline_5.AbsoluteSize.X, 0, 0)}, function()
+                            MultiBoxMainOutline.Visible = false
                             Library.Objects[MultiBoxMainOutline] = {MultiBoxMainOutline, OldValues[2], true}
                         end)
                     end
                 else
                     Library.Objects[MultiBoxMainOutline] = {MultiBoxMainOutline, OldValues[2], false}
+                    MultiBoxMainOutline.Visible = true
                     
                     if Fast then
                         Library:Fade(true, Library:GetObjectsTable(MultiBoxMainOutline, true), MultiBoxMainOutline, 0)
@@ -2718,7 +2723,7 @@ do
             
             function MultiBox:Update()
                 MultiBoxMainOutline.Size = UDim2.new(0, MultiBoxOutline_5.AbsoluteSize.X, 0, MultiBoxMainOutline.AbsoluteSize.Y)
-                MultiBoxMainOutline.Position = UDim2.new(0, MultiBoxOutline_5.AbsolutePosition.X, 0, ((MultiBoxOutline_5.AbsolutePosition.Y + MultiBoxOutline_5.AbsoluteSize.Y) + GuiService:GetGuiInset().Y + 2))
+                MultiBoxMainOutline.Position = UDim2.new(0, MultiBoxOutline_5.AbsolutePosition.X, 0, (MultiBoxOutline_5.AbsolutePosition.Y + MultiBoxOutline_5.AbsoluteSize.Y + 2))
                 
                 if MultiBox.Open then
                     MultiBoxMainOutline.Visible = Library:ScrollingCheck(Options.Parent, MultiBoxChecker)
@@ -2979,6 +2984,8 @@ do
         local DropdownMainOutline = Library:CreateObject("Frame", {
             Name = "DropdownMainOutline",
             Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(0, 0, 0, 0),
+            Visible = false,
             BorderColor3 = Color3.fromRGB(0, 0, 0),
             ZIndex = 10,
             BorderSizePixel = 0,
@@ -3159,15 +3166,18 @@ do
                     if Fast then
                         Library:Fade(false, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0)
                         DropdownMainOutline.Size = UDim2.new(0, DropdownOutline_5.AbsoluteSize.X, 0, 0)
+                        DropdownMainOutline.Visible = false
                         Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], true}
                     else
                         Library:Fade(false, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0.1)
                         Library:TweenObject(DropdownMainOutline, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, DropdownOutline_5.AbsoluteSize.X, 0, 0)}, function()
+                            DropdownMainOutline.Visible = false
                             Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], true}
                         end)
                     end
                 else
                     Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], false}
+                    DropdownMainOutline.Visible = true
                     
                     if Fast then
                         Library:Fade(true, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0)
@@ -3183,7 +3193,7 @@ do
             
             function Dropdown:Update()
                 DropdownMainOutline.Size = UDim2.new(0, DropdownOutline_5.AbsoluteSize.X, 0, DropdownMainOutline.AbsoluteSize.Y)
-                DropdownMainOutline.Position = UDim2.new(0, DropdownOutline_5.AbsolutePosition.X, 0, ((DropdownOutline_5.AbsolutePosition.Y + DropdownOutline_5.AbsoluteSize.Y) + GuiService:GetGuiInset().Y + 2))
+                DropdownMainOutline.Position = UDim2.new(0, DropdownOutline_5.AbsolutePosition.X, 0, (DropdownOutline_5.AbsolutePosition.Y + DropdownOutline_5.AbsoluteSize.Y + 2))
                 
                 if Dropdown.Open then
                     DropdownMainOutline.Visible = Library:ScrollingCheck(Options.Parent, DropdownChecker)
@@ -6518,6 +6528,8 @@ do
                 local DropdownMainOutline = Library:CreateObject("Frame", {
                     Name = "DropdownMainOutline",
                     Position = UDim2.new(0, 0, 0, 0),
+                    Size = UDim2.new(0, 0, 0, 0),
+                    Visible = false,
                     BorderColor3 = Color3.fromRGB(0, 0, 0),
                     ZIndex = 50,
                     BorderSizePixel = 0,
@@ -6689,15 +6701,18 @@ do
                             if Fast then
                                 Library:Fade(false, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0)
                                 DropdownMainOutline.Size = UDim2.new(0, DropdownImageOutline.AbsoluteSize.X, 0, 0)
+                                DropdownMainOutline.Visible = false
                                 Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], true}
                             else
                                 Library:Fade(false, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0.1)
                                 Library:TweenObject(DropdownMainOutline, TweenInfo.new(Library.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, DropdownImageOutline.AbsoluteSize.X, 0, 0)}, function()
+                                    DropdownMainOutline.Visible = false
                                     Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], true}
                                 end)
                             end
                         else
                             Library.Objects[DropdownMainOutline] = {DropdownMainOutline, OldValues[2], false}
+                            DropdownMainOutline.Visible = true
                             
                             if Fast then
                                 Library:Fade(true, Library:GetObjectsTable(DropdownMainOutline, true), DropdownMainOutline, 0)
