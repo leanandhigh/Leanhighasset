@@ -3219,15 +3219,17 @@
                     local key_str = "NONE"
                     if type(__text) == "string" and __text ~= "" then
                         key_str = __text
-                    elseif cfg.key and tostring(cfg.key) ~= "nil" then
+                    elseif cfg.key ~= nil then
                         key_str = tostring(cfg.key):gsub("Enum.KeyCode.", ""):gsub("Enum.UserInputType.", ""):gsub("Enum.", "")
                     end
-                    library.keybind_list:update(tostring(cfg.flag), {
-                        name = tostring(cfg.name or cfg.flag or "bind"),
-                        key = key_str,
-                        mode = tostring(cfg.mode or "Toggle"),
-                        active = cfg.active and true or false,
-                    })
+                    local name_str = tostring(cfg.name or cfg.flag or "bind")
+                    local mode_str = tostring(cfg.mode or "Toggle")
+                    if not cfg._kbl_entry then
+                        cfg._kbl_entry = library.keybind_list:Add(key_str, name_str, mode_str)
+                    else
+                        cfg._kbl_entry:SetText(key_str, name_str, mode_str)
+                    end
+                    cfg._kbl_entry:SetStatus(cfg.active and true or false)
                 end
             end
 
@@ -3744,12 +3746,14 @@
 
 
 
-    -- Watermark + Keybind List (main UI style)
+
+    -- Watermark + Keybind List (system from Library.lua, milenium UI base)
         function library:watermark(options)
-            options = options or {}
+            options = type(options) == "table" and options or { name = tostring(options or "milenium") }
             local cfg = {
-                name = tostring(options.name or "milenium");
+                BaseName = tostring(options.name or "milenium");
                 visible = options.visible ~= false;
+                UpdateConnection = nil;
                 items = {};
             }
 
@@ -3765,9 +3769,10 @@
                 Name = "\0";
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(14, 14, 16);
-                AutomaticSize = Enum.AutomaticSize.X;
-                Size = dim2(0, 0, 0, 32);
-                Position = dim2(0, 20, 0, 20);
+                AutomaticSize = Enum.AutomaticSize.XY;
+                Size = dim2(0, 0, 0, 0);
+                Position = dim2(0.5, 0, 0, 12);
+                AnchorPoint = vec2(0.5, 0);
                 ZIndex = 100;
             })
 
@@ -3784,84 +3789,130 @@
 
             library:create("UIPadding", {
                 Parent = items["holder"];
-                PaddingLeft = dim(0, 12);
-                PaddingRight = dim(0, 14);
-                PaddingTop = dim(0, 0);
-                PaddingBottom = dim(0, 0);
-            })
-
-            items["accent"] = library:create("Frame", {
-                Parent = items["holder"];
-                BorderSizePixel = 0;
-                BackgroundColor3 = themes.preset.accent;
-                Size = dim2(0, 2, 1, -10);
-                Position = dim2(0, 0, 0, 5);
-                ZIndex = 101;
-            })
-            library:apply_theme(items["accent"], "accent", "BackgroundColor3")
-
-            library:create("UICorner", {
-                Parent = items["accent"];
-                CornerRadius = dim(0, 2);
+                PaddingTop = dim(0, 6);
+                PaddingBottom = dim(0, 8);
+                PaddingLeft = dim(0, 10);
+                PaddingRight = dim(0, 10);
             })
 
             items["text"] = library:create("TextLabel", {
                 Parent = items["holder"];
                 FontFace = fonts.font;
-                Text = cfg.name;
-                TextColor3 = rgb(220, 220, 220);
+                Text = cfg.BaseName;
+                TextColor3 = rgb(235, 235, 235);
                 BackgroundTransparency = 1;
                 BorderSizePixel = 0;
-                Size = dim2(0, 0, 1, 0);
-                Position = dim2(0, 10, 0, 0);
-                AutomaticSize = Enum.AutomaticSize.X;
+                AutomaticSize = Enum.AutomaticSize.XY;
+                Size = dim2(0, 0, 0, 0);
                 TextSize = 13;
                 TextXAlignment = Enum.TextXAlignment.Left;
                 ZIndex = 101;
             })
 
+            -- accent liner (slides like Library.lua)
+            items["liner"] = library:create("Frame", {
+                Parent = items["holder"];
+                BorderSizePixel = 0;
+                BackgroundColor3 = themes.preset.accent;
+                Size = dim2(0, 24, 0, 1);
+                Position = dim2(0, 0, 1, 4);
+                AnchorPoint = vec2(0, 1);
+                ZIndex = 102;
+            })
+            library:apply_theme(items["liner"], "accent", "BackgroundColor3")
+
+            task.spawn(function()
+                while items["holder"] and items["holder"].Parent do
+                    local tw1 = tween_service:Create(items["liner"], TweenInfo.new(4, Enum.EasingStyle.Linear), {
+                        Position = dim2(1, -24, 1, 4)
+                    })
+                    tw1:Play()
+                    tw1.Completed:Wait()
+                    if not (items["holder"] and items["holder"].Parent) then break end
+                    local tw2 = tween_service:Create(items["liner"], TweenInfo.new(4, Enum.EasingStyle.Linear), {
+                        Position = dim2(0, 0, 1, 4)
+                    })
+                    tw2:Play()
+                    tw2.Completed:Wait()
+                end
+            end)
+
             library:draggify(items["holder"])
             items["holder"].Visible = cfg.visible
 
-            function cfg.set_visible(bool)
-                cfg.visible = bool and true or false
+            function cfg.UpdateText(DisplayOptions)
+                local parts = { cfg.BaseName }
+                if DisplayOptions then
+                    for _, Option in ipairs(DisplayOptions) do
+                        if Option == "User" then
+                            parts[#parts + 1] = "User: " .. lp.Name
+                        elseif Option == "FPS" then
+                            local fps = math.floor(1 / run.RenderStepped:Wait())
+                            parts[#parts + 1] = "FPS: " .. tostring(fps)
+                        elseif Option == "Memory" then
+                            local mem = 0
+                            pcall(function()
+                                mem = math.floor(stats:GetTotalMemoryUsageMb())
+                            end)
+                            parts[#parts + 1] = "Memory: " .. tostring(mem) .. "MB"
+                        elseif Option == "Ping" then
+                            local ping = 0
+                            pcall(function()
+                                ping = math.floor(lp:GetNetworkPing() * 1000)
+                            end)
+                            if ping == 0 then
+                                pcall(function()
+                                    ping = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+                                end)
+                            end
+                            parts[#parts + 1] = "Ping: " .. tostring(ping) .. "ms"
+                        elseif Option == "Players" then
+                            parts[#parts + 1] = "Players: " .. tostring(#players:GetPlayers())
+                        elseif Option == "Time" then
+                            parts[#parts + 1] = os.date("%H:%M:%S")
+                        end
+                    end
+                end
+                items["text"].Text = table.concat(parts, "  |  ")
+            end
+
+            function cfg.StartUpdating(DisplayOptions)
+                DisplayOptions = DisplayOptions or { "FPS", "Ping", "Time" }
+                if cfg.UpdateConnection then
+                    pcall(function() cfg.UpdateConnection:Disconnect() end)
+                    cfg.UpdateConnection = nil
+                end
+                local acc = 0
+                cfg.UpdateConnection = library:connection(run.RenderStepped, function(dt)
+                    acc = acc + dt
+                    if acc < 0.5 then return end
+                    acc = 0
+                    if cfg.visible then
+                        cfg.UpdateText(DisplayOptions)
+                    end
+                end)
+                cfg.UpdateText(DisplayOptions)
+            end
+
+            function cfg.SetVisibility(Bool)
+                cfg.visible = Bool and true or false
                 items["holder"].Visible = cfg.visible
             end
 
-            function cfg.set_text(text)
-                items["text"].Text = tostring(text or "")
-            end
+            -- aliases
+            cfg.set_visible = cfg.SetVisibility
+            cfg.set_text = function(t) items["text"].Text = tostring(t or "") end
 
-            local frames = 0
-            local last = tick()
-            local fps = 0
-            library:connection(run.RenderStepped, function()
-                frames = frames + 1
-                local now = tick()
-                if now - last >= 1 then
-                    fps = frames
-                    frames = 0
-                    last = now
-                end
-                if not cfg.visible then return end
-                local ping = 0
-                pcall(function()
-                    ping = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-                end)
-                local t = os.date("%H:%M:%S")
-                items["text"].Text = string.format("%s  |  %dfps  |  %dms  |  %s", cfg.name, fps, ping, t)
-            end)
+            cfg.StartUpdating(options.display or { "FPS", "Ping", "Time" })
 
             library.watermark = cfg
             return cfg
         end
 
         function library:keybind_list(options)
-            options = options or {}
+            options = type(options) == "table" and options or {}
             local cfg = {
-                name = tostring(options.name or "keybinds");
                 visible = options.visible ~= false;
-                entries = {};
                 items = {};
             }
 
@@ -3877,9 +3928,9 @@
                 Name = "\0";
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(14, 14, 16);
-                AutomaticSize = Enum.AutomaticSize.XY;
-                Size = dim2(0, 0, 0, 0);
-                Position = dim2(0, 20, 0, 64);
+                Size = dim2(0, 130, 0, 32);
+                Position = dim2(0, 18, 0.5, -40);
+                AnchorPoint = vec2(0, 0.5);
                 ZIndex = 100;
             })
 
@@ -3896,45 +3947,47 @@
 
             library:create("UIPadding", {
                 Parent = items["holder"];
-                PaddingTop = dim(0, 8);
-                PaddingBottom = dim(0, 8);
-                PaddingLeft = dim(0, 10);
-                PaddingRight = dim(0, 10);
-            })
-
-            library:create("UIListLayout", {
-                Parent = items["holder"];
-                Padding = dim(0, 6);
-                SortOrder = Enum.SortOrder.LayoutOrder;
+                PaddingTop = dim(0, 6);
+                PaddingBottom = dim(0, 6);
+                PaddingLeft = dim(0, 8);
+                PaddingRight = dim(0, 8);
             })
 
             items["title"] = library:create("TextLabel", {
                 Parent = items["holder"];
                 FontFace = fonts.font;
-                Text = cfg.name;
-                TextColor3 = themes.preset.accent;
+                Text = tostring(options.name or "Keybinds");
+                TextColor3 = rgb(235, 235, 235);
                 BackgroundTransparency = 1;
                 BorderSizePixel = 0;
-                Size = dim2(0, 150, 0, 16);
+                Size = dim2(1, 0, 0, 16);
                 TextSize = 13;
                 TextXAlignment = Enum.TextXAlignment.Left;
-                LayoutOrder = 0;
                 ZIndex = 101;
             })
-            library:apply_theme(items["title"], "accent", "TextColor3")
 
-            items["list"] = library:create("Frame", {
+            items["liner"] = library:create("Frame", {
+                Parent = items["holder"];
+                BorderSizePixel = 0;
+                BackgroundColor3 = themes.preset.accent;
+                Size = dim2(1, 0, 0, 1);
+                Position = dim2(0, 0, 0, 18);
+                ZIndex = 101;
+            })
+            library:apply_theme(items["liner"], "accent", "BackgroundColor3")
+
+            items["content"] = library:create("Frame", {
                 Parent = items["holder"];
                 BackgroundTransparency = 1;
                 BorderSizePixel = 0;
+                Position = dim2(0, 0, 0, 24);
+                Size = dim2(1, 0, 0, 0);
                 AutomaticSize = Enum.AutomaticSize.XY;
-                Size = dim2(0, 0, 0, 0);
-                LayoutOrder = 1;
                 ZIndex = 101;
             })
 
             library:create("UIListLayout", {
-                Parent = items["list"];
+                Parent = items["content"];
                 Padding = dim(0, 4);
                 SortOrder = Enum.SortOrder.LayoutOrder;
             })
@@ -3942,92 +3995,85 @@
             library:draggify(items["holder"])
             items["holder"].Visible = cfg.visible
 
-            function cfg.set_visible(bool)
-                cfg.visible = bool and true or false
+            local function UpdateSize()
+                task.defer(function()
+                    if not items["holder"] or not items["holder"].Parent then return end
+                    local visible = 0
+                    local max_w = 114
+                    for _, child in ipairs(items["content"]:GetChildren()) do
+                        if child:IsA("TextLabel") and child.Visible then
+                            visible = visible + 1
+                            local w = child.TextBounds.X
+                            if w > max_w then max_w = w end
+                        end
+                    end
+                    max_w = max_w + 20
+                    local h = 32 + ((15 + 4) * visible)
+                    library:tween(items["holder"], {
+                        Size = dim2(0, max_w, 0, h)
+                    }, Enum.EasingStyle.Quad, 0.2)
+                end)
+            end
+
+            function cfg.Add(Key, Name, Mode)
+                Key = tostring(Key or "NONE")
+                Name = tostring(Name or "bind")
+                Mode = tostring(Mode or "Toggle")
+
+                local label = library:create("TextLabel", {
+                    Parent = items["content"];
+                    FontFace = fonts.small;
+                    Text = Key .. " - " .. Name .. " (" .. Mode .. ")";
+                    TextColor3 = rgb(235, 235, 235);
+                    BackgroundTransparency = 1;
+                    BorderSizePixel = 0;
+                    Size = dim2(0, 0, 0, 15);
+                    AutomaticSize = Enum.AutomaticSize.X;
+                    TextXAlignment = Enum.TextXAlignment.Left;
+                    TextSize = 12;
+                    TextTransparency = 1;
+                    Visible = false;
+                    ZIndex = 102;
+                })
+
+                local entry = {}
+
+                function entry:SetText(K, N, M)
+                    label.Text = tostring(K or "NONE") .. " - " .. tostring(N or "bind") .. " (" .. tostring(M or "Toggle") .. ")"
+                    UpdateSize()
+                end
+
+                function entry:SetStatus(Bool)
+                    if Bool then
+                        label.Visible = true
+                        library:tween(label, { TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.15)
+                        UpdateSize()
+                    else
+                        library:tween(label, { TextTransparency = 1 }, Enum.EasingStyle.Quad, 0.15)
+                        task.delay(0.16, function()
+                            if label and label.Parent then
+                                label.Visible = false
+                                UpdateSize()
+                            end
+                        end)
+                    end
+                end
+
+                return entry
+            end
+
+            function cfg.SetVisibility(Bool)
+                cfg.visible = Bool and true or false
                 items["holder"].Visible = cfg.visible
             end
 
-            function cfg.update(id, data)
-                data = type(data) == "table" and data or {}
-                id = tostring(id or "bind")
-
-                local name_str = tostring(data.name or id)
-                local key_str = data.key
-                if type(key_str) ~= "string" then
-                    key_str = key_str ~= nil and tostring(key_str) or "NONE"
-                end
-                if key_str == "" then key_str = "NONE" end
-                local active = data.active and true or false
-
-                local entry = cfg.entries[id]
-
-                if not entry then
-                    local row = library:create("Frame", {
-                        Parent = items["list"];
-                        BackgroundTransparency = 1;
-                        BorderSizePixel = 0;
-                        Size = dim2(0, 160, 0, 16);
-                        Visible = false;
-                        ZIndex = 101;
-                    })
-
-                    local name_lbl = library:create("TextLabel", {
-                        Parent = row;
-                        FontFace = fonts.small;
-                        Text = name_str;
-                        TextColor3 = rgb(200, 200, 200);
-                        BackgroundTransparency = 1;
-                        BorderSizePixel = 0;
-                        Size = dim2(0, 100, 1, 0);
-                        Position = dim2(0, 0, 0, 0);
-                        TextSize = 12;
-                        TextXAlignment = Enum.TextXAlignment.Left;
-                        TextTruncate = Enum.TextTruncate.AtEnd;
-                        ZIndex = 102;
-                    })
-
-                    local key_lbl = library:create("TextLabel", {
-                        Parent = row;
-                        FontFace = fonts.small;
-                        Text = "[" .. key_str .. "]";
-                        TextColor3 = themes.preset.accent;
-                        BackgroundTransparency = 1;
-                        BorderSizePixel = 0;
-                        Position = dim2(1, 0, 0, 0);
-                        AnchorPoint = vec2(1, 0);
-                        Size = dim2(0, 55, 1, 0);
-                        TextSize = 12;
-                        TextXAlignment = Enum.TextXAlignment.Right;
-                        ZIndex = 102;
-                    })
-                    library:apply_theme(key_lbl, "accent", "TextColor3")
-
-                    entry = {
-                        row = row,
-                        name_lbl = name_lbl,
-                        key_lbl = key_lbl,
-                        active = false,
-                    }
-                    cfg.entries[id] = entry
-                end
-
-                entry.active = active
-                entry.name_lbl.Text = name_str
-                entry.key_lbl.Text = "[" .. key_str .. "]"
-                entry.row.Visible = active
-            end
-
-            function cfg.remove(id)
-                id = tostring(id or "")
-                local entry = cfg.entries[id]
-                if not entry then return end
-                if entry.row then entry.row:Destroy() end
-                cfg.entries[id] = nil
-            end
+            cfg.set_visible = cfg.SetVisibility
+            cfg.Add = cfg.Add
 
             library.keybind_list = cfg
             return cfg
         end
 --
+
 
 return library
