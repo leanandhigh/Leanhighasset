@@ -1,8 +1,13 @@
+--[[
+    Lean.high - Full UI Setup Example
+    Core is loaded via loadstring; all menu setup lives here.
+]]
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/leanandhigh/Leanhighasset/refs/heads/main/assets/Gamesense.lua"))()
+
 local Players = game:GetService("Players")
 
 local Window = Library:Window({CloseBind = Enum.KeyCode.Home})
-
 local Rage = Window:CreateTab({Icon = "rbxassetid://18248771514"})
 local AntiAim = Window:CreateTab({Icon = "rbxassetid://15453313321"})
 local Aimbot = Window:CreateTab({Icon = "rbxassetid://15453335745"})
@@ -12,36 +17,9 @@ local Weapons = Window:CreateTab({Icon = "rbxassetid://15453354931"})
 local PlayerList = Window:CreateTab({Icon = "rbxassetid://15453359751"})
 local Configs = Window:CreateTab({Icon = "rbxassetid://15453364412"})
 local Lua = Window:CreateTab({Icon = "rbxassetid://18240049800"})
-
 local ActualPlayerList
-Window:SetTab(8)
 
--- Cosmetics changer (left of main UI)
-local SkinChanger = Window:CreateSkinChanger({
-    Name = "Cosmetics Changer",
-    Width = 300,
-    Columns = 4,
-    CellSize = 64,
-    Flag = "SelectedSkin",
-    Callback = function(SkinName, Data, Weapon)
-        print("Selected:", SkinName, "for", Weapon)
-        -- apply skin here
-    end,
-})
-
-SkinChanger:AddWeapon("Assault Rifle", {Image = "rbxassetid://12206409737"})
-SkinChanger:AddWeapon("Burst Rifle", {Image = "rbxassetid://12206409737"})
-SkinChanger:AddWeapon("Shotgun", {Image = "rbxassetid://12206409737"})
-SkinChanger:AddWeapon("Handgun", {Image = "rbxassetid://12206409737"})
-
-SkinChanger:Add("Default", {Image = "rbxassetid://12206409737", Weapon = "Assault Rifle"})
-SkinChanger:Add("AK-47", {Image = "rbxassetid://12206409737", Weapon = "Assault Rifle"})
-SkinChanger:Add("AUG", {Image = "rbxassetid://12206409737", Weapon = "Assault Rifle"})
-SkinChanger:Add("Aqua Burst", {Image = "rbxassetid://12206409737", Weapon = "Burst Rifle"})
-SkinChanger:Add("Pixel Burst", {Image = "rbxassetid://12206409737", Weapon = "Burst Rifle"})
-SkinChanger:Add("Default SG", {Image = "rbxassetid://12206409737", Weapon = "Shotgun"})
-SkinChanger:Add("Default HG", {Image = "rbxassetid://12206409737", Weapon = "Handgun"})
-
+Window:SetTab(1)
 AntiAim:Section({Fill = true})
 AntiAim:Section({Fill = true, Side = "Right"})
 
@@ -57,10 +35,11 @@ do -- Rage
         },
         Default = "Global"
     })
+
     Rage:Section({Fill = true, Side = "Right"})
     local RageSection = Rage:Section({Fill = true})
-    local Toggle1, Toggle2, Toggle3 = nil, nil, nil
-    local Test = nil
+    local Toggle1, Toggle2, Toggle3, Test
+
     local g = RageSection:Toggle({Callback = function(State)
         if not Toggle1 then return end
         Toggle1:SetVisible(State)
@@ -70,6 +49,7 @@ do -- Rage
     g:ColorPicker()
     g:ColorPicker()
     g:Keybind()
+
     Toggle1 = RageSection:Toggle({Hidden = true, Callback = function(State)
         if not Test then return end
         Test:SetVisible(State)
@@ -78,6 +58,7 @@ do -- Rage
     Test = RageSection:Slider({Name = "", Hidden = true, Default = 50})
     Toggle2 = RageSection:List({Hidden = true})
     Toggle3 = RageSection:Button({Confirmation = true, Hidden = true})
+
     RageSection:Dropdown({Content = {"Option 1", "Option 2"}})
     RageSection:Label()
     RageSection:MultiBox({Content = {"Option 1", "Option 2"}})
@@ -97,10 +78,12 @@ do -- Visuals
     VisualsSubSection2:Section({Fill = true})
     VisualsSubSection4:Section({Side = "Right", Fill = true})
     VisualsSubSection4:Section({Fill = true})
+
     local PreviewVisualSection = VisualsSubSection:Section({Side = "Right", Size = 150})
-    local PreviewExtraSection1 = VisualsSubSection:Section({Side = "Right", Fill = true})
-    local PreviewExtraSection2 = VisualsSubSection:Section({Fill = true})
-    local Slider1, Slider2 = nil, nil
+    VisualsSubSection:Section({Side = "Right", Fill = true})
+    VisualsSubSection:Section({Fill = true})
+
+    local Slider1, Slider2
     PreviewVisualSection:Dropdown({Content = {"test2", "Test3"}})
     PreviewVisualSection:MultiBox({Content = {"test2", "Test3"}})
     PreviewVisualSection:Toggle({Risky = true, Callback = function(State)
@@ -141,20 +124,6 @@ do -- Settings
             ))
         end
     })
-    SettingsSection:Slider({
-        Name = "Menu animation speed",
-        Min = 0,
-        Max = 150,
-        Default = 100,
-        Ending = "%",
-        Disable = {"Off", 0, 150},
-        Callback = function(Value)
-            local MinSource, MaxSource = 1, 150
-            local MinTarget, MaxTarget = 0.8, 0.1
-            local NewValue = MinTarget + ((Value - MinSource) * (MaxTarget - MinTarget)) / (MaxSource - MinSource)
-            Library.UI.TweenSpeed = Value == (0 or 150) and 0 or NewValue
-        end
-    })
     SettingsSection:Toggle({
         Name = "Watermark",
         Default = true,
@@ -179,39 +148,17 @@ do -- Settings
             Library:ToggleSpectatorList(State)
         end
     })
-    SettingsSection:Toggle({
-        Name = "Skin Changer",
-        Default = true,
-        Flag = "ShowSkinChanger",
-        Callback = function(State)
-            if SkinChanger then
-                SkinChanger:SetVisibility(State)
-            end
-        end
-    })
     SettingsSection:Button({Name = "Unload", Callback = Library.Unload})
     SettingsSection:Button({Name = "Disable all", Callback = Library.Disable})
 end
 
 do -- Weapons
-    local SkinsSection = Weapons:Section({Name = "Skins", Fill = true})
-    local SkinList = SkinsSection:List({Size = 200})
-    SkinList:AddValue("Test Skin 1", {
-        Image = "http://www.roblox.com/asset/?id=12206409737",
-        Color = Color3.fromRGB(232, 0, 0),
-        Size = UDim2.fromOffset(5, 5),
-        Position = UDim2.new(0, 11, 0.5, 0)
-    })
-    SkinList:AddValue("Test Skin 2", {
-        Image = "http://www.roblox.com/asset/?id=12206409737",
-        Color = Color3.fromRGB(2, 144, 232),
-        Size = UDim2.fromOffset(5, 5),
-        Position = UDim2.new(0, 11, 0.5, 0)
-    })
+    local WeaponsSection = Weapons:Section({Name = "Weapons", Fill = true})
+    WeaponsSection:Dropdown({Name = "Weapon", Content = {"Global", "Rifle", "Shotgun", "Pistol"}})
 end
 
 do -- Aimbot
-    local AimbotSubSection, AimbotSubSection2 = Aimbot:SubSection({
+    Aimbot:SubSection({
         Name = "Category",
         Options = {
             "rbxassetid://18686402989",
@@ -228,7 +175,8 @@ do -- PlayerList
     local PlayerAdjustments = PlayerList:Section({Name = "Adjustments", Fill = true, Side = "Right"})
     ActualPlayerList = PlayerSection:List({Flag = "PlayerListCurrentPlayer", Size = 300})
     PlayerSection:Button({Name = "View player", Callback = function()
-        local Player = Players:FindFirstChild(Library.Flags["PlayerListCurrentPlayer"]:Get())
+        local Name = Library.Flags["PlayerListCurrentPlayer"] and Library.Flags["PlayerListCurrentPlayer"]:Get()
+        local Player = Name and Players:FindFirstChild(Name)
         if Player then
             Library:ViewPlayer(Player)
         end
@@ -247,18 +195,18 @@ do -- Configs
     local ConfigList = ConfigSection:List({Size = 200, Flag = "CurrentConfig"})
     Library:UpdateConfigList(ConfigList, "Add")
     ConfigSection:Button({Name = "Update config", Callback = function()
-        if Library.Flags["CurrentConfig"]:Get() then
+        if Library.Flags["CurrentConfig"] and Library.Flags["CurrentConfig"]:Get() then
             writefile("Lean.high/Configs/" .. Library.Flags["CurrentConfig"]:Get() .. ".cfg", Library:GetConfig())
         end
     end})
     ConfigSection:Button({Name = "Load config", Callback = function()
-        if Library.Flags["CurrentConfig"]:Get() then
+        if Library.Flags["CurrentConfig"] and Library.Flags["CurrentConfig"]:Get() then
             Library:LoadConfig(readfile("Lean.high/Configs/" .. Library.Flags["CurrentConfig"]:Get() .. ".cfg"))
         end
     end})
     ConfigSection:TextBox({Flag = "ConfigName"})
     ConfigSection:Button({Name = "Create config", Callback = function()
-        local ConfigName = Library.Flags["ConfigName"]:Get()
+        local ConfigName = Library.Flags["ConfigName"] and Library.Flags["ConfigName"]:Get() or ""
         if ConfigName ~= "" and not isfile("Lean.high/Configs/" .. ConfigName .. ".cfg") then
             writefile("Lean.high/Configs/" .. ConfigName .. ".cfg", Library:GetConfig())
             ConfigList:AddValue(ConfigName)
@@ -268,15 +216,15 @@ do -- Configs
         Library:UpdateConfigList(ConfigList, "Remove")
         Library:UpdateConfigList(ConfigList, "Add")
     end})
-    local LuaList = LuaSection:List({Size = 75})
+    LuaSection:List({Size = 75})
     LuaSection:Button({Name = "Load script"})
     LuaSection:Button({Name = "Unload script"})
     LuaSection:Button({Name = "Refresh list"})
 end
 
 do -- Lua
-    local TabA = Lua:Section({Name = "Tab A", Fill = true})
-    local TabB = Lua:Section({Name = "Tab B", Side = "Right", Fill = true})
+    Lua:Section({Name = "Tab A", Fill = true})
+    Lua:Section({Name = "Tab B", Side = "Right", Fill = true})
 end
 
 do -- Connections
