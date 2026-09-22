@@ -3216,11 +3216,17 @@
                 }
 
                 if library.keybind_list and not cfg.ignore_key then
-                    library.keybind_list:update(cfg.flag, {
-                        name = cfg.name or cfg.flag,
-                        key = __text or "NONE",
-                        mode = cfg.mode,
-                        active = cfg.active,
+                    local key_str = "NONE"
+                    if type(__text) == "string" and __text ~= "" then
+                        key_str = __text
+                    elseif cfg.key and tostring(cfg.key) ~= "nil" then
+                        key_str = tostring(cfg.key):gsub("Enum.KeyCode.", ""):gsub("Enum.UserInputType.", ""):gsub("Enum.", "")
+                    end
+                    library.keybind_list:update(tostring(cfg.flag), {
+                        name = tostring(cfg.name or cfg.flag or "bind"),
+                        key = key_str,
+                        mode = tostring(cfg.mode or "Toggle"),
+                        active = cfg.active and true or false,
                     })
                 end
             end
@@ -3737,11 +3743,12 @@
 -- 
 
 
+
     -- Watermark + Keybind List (main UI style)
         function library:watermark(options)
             options = options or {}
             local cfg = {
-                name = options.name or "milenium";
+                name = tostring(options.name or "milenium");
                 visible = options.visible ~= false;
                 items = {};
             }
@@ -3759,7 +3766,7 @@
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(14, 14, 16);
                 AutomaticSize = Enum.AutomaticSize.X;
-                Size = dim2(0, 0, 0, 28);
+                Size = dim2(0, 0, 0, 32);
                 Position = dim2(0, 20, 0, 20);
                 ZIndex = 100;
             })
@@ -3777,16 +3784,18 @@
 
             library:create("UIPadding", {
                 Parent = items["holder"];
-                PaddingLeft = dim(0, 10);
-                PaddingRight = dim(0, 10);
+                PaddingLeft = dim(0, 12);
+                PaddingRight = dim(0, 14);
+                PaddingTop = dim(0, 0);
+                PaddingBottom = dim(0, 0);
             })
 
             items["accent"] = library:create("Frame", {
                 Parent = items["holder"];
                 BorderSizePixel = 0;
                 BackgroundColor3 = themes.preset.accent;
-                Size = dim2(0, 2, 1, -8);
-                Position = dim2(0, 0, 0, 4);
+                Size = dim2(0, 2, 1, -10);
+                Position = dim2(0, 0, 0, 5);
                 ZIndex = 101;
             })
             library:apply_theme(items["accent"], "accent", "BackgroundColor3")
@@ -3804,7 +3813,7 @@
                 BackgroundTransparency = 1;
                 BorderSizePixel = 0;
                 Size = dim2(0, 0, 1, 0);
-                Position = dim2(0, 8, 0, 0);
+                Position = dim2(0, 10, 0, 0);
                 AutomaticSize = Enum.AutomaticSize.X;
                 TextSize = 13;
                 TextXAlignment = Enum.TextXAlignment.Left;
@@ -3815,20 +3824,19 @@
             items["holder"].Visible = cfg.visible
 
             function cfg.set_visible(bool)
-                cfg.visible = bool
-                items["holder"].Visible = bool
+                cfg.visible = bool and true or false
+                items["holder"].Visible = cfg.visible
             end
 
             function cfg.set_text(text)
                 items["text"].Text = tostring(text or "")
             end
 
-            -- live stats: name | fps | ping | time
             local frames = 0
             local last = tick()
             local fps = 0
             library:connection(run.RenderStepped, function()
-                frames += 1
+                frames = frames + 1
                 local now = tick()
                 if now - last >= 1 then
                     fps = frames
@@ -3851,7 +3859,7 @@
         function library:keybind_list(options)
             options = options or {}
             local cfg = {
-                name = options.name or "keybinds";
+                name = tostring(options.name or "keybinds");
                 visible = options.visible ~= false;
                 entries = {};
                 items = {};
@@ -3871,7 +3879,7 @@
                 BackgroundColor3 = rgb(14, 14, 16);
                 AutomaticSize = Enum.AutomaticSize.XY;
                 Size = dim2(0, 0, 0, 0);
-                Position = dim2(0, 20, 0, 60);
+                Position = dim2(0, 20, 0, 64);
                 ZIndex = 100;
             })
 
@@ -3888,15 +3896,15 @@
 
             library:create("UIPadding", {
                 Parent = items["holder"];
-                PaddingTop = dim(0, 6);
-                PaddingBottom = dim(0, 6);
-                PaddingLeft = dim(0, 8);
-                PaddingRight = dim(0, 8);
+                PaddingTop = dim(0, 8);
+                PaddingBottom = dim(0, 8);
+                PaddingLeft = dim(0, 10);
+                PaddingRight = dim(0, 10);
             })
 
             library:create("UIListLayout", {
                 Parent = items["holder"];
-                Padding = dim(0, 4);
+                Padding = dim(0, 6);
                 SortOrder = Enum.SortOrder.LayoutOrder;
             })
 
@@ -3907,7 +3915,7 @@
                 TextColor3 = themes.preset.accent;
                 BackgroundTransparency = 1;
                 BorderSizePixel = 0;
-                Size = dim2(0, 140, 0, 16);
+                Size = dim2(0, 150, 0, 16);
                 TextSize = 13;
                 TextXAlignment = Enum.TextXAlignment.Left;
                 LayoutOrder = 0;
@@ -3927,32 +3935,30 @@
 
             library:create("UIListLayout", {
                 Parent = items["list"];
-                Padding = dim(0, 2);
+                Padding = dim(0, 4);
                 SortOrder = Enum.SortOrder.LayoutOrder;
             })
 
             library:draggify(items["holder"])
             items["holder"].Visible = cfg.visible
 
-            local function refresh_visibility()
-                local any = false
-                for _, entry in pairs(cfg.entries) do
-                    if entry.active and entry.row then
-                        any = true
-                        break
-                    end
-                end
-                -- keep title visible if list is enabled; rows only when active
+            function cfg.set_visible(bool)
+                cfg.visible = bool and true or false
                 items["holder"].Visible = cfg.visible
             end
 
-            function cfg.set_visible(bool)
-                cfg.visible = bool
-                items["holder"].Visible = bool
-            end
-
             function cfg.update(id, data)
-                data = data or {}
+                data = type(data) == "table" and data or {}
+                id = tostring(id or "bind")
+
+                local name_str = tostring(data.name or id)
+                local key_str = data.key
+                if type(key_str) ~= "string" then
+                    key_str = key_str ~= nil and tostring(key_str) or "NONE"
+                end
+                if key_str == "" then key_str = "NONE" end
+                local active = data.active and true or false
+
                 local entry = cfg.entries[id]
 
                 if not entry then
@@ -3961,7 +3967,6 @@
                         BackgroundTransparency = 1;
                         BorderSizePixel = 0;
                         Size = dim2(0, 160, 0, 16);
-                        AutomaticSize = Enum.AutomaticSize.X;
                         Visible = false;
                         ZIndex = 101;
                     })
@@ -3969,38 +3974,33 @@
                     local name_lbl = library:create("TextLabel", {
                         Parent = row;
                         FontFace = fonts.small;
-                        Text = data.name or id;
+                        Text = name_str;
                         TextColor3 = rgb(200, 200, 200);
                         BackgroundTransparency = 1;
                         BorderSizePixel = 0;
-                        Size = dim2(0, 0, 1, 0);
-                        AutomaticSize = Enum.AutomaticSize.X;
+                        Size = dim2(0, 100, 1, 0);
+                        Position = dim2(0, 0, 0, 0);
                         TextSize = 12;
                         TextXAlignment = Enum.TextXAlignment.Left;
+                        TextTruncate = Enum.TextTruncate.AtEnd;
                         ZIndex = 102;
                     })
 
                     local key_lbl = library:create("TextLabel", {
                         Parent = row;
                         FontFace = fonts.small;
-                        Text = "[" .. (data.key or "NONE") .. "]";
+                        Text = "[" .. key_str .. "]";
                         TextColor3 = themes.preset.accent;
                         BackgroundTransparency = 1;
                         BorderSizePixel = 0;
                         Position = dim2(1, 0, 0, 0);
                         AnchorPoint = vec2(1, 0);
-                        Size = dim2(0, 0, 1, 0);
-                        AutomaticSize = Enum.AutomaticSize.X;
+                        Size = dim2(0, 55, 1, 0);
                         TextSize = 12;
                         TextXAlignment = Enum.TextXAlignment.Right;
                         ZIndex = 102;
                     })
                     library:apply_theme(key_lbl, "accent", "TextColor3")
-
-                    -- layout: name left, key right with gap
-                    name_lbl.Size = dim2(0, 100, 1, 0)
-                    key_lbl.Position = dim2(0, 150, 0, 0)
-                    key_lbl.AnchorPoint = vec2(1, 0)
 
                     entry = {
                         row = row,
@@ -4011,26 +4011,23 @@
                     cfg.entries[id] = entry
                 end
 
-                entry.active = data.active and true or false
-                entry.name_lbl.Text = data.name or id
-                entry.key_lbl.Text = "[" .. (data.key or "NONE") .. "]"
-                entry.row.Visible = entry.active == true
-
-                refresh_visibility()
+                entry.active = active
+                entry.name_lbl.Text = name_str
+                entry.key_lbl.Text = "[" .. key_str .. "]"
+                entry.row.Visible = active
             end
 
             function cfg.remove(id)
+                id = tostring(id or "")
                 local entry = cfg.entries[id]
                 if not entry then return end
                 if entry.row then entry.row:Destroy() end
                 cfg.entries[id] = nil
-                refresh_visibility()
             end
 
             library.keybind_list = cfg
             return cfg
         end
 --
-
 
 return library
