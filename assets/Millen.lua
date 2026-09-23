@@ -1,4 +1,4 @@
-local uis = game:GetService("UserInputService")
+	local uis = game:GetService("UserInputService")
     local players = game:GetService("Players")
     local ws = game:GetService("Workspace")
     local rs = game:GetService("ReplicatedStorage")
@@ -57,7 +57,7 @@ local uis = game:GetService("UserInputService")
     local concat = table.concat
 
     getgenv().library = {
-        directory = "milenium",
+        directory = "Lean.high",
         folders = {
             "/fonts",
             "/configs",
