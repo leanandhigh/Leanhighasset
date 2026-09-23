@@ -1,5 +1,4 @@
-
-    local uis = game:GetService("UserInputService")
+local uis = game:GetService("UserInputService")
     local players = game:GetService("Players")
     local ws = game:GetService("Workspace")
     local rs = game:GetService("ReplicatedStorage")
@@ -355,26 +354,39 @@
         end
 
         local config_holder;
+        function library:config_names()
+            local list = {}
+            pcall(function()
+                if not isfolder(library.directory .. "/configs") then
+                    makefolder(library.directory .. "/configs")
+                end
+                for _, file in listfiles(library.directory .. "/configs") do
+                    local name = tostring(file):match("[^/\\]+$") or ""
+                    if name:sub(-4) == ".cfg" then
+                        list[#list + 1] = name:sub(1, -5)
+                    end
+                end
+            end)
+            table.sort(list)
+            return list
+        end
+
         function library:update_config_list()
             if not config_holder then
                 return
             end
 
-            local list = {}
-
-            for idx, file in listfiles(library.directory .. "/configs") do
-                local name = file:gsub(library.directory .. "/configs\\", ""):gsub(".cfg", ""):gsub(library.directory .. "\\configs\\", "")
-                list[#list + 1] = name
-            end
-
-            config_holder.refresh_options(list)
+            config_holder.refresh_options(library:config_names())
         end
 
         function library:get_config()
             local Config = {}
 
+            local skip = {config_name_list = true, config_name_text = true}
             for _, v in next, flags do
-                if type(v) == "table" and v.key then
+                if skip[_] then
+                    continue
+                elseif type(v) == "table" and v.key then
                     Config[_] = {active = v.active, mode = v.mode, key = tostring(v.key)}
                 elseif type(v) == "table" and v["Transparency"] and v["Color"] then
                     Config[_] = {Transparency = v["Transparency"], Color = v["Color"]:ToHex()}
@@ -3553,6 +3565,217 @@
         end
 
 
+        function library:searchbox(properties)
+            local cfg = {
+                items = {};
+                options = properties.options or properties.items or {};
+                flag = properties.flag or library:next_flag();
+                callback = properties.callback or function() end;
+                placeholder = properties.placeholder or "search...";
+                data_store = {};
+                query = "";
+                current_element = nil;
+                current = nil;
+            }
+
+            local items = cfg.items; do
+                items[ "holder" ] = library:create( "Frame" , {
+                    Parent = self.items[ "elements" ];
+                    BackgroundTransparency = 1;
+                    Name = "\0";
+                    Size = dim2(1, 0, 0, 0);
+                    BorderColor3 = rgb(0, 0, 0);
+                    BorderSizePixel = 0;
+                    AutomaticSize = Enum.AutomaticSize.Y;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+
+                library:create( "UIListLayout" , {
+                    Parent = items[ "holder" ];
+                    Padding = dim(0, 8);
+                    SortOrder = Enum.SortOrder.LayoutOrder
+                });
+
+                library:create( "UIPadding" , {
+                    Parent = items[ "holder" ];
+                    PaddingRight = dim(0, 4);
+                    PaddingLeft = dim(0, 4)
+                });
+
+                items[ "search" ] = library:create( "TextBox" , {
+                    FontFace = fonts.font;
+                    Text = "";
+                    PlaceholderText = cfg.placeholder;
+                    PlaceholderColor3 = rgb(90, 90, 92);
+                    Parent = items[ "holder" ];
+                    Name = "\0";
+                    LayoutOrder = 1;
+                    TextTruncate = Enum.TextTruncate.AtEnd;
+                    TextXAlignment = Enum.TextXAlignment.Left;
+                    BorderSizePixel = 0;
+                    ClearTextOnFocus = false;
+                    TextSize = 14;
+                    TextColor3 = rgb(200, 200, 200);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, 0, 0, 30);
+                    BackgroundColor3 = rgb(33, 33, 35)
+                });
+
+                library:create( "UICorner" , {
+                    Parent = items[ "search" ];
+                    CornerRadius = dim(0, 3)
+                });
+
+                library:create( "UIPadding" , {
+                    Parent = items[ "search" ];
+                    PaddingLeft = dim(0, 8);
+                    PaddingRight = dim(0, 8)
+                });
+
+                items[ "list" ] = library:create( "Frame" , {
+                    Parent = items[ "holder" ];
+                    BackgroundTransparency = 1;
+                    Name = "\0";
+                    LayoutOrder = 2;
+                    Size = dim2(1, 0, 0, 0);
+                    BorderColor3 = rgb(0, 0, 0);
+                    BorderSizePixel = 0;
+                    AutomaticSize = Enum.AutomaticSize.Y;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+
+                library:create( "UIListLayout" , {
+                    Parent = items[ "list" ];
+                    Padding = dim(0, 6);
+                    SortOrder = Enum.SortOrder.LayoutOrder
+                });
+
+                items[ "empty" ] = library:create( "TextLabel" , {
+                    FontFace = fonts.font;
+                    TextColor3 = rgb(72, 72, 73);
+                    Text = "no results";
+                    Parent = items[ "list" ];
+                    Name = "\0";
+                    LayoutOrder = 999999;
+                    BackgroundTransparency = 1;
+                    Size = dim2(1, 0, 0, 24);
+                    BorderSizePixel = 0;
+                    TextSize = 14;
+                    Visible = false;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+            end
+
+            function cfg.filter()
+                local q = string.lower(cfg.query or "")
+                local shown = 0
+                for _, entry in cfg.data_store do
+                    local visible = q == "" or string.find(string.lower(entry.value), q, 1, true) ~= nil
+                    entry.button.Visible = visible
+                    if visible then
+                        shown += 1
+                    end
+                end
+                items[ "empty" ].Visible = shown == 0
+            end
+
+            function cfg.select(value)
+                local found = nil
+                for _, entry in cfg.data_store do
+                    if entry.value == value then
+                        found = entry
+                        library:tween(entry.label, {TextColor3 = rgb(245, 245, 245)})
+                    else
+                        library:tween(entry.label, {TextColor3 = rgb(72, 72, 72)})
+                    end
+                end
+                cfg.current = found and value or nil
+                cfg.current_element = found and found.label or nil
+                flags[cfg.flag] = cfg.current
+                cfg.callback(cfg.current)
+            end
+
+            function cfg.refresh_options(options_to_refresh)
+                for _, entry in cfg.data_store do
+                    entry.button:Destroy()
+                end
+                table.clear(cfg.data_store)
+
+                cfg.options = options_to_refresh or {}
+                for index, option_data in cfg.options do
+                    local button = library:create( "TextButton" , {
+                        FontFace = fonts.small;
+                        TextColor3 = rgb(0, 0, 0);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Text = "";
+                        AutoButtonColor = false;
+                        Parent = items[ "list" ];
+                        Name = "\0";
+                        LayoutOrder = index;
+                        Size = dim2(1, 0, 0, 28);
+                        BorderSizePixel = 0;
+                        TextSize = 14;
+                        BackgroundColor3 = rgb(33, 33, 35)
+                    });
+
+                    local label = library:create( "TextLabel" , {
+                        FontFace = fonts.font;
+                        TextColor3 = option_data == cfg.current and rgb(245, 245, 245) or rgb(72, 72, 73);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Text = tostring(option_data);
+                        Parent = button;
+                        Name = "\0";
+                        BackgroundTransparency = 1;
+                        Size = dim2(1, 0, 1, 0);
+                        BorderSizePixel = 0;
+                        TextSize = 14;
+                        BackgroundColor3 = rgb(255, 255, 255)
+                    });
+
+                    library:create( "UICorner" , {
+                        Parent = button;
+                        CornerRadius = dim(0, 3)
+                    });
+
+                    local entry = {button = button, label = label, value = tostring(option_data)}
+                    cfg.data_store[#cfg.data_store + 1] = entry
+
+                    button.MouseButton1Click:Connect(function()
+                        cfg.select(entry.value)
+                    end)
+
+                    button.MouseEnter:Connect(function()
+                        if cfg.current ~= entry.value then
+                            library:tween(label, {TextColor3 = rgb(140, 140, 140)})
+                        end
+                    end)
+
+                    button.MouseLeave:Connect(function()
+                        if cfg.current ~= entry.value then
+                            library:tween(label, {TextColor3 = rgb(72, 72, 72)})
+                        end
+                    end)
+                end
+
+                if cfg.current and not table.find(cfg.options, cfg.current) then
+                    cfg.current = nil
+                    cfg.current_element = nil
+                    flags[cfg.flag] = nil
+                end
+
+                cfg.filter()
+            end
+
+            items[ "search" ]:GetPropertyChangedSignal("Text"):Connect(function()
+                cfg.query = items[ "search" ].Text
+                cfg.filter()
+            end)
+
+            cfg.refresh_options(cfg.options)
+
+            return setmetatable(cfg, library)
+        end
+
         function library:get_autoload_config()
             local path = library.directory .. "/configs/autoload.txt"
             if isfile(path) then
@@ -3607,160 +3830,261 @@
         end
 
         function library:init_config(window)
+            local function notify(text)
+                notifications:create_notification({name = "Configs", info = text, lifetime = 3})
+            end
+
+            local function clean(name)
+                return (tostring(name or ""):gsub("[%s%./\\]+", "_"):gsub("%.cfg$", ""))
+            end
+
+            local function config_path(name)
+                return library.directory .. "/configs/" .. name .. ".cfg"
+            end
+
             window:seperator({name = "Settings"})
-            local main = window:tab({name = "Configs", tabs = {"Main"}})
+            local configs_tab, theming_tab, settings_tab = window:tab({name = "Settings", tabs = {"Configs", "Theming", "Settings"}})
 
-            local column = main:column({})
-            local section = column:section({name = "Configs", size = 1, default = true, icon = "rbxassetid://139628202576511"})
-            config_holder = section:list({
-                options = {"None"},
-                callback = function(option) end,
-                flag = "config_name_list"
-            })
-            library:update_config_list()
+            do
+                local selected, typed = nil, ""
+                local autoload_label = nil
 
-            local column2 = main:column({})
-            local section2 = column2:section({name = "Settings", side = "right", size = 1, default = true, icon = "rbxassetid://129380150574313"})
-
-            section2:textbox({name = "Config name:", flag = "config_name_text"})
-
-            section2:button({name = "Save", callback = function()
-                local name = flags["config_name_text"]
-                if type(name) ~= "string" or name == "" then
-                    name = flags["config_name_list"]
+                local function refresh_autoload()
+                    if autoload_label and autoload_label.items and autoload_label.items[ "info" ] then
+                        autoload_label.items[ "info" ].Text = "Autoload: " .. (library:get_autoload_config() or "none")
+                    end
                 end
-                if type(name) ~= "string" or name == "" then
-                    notifications:create_notification({name = "Configs", info = "Enter a config name", lifetime = 3})
-                    return
-                end
-                name = tostring(name):gsub("[%s%./\\]+", "_"):gsub("%.cfg$", "")
-                writefile(library.directory .. "/configs/" .. name .. ".cfg", library:get_config())
+
+                local left = configs_tab:column({})
+                local list_section = left:section({name = "Configs", size = 1, default = true, icon = "rbxassetid://139628202576511"})
+                config_holder = list_section:searchbox({
+                    flag = "config_name_list",
+                    placeholder = "search configs...",
+                    options = {},
+                    callback = function(value)
+                        selected = value
+                    end
+                })
                 library:update_config_list()
-                notifications:create_notification({name = "Configs", info = "Saved config:\n" .. name, lifetime = 3})
-            end})
 
-            section2:button({name = "Load", callback = function()
-                local name = flags["config_name_list"]
-                if type(name) ~= "string" or name == "" then
-                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
-                    return
-                end
-                local path = library.directory .. "/configs/" .. name .. ".cfg"
-                if not isfile(path) then
-                    notifications:create_notification({name = "Configs", info = "Config not found", lifetime = 3})
+                local right = configs_tab:column({})
+                local manage = right:section({name = "Manage", side = "right", size = 1, default = true, icon = "rbxassetid://129380150574313"})
+
+                manage:textbox({
+                    name = "Config name",
+                    flag = "config_name_text",
+                    placeholder = "enter config name",
+                    callback = function(value)
+                        typed = value or ""
+                    end
+                })
+
+                autoload_label = manage:label({name = "Autoload", info = "Autoload: none"})
+                refresh_autoload()
+
+                manage:button({name = "Create", callback = function()
+                    local name = clean(typed)
+                    if name == "" then
+                        notify("Please enter a config name")
+                        return
+                    end
+                    if isfile(config_path(name)) then
+                        notify("Config '" .. name .. "' already exists")
+                        return
+                    end
+                    local ok, err = pcall(writefile, config_path(name), library:get_config())
+                    if ok then
+                        library:update_config_list()
+                        notify("Created config:\n" .. name)
+                    else
+                        notify("Failed to create config:\n" .. tostring(err))
+                    end
+                end})
+
+                manage:button({name = "Save", callback = function()
+                    local name = clean(typed ~= "" and typed or selected)
+                    if name == "" then
+                        notify("Enter a name or select a config")
+                        return
+                    end
+                    local ok, err = pcall(writefile, config_path(name), library:get_config())
+                    if ok then
+                        library:update_config_list()
+                        notify("Saved config:\n" .. name)
+                    else
+                        notify("Failed to save config:\n" .. tostring(err))
+                    end
+                end})
+
+                manage:button({name = "Load", callback = function()
+                    if not selected or selected == "" then
+                        notify("No config selected")
+                        return
+                    end
+                    if not isfile(config_path(selected)) then
+                        notify("Config file doesn't exist")
+                        library:update_config_list()
+                        return
+                    end
+                    local read_ok, data = pcall(readfile, config_path(selected))
+                    if not read_ok then
+                        notify("Cannot read file:\n" .. tostring(data))
+                        return
+                    end
+                    local ok, err = pcall(function() library:load_config(data) end)
+                    if ok then
+                        notify("Loaded config:\n" .. selected)
+                    else
+                        notify("Failed to load '" .. selected .. "':\n" .. tostring(err))
+                    end
+                end})
+
+                manage:button({name = "Delete", callback = function()
+                    if not selected or selected == "" then
+                        notify("No config selected")
+                        return
+                    end
+                    local name = selected
+                    if isfile(config_path(name)) then
+                        pcall(delfile, config_path(name))
+                    end
+                    if library:get_autoload_config() == name then
+                        library:remove_autoload_config()
+                        refresh_autoload()
+                    end
                     library:update_config_list()
-                    return
-                end
-                library:load_config(readfile(path))
-                notifications:create_notification({name = "Configs", info = "Loaded config:\n" .. name, lifetime = 3})
-            end})
+                    notify("Deleted config:\n" .. name)
+                end})
 
-            section2:button({name = "Delete", callback = function()
-                local name = flags["config_name_list"]
-                if type(name) ~= "string" or name == "" then
-                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
-                    return
-                end
-                local path = library.directory .. "/configs/" .. name .. ".cfg"
-                if isfile(path) then
-                    delfile(path)
-                end
-                if library:get_autoload_config() == name then
-                    library:remove_autoload_config()
-                end
-                library:update_config_list()
-                notifications:create_notification({name = "Configs", info = "Deleted config:\n" .. name, lifetime = 3})
-            end})
-
-            section2:button({name = "Set as autoload", callback = function()
-                local name = flags["config_name_list"]
-                if type(name) ~= "string" or name == "" then
-                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
-                    return
-                end
-                if library:set_autoload_config(name) then
-                    notifications:create_notification({name = "Configs", info = "Autoload set to:\n" .. name, lifetime = 3})
-                else
-                    notifications:create_notification({name = "Configs", info = "Failed to set autoload", lifetime = 3})
-                end
-            end})
-
-            section2:button({name = "Reset autoload", callback = function()
-                local removed = library:remove_autoload_config()
-                if removed then
-                    notifications:create_notification({name = "Configs", info = "Autoload reset:\n" .. removed, lifetime = 3})
-                else
-                    notifications:create_notification({name = "Configs", info = "No autoload set", lifetime = 3})
-                end
-            end})
-
-            section2:button({name = "Refresh list", callback = function()
-                library:update_config_list()
-            end})
-
-            section2:toggle({
-                name = "Watermark",
-                flag = "show_watermark",
-                default = true,
-                seperator = true,
-                callback = function(state)
-                    if library.watermark and library.watermark.SetVisibility then
-                        library.watermark.SetVisibility(state)
+                manage:button({name = "Set as autoload", callback = function()
+                    if not selected or selected == "" then
+                        notify("No config selected")
+                        return
                     end
-                end
-            })
-
-            section2:dropdown({
-                name = "Watermark Display",
-                flag = "watermark_display",
-                items = {"FPS", "Ping", "Memory", "Time", "User", "Players"},
-                default = {"FPS", "Ping", "Time"},
-                multi = true,
-                max_height = 160,
-                seperator = true,
-                callback = function(value)
-                    if library.watermark and library.watermark.StartUpdating then
-                        local opts = type(value) == "table" and value or {value}
-                        library.watermark.StartUpdating(opts)
+                    if not isfile(config_path(selected)) then
+                        notify("Config file doesn't exist")
+                        library:update_config_list()
+                        return
                     end
-                end
-            })
-
-            section2:toggle({
-                name = "Keybind list",
-                flag = "show_keybind_list",
-                default = true,
-                seperator = true,
-                callback = function(state)
-                    if library.keybind_list and library.keybind_list.SetVisibility then
-                        library.keybind_list.SetVisibility(state)
+                    if library:set_autoload_config(selected) then
+                        notify("Autoload set to:\n" .. selected)
+                    else
+                        notify("Failed to set autoload")
                     end
+                    refresh_autoload()
+                end})
+
+                manage:button({name = "Reset autoload", callback = function()
+                    local removed = library:remove_autoload_config()
+                    notify(removed and ("Autoload reset:\n" .. removed) or "No autoload set")
+                    refresh_autoload()
+                end})
+
+                manage:button({name = "Refresh list", callback = function()
+                    library:update_config_list()
+                    refresh_autoload()
+                end})
+            end
+
+            do
+                local column = theming_tab:column({})
+                local theme_section = column:section({name = "Theme", size = 1, default = true})
+                local default_accent = themes.preset.accent
+                for name, value in themes.preset do
+                    theme_section:colorpicker({
+                        name = name:sub(1, 1):upper() .. name:sub(2),
+                        flag = name .. "_theme",
+                        color = value,
+                        callback = function(color)
+                            library:update_theme(name, color)
+                        end
+                    })
                 end
-            })
+                theme_section:button({name = "Reset accent", callback = function()
+                    library:update_theme("accent", default_accent)
+                    notifications:create_notification({name = "Theme", info = "Accent reset", lifetime = 3})
+                end})
+            end
 
-            section2:colorpicker({
-                name = "Menu Accent",
-                callback = function(color, alpha)
-                    library:update_theme("accent", color)
-                end,
-                color = themes.preset.accent
-            })
+            do
+                local left = settings_tab:column({})
+                local ui_section = left:section({name = "Interface", size = 1, default = true})
 
-            section2:keybind({
-                name = "Menu Bind",
-                ignore = true,
-                callback = function(bool)
-                    window.toggle_menu(bool)
-                end,
-                default = true
-            })
+                ui_section:toggle({
+                    name = "Watermark",
+                    flag = "show_watermark",
+                    default = true,
+                    seperator = true,
+                    callback = function(state)
+                        if library.watermark and library.watermark.SetVisibility then
+                            library.watermark.SetVisibility(state)
+                        end
+                    end
+                })
 
-            section2:button({
-                name = "Unload",
-                callback = function()
+                ui_section:dropdown({
+                    name = "Watermark Display",
+                    flag = "watermark_display",
+                    items = {"FPS", "Ping", "Memory", "Time", "User", "Players"},
+                    default = {"FPS", "Ping", "Time"},
+                    multi = true,
+                    max_height = 160,
+                    seperator = true,
+                    callback = function(value)
+                        if library.watermark and library.watermark.StartUpdating then
+                            library.watermark.StartUpdating(type(value) == "table" and value or {value})
+                        end
+                    end
+                })
+
+                ui_section:toggle({
+                    name = "Keybind list",
+                    flag = "show_keybind_list",
+                    default = true,
+                    seperator = true,
+                    callback = function(state)
+                        if library.keybind_list and library.keybind_list.SetVisibility then
+                            library.keybind_list.SetVisibility(state)
+                        end
+                    end
+                })
+
+                ui_section:keybind({
+                    name = "Menu Bind",
+                    ignore = true,
+                    callback = function(bool)
+                        window.toggle_menu(bool)
+                    end,
+                    default = true
+                })
+
+                local right = settings_tab:column({})
+                local misc_section = right:section({name = "Misc", side = "right", size = 1, default = true})
+
+                misc_section:button({name = "Unload", callback = function()
                     library:unload_menu()
-                end
-            })
+                end})
+
+                misc_section:button({name = "Rejoin", callback = function()
+                    pcall(function()
+                        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, players.LocalPlayer)
+                    end)
+                end})
+
+                misc_section:button({name = "Copy JobId", callback = function()
+                    if setclipboard then setclipboard(game.JobId) end
+                end})
+
+                misc_section:button({name = "Copy GameID", callback = function()
+                    if setclipboard then setclipboard(tostring(game.GameId)) end
+                end})
+
+                misc_section:button({name = "Copy Join Script", callback = function()
+                    if setclipboard then
+                        setclipboard('game:GetService("TeleportService"):TeleportToPlaceInstance(' .. game.PlaceId .. ', "' .. game.JobId .. '", game.Players.LocalPlayer)')
+                    end
+                end})
+            end
 
             task.defer(function()
                 library:autoload_config()
