@@ -1,4 +1,5 @@
-	local uis = game:GetService("UserInputService")
+
+    local uis = game:GetService("UserInputService")
     local players = game:GetService("Players")
     local ws = game:GetService("Workspace")
     local rs = game:GetService("ReplicatedStorage")
@@ -2029,15 +2030,14 @@
 
                     items[ "dropdown_holder" ] = library:create( "Frame" , {
                         BorderColor3 = rgb(0, 0, 0);
-                        Parent = items[ "dropdown_object" ];
-                        Position = dim2(0, 0, 1, 4);
+                        Parent = library[ "items" ];
                         Name = "\0";
-                        Visible = true;
+                        Visible = false;
                         BackgroundTransparency = 1;
-                        Size = dim2(1, 0, 0, 0);
+                        Size = dim2(0, 0, 0, 0);
                         BorderSizePixel = 0;
                         BackgroundColor3 = rgb(0, 0, 0);
-                        ZIndex = 10;
+                        ZIndex = 200;
                         Active = true;
                     });
 
@@ -2102,7 +2102,7 @@
                     AutomaticSize = Enum.AutomaticSize.Y;
                     TextSize = 14;
                     BackgroundColor3 = rgb(255, 255, 255);
-                    ZIndex = 10;
+                    ZIndex = 202;
                 }); library:apply_theme(button, "accent", "TextColor3");
 
                 library:create( "UIPadding" , {
@@ -2119,9 +2119,14 @@
                 local max_h = options.max_height or 200
                 local full = cfg.y_size or 0
                 local h = bool and math.min(full, max_h) or 0
+                local drop = items[ "dropdown" ]
+                local w = drop.AbsoluteSize.X
 
-                items[ "dropdown_holder" ].Position = dim2(0, 0, 1, 4)
-                library:tween(items[ "dropdown_holder" ], {Size = dim2(1, 0, 0, h)})
+                -- position under the dropdown control, parented to main UI (like scoot)
+                local abs = drop.AbsolutePosition
+                items[ "dropdown_holder" ].Position = dim2(0, abs.X, 0, abs.Y + drop.AbsoluteSize.Y + 4)
+                items[ "dropdown_holder" ].Visible = bool
+                library:tween(items[ "dropdown_holder" ], {Size = dim2(0, w, 0, h)})
 
                 if items[ "scroll" ] then
                     items[ "scroll" ].CanvasSize = dim2(0, 0, 0, full)
