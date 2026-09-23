@@ -2081,41 +2081,7 @@
                         SortOrder = Enum.SortOrder.LayoutOrder
                     });
 
-                    do
-                        local dragging = false
-                        local start_pos, start_input
-                        local holder = items[ "dropdown_holder" ]
-
-                        holder.InputBegan:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                dragging = true
-                                start_input = input.Position
-                                start_pos = holder.Position
-                            end
-                        end)
-
-                        holder.InputEnded:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                dragging = false
-                            end
-                        end)
-
-                        library:connection(uis.InputChanged, function(input)
-                            if not dragging then return end
-                            if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                            if not cfg.open then
-                                dragging = false
-                                return
-                            end
-
-                            holder.Position = dim2(
-                                0,
-                                start_pos.X.Offset + (input.Position.X - start_input.X),
-                                0,
-                                start_pos.Y.Offset + (input.Position.Y - start_input.Y)
-                            )
-                        end)
-                    end
+                    
             end
 
             function cfg.render_option(text)
@@ -3586,22 +3552,219 @@
             return setmetatable(cfg, library)
         end
 
+
+        function library:get_autoload_config()
+            local path = library.directory .. "/configs/autoload.txt"
+            if isfile(path) then
+                local ok, name = pcall(readfile, path)
+                if ok and name and name ~= "" then
+                    return name:gsub("%s+", "")
+                end
+            end
+            return nil
+        end
+
+        function library:set_autoload_config(config_name)
+            if not config_name or config_name == "" then
+                return false
+            end
+            local clean = tostring(config_name):gsub("%.cfg$", ""):gsub("%s+", "")
+            local ok = pcall(writefile, library.directory .. "/configs/autoload.txt", clean)
+            return ok
+        end
+
+        function library:remove_autoload_config()
+            local path = library.directory .. "/configs/autoload.txt"
+            if isfile(path) then
+                local ok, name = pcall(readfile, path)
+                local removed = ok and name and name:gsub("%s+", "") or nil
+                pcall(delfile, path)
+                return removed
+            end
+            return nil
+        end
+
+        function library:autoload_config()
+            local name = library:get_autoload_config()
+            if not name then return end
+            local path = library.directory .. "/configs/" .. name .. ".cfg"
+            if not isfile(path) then
+                library:remove_autoload_config()
+                return
+            end
+            local ok, data = pcall(readfile, path)
+            if not ok then return end
+            local success = pcall(function()
+                library:load_config(data)
+            end)
+            if success then
+                notifications:create_notification({
+                    name = "Configs",
+                    info = "Autoloaded config:\n" .. name,
+                    lifetime = 3
+                })
+            end
+        end
+
         function library:init_config(window)
             window:seperator({name = "Settings"})
             local main = window:tab({name = "Configs", tabs = {"Main"}})
 
             local column = main:column({})
             local section = column:section({name = "Configs", size = 1, default = true, icon = "rbxassetid://139628202576511"})
-            config_holder = section:list({options = {"Report", "This", "Error", "To", "Finobe"}, callback = function(option) end, flag = "config_name_list"}); library:update_config_list()
+            config_holder = section:list({
+                options = {"None"},
+                callback = function(option) end,
+                flag = "config_name_list"
+            })
+            library:update_config_list()
 
-            local column = main:column({})
-            local section = column:section({name = "Settings", side = "right", size = 1, default = true, icon = "rbxassetid://129380150574313"})
-            section:textbox({name = "Config name:", flag = "config_name_text"})
-            section:button({name = "Save", callback = function() writefile(library.directory .. "/configs/" .. flags["config_name_text"] or flags["config_name_list"] .. ".cfg", library:get_config()) library:update_config_list() notifications:create_notification({name = "Configs", info = "Saved config to:\n" .. flags["config_name_list"] or flags["config_name_text"]}) end})
-            section:button({name = "Load", callback = function() library:load_config(readfile(library.directory .. "/configs/" .. flags["config_name_list"] .. ".cfg"))  library:update_config_list() notifications:create_notification({name = "Configs", info = "Loaded config:\n" .. flags["config_name_list"]}) end})
-            section:button({name = "Delete", callback = function() delfile(library.directory .. "/configs/" .. flags["config_name_list"] .. ".cfg")  library:update_config_list() notifications:create_notification({name = "Configs", info = "Deleted config:\n" .. flags["config_name_list"]}) end})
-            section:colorpicker({name = "Menu Accent", callback = function(color, alpha) library:update_theme("accent", color) end, color = themes.preset.accent})
-            section:keybind({name = "Menu Bind", ignore = true, callback = function(bool) window.toggle_menu(bool) end, default = true})
+            local column2 = main:column({})
+            local section2 = column2:section({name = "Settings", side = "right", size = 1, default = true, icon = "rbxassetid://129380150574313"})
+
+            section2:textbox({name = "Config name:", flag = "config_name_text"})
+
+            section2:button({name = "Save", callback = function()
+                local name = flags["config_name_text"]
+                if type(name) ~= "string" or name == "" then
+                    name = flags["config_name_list"]
+                end
+                if type(name) ~= "string" or name == "" then
+                    notifications:create_notification({name = "Configs", info = "Enter a config name", lifetime = 3})
+                    return
+                end
+                name = tostring(name):gsub("[%s%./\\]+", "_"):gsub("%.cfg$", "")
+                writefile(library.directory .. "/configs/" .. name .. ".cfg", library:get_config())
+                library:update_config_list()
+                notifications:create_notification({name = "Configs", info = "Saved config:\n" .. name, lifetime = 3})
+            end})
+
+            section2:button({name = "Load", callback = function()
+                local name = flags["config_name_list"]
+                if type(name) ~= "string" or name == "" then
+                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
+                    return
+                end
+                local path = library.directory .. "/configs/" .. name .. ".cfg"
+                if not isfile(path) then
+                    notifications:create_notification({name = "Configs", info = "Config not found", lifetime = 3})
+                    library:update_config_list()
+                    return
+                end
+                library:load_config(readfile(path))
+                notifications:create_notification({name = "Configs", info = "Loaded config:\n" .. name, lifetime = 3})
+            end})
+
+            section2:button({name = "Delete", callback = function()
+                local name = flags["config_name_list"]
+                if type(name) ~= "string" or name == "" then
+                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
+                    return
+                end
+                local path = library.directory .. "/configs/" .. name .. ".cfg"
+                if isfile(path) then
+                    delfile(path)
+                end
+                if library:get_autoload_config() == name then
+                    library:remove_autoload_config()
+                end
+                library:update_config_list()
+                notifications:create_notification({name = "Configs", info = "Deleted config:\n" .. name, lifetime = 3})
+            end})
+
+            section2:button({name = "Set as autoload", callback = function()
+                local name = flags["config_name_list"]
+                if type(name) ~= "string" or name == "" then
+                    notifications:create_notification({name = "Configs", info = "No config selected", lifetime = 3})
+                    return
+                end
+                if library:set_autoload_config(name) then
+                    notifications:create_notification({name = "Configs", info = "Autoload set to:\n" .. name, lifetime = 3})
+                else
+                    notifications:create_notification({name = "Configs", info = "Failed to set autoload", lifetime = 3})
+                end
+            end})
+
+            section2:button({name = "Reset autoload", callback = function()
+                local removed = library:remove_autoload_config()
+                if removed then
+                    notifications:create_notification({name = "Configs", info = "Autoload reset:\n" .. removed, lifetime = 3})
+                else
+                    notifications:create_notification({name = "Configs", info = "No autoload set", lifetime = 3})
+                end
+            end})
+
+            section2:button({name = "Refresh list", callback = function()
+                library:update_config_list()
+            end})
+
+            section2:toggle({
+                name = "Watermark",
+                flag = "show_watermark",
+                default = true,
+                seperator = true,
+                callback = function(state)
+                    if library.watermark and library.watermark.SetVisibility then
+                        library.watermark.SetVisibility(state)
+                    end
+                end
+            })
+
+            section2:dropdown({
+                name = "Watermark Display",
+                flag = "watermark_display",
+                items = {"FPS", "Ping", "Memory", "Time", "User", "Players"},
+                default = {"FPS", "Ping", "Time"},
+                multi = true,
+                max_height = 160,
+                seperator = true,
+                callback = function(value)
+                    if library.watermark and library.watermark.StartUpdating then
+                        local opts = type(value) == "table" and value or {value}
+                        library.watermark.StartUpdating(opts)
+                    end
+                end
+            })
+
+            section2:toggle({
+                name = "Keybind list",
+                flag = "show_keybind_list",
+                default = true,
+                seperator = true,
+                callback = function(state)
+                    if library.keybind_list and library.keybind_list.SetVisibility then
+                        library.keybind_list.SetVisibility(state)
+                    end
+                end
+            })
+
+            section2:colorpicker({
+                name = "Menu Accent",
+                callback = function(color, alpha)
+                    library:update_theme("accent", color)
+                end,
+                color = themes.preset.accent
+            })
+
+            section2:keybind({
+                name = "Menu Bind",
+                ignore = true,
+                callback = function(bool)
+                    window.toggle_menu(bool)
+                end,
+                default = true
+            })
+
+            section2:button({
+                name = "Unload",
+                callback = function()
+                    library:unload_menu()
+                end
+            })
+
+            task.defer(function()
+                library:autoload_config()
+            end)
         end
 
         function notifications:refresh_notifs()
