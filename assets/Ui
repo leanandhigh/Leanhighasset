@@ -7735,10 +7735,14 @@ local Library do
             end
 
             if Textbox.Finished then 
-                Items["Input"]:Connect("FocusLost", function(PressedEnterQuestionMark)
-                    if PressedEnterQuestionMark then
-                        Textbox:Set(Items["Input"].Instance.Text)
-                    end
+                Items["Input"]:Connect("FocusLost", function()
+                    Textbox:Set(Items["Input"].Instance.Text)
+                end)
+                Library:Connect(Items["Input"].Instance:GetPropertyChangedSignal("Text"), function()
+                    -- keep flag in sync while typing so Create works without Enter
+                    local t = Items["Input"].Instance.Text
+                    Textbox.Value = t
+                    Library.Flags[Textbox.Flag] = t
                 end)
             else
                 Library:Connect(Items["Input"].Instance:GetPropertyChangedSignal("Text"), function()
@@ -7755,6 +7759,7 @@ local Library do
             end
 
             Textbox.Section.Elements[#Textbox.Section.Elements+1] = Textbox
+            Textbox.Items = Items
             return Textbox
         end
 
@@ -8209,7 +8214,7 @@ local Library do
                 end
             })
 
-            ConfigsSection:Textbox({
+            local NameBox = ConfigsSection:Textbox({
                 Flag = "ConfigsName",
                 Placeholder = "Config name",
                 Numeric = false,
@@ -8219,16 +8224,29 @@ local Library do
                 end
             })
 
+            local function ResolveConfigName()
+                local n = ConfigName
+                if (not n or n == "") and Library.Flags["ConfigsName"] then
+                    n = Library.Flags["ConfigsName"]
+                end
+                if (not n or n == "") and NameBox then
+                    if NameBox.Get then
+                        n = NameBox:Get()
+                    end
+                    if (not n or n == "") and NameBox.Items and NameBox.Items["Input"] then
+                        n = NameBox.Items["Input"].Instance.Text
+                    end
+                end
+                if type(n) == "string" then
+                    n = n:match("^%s*(.-)%s*$") or n
+                end
+                return n
+            end
+
             ConfigsSection:Button({
                 Name = "Create",
                 Callback = function()
-                    local NameInput = ConfigName
-                    if (not NameInput or NameInput == "") and Library.Flags["ConfigsName"] then
-                        NameInput = Library.Flags["ConfigsName"]
-                    end
-                    if type(NameInput) == "string" then
-                        NameInput = NameInput:match("^%s*(.-)%s*$") or NameInput
-                    end
+                    local NameInput = ResolveConfigName()
                     if not NameInput or NameInput == "" then
                         if Library.Notification then
                             Library:Notification({Title = "Error", Description = "Enter a config name", Duration = 4})
@@ -8262,13 +8280,7 @@ local Library do
             ConfigsSection:Button({
                 Name = "Save",
                 Callback = function()
-                    local NameInput = ConfigName
-                    if (not NameInput or NameInput == "") and Library.Flags["ConfigsName"] then
-                        NameInput = Library.Flags["ConfigsName"]
-                    end
-                    if type(NameInput) == "string" then
-                        NameInput = NameInput:match("^%s*(.-)%s*$") or NameInput
-                    end
+                    local NameInput = ResolveConfigName()
                     local Target = ConfigSelected
                     if (not Target or Target == "") and NameInput and NameInput ~= "" then
                         Target = NameInput
