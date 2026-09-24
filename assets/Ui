@@ -959,13 +959,39 @@ local Library do
 		return `<font color="rgb({MathFloor(Color.R * 255)}, {MathFloor(Color.G * 255)}, {MathFloor(Color.B * 255)})">{Text}</font>`
 	end
 
+    Library.GetPlaceId = function(self)
+        return tostring(game.PlaceId)
+    end
+
+    Library.GetConfigFolder = function(self)
+        local PlaceFolder = Library.Folders.Configs .. "/" .. Library:GetPlaceId()
+        if not isfolder(Library.Folders.Configs) then
+            pcall(makefolder, Library.Folders.Configs)
+        end
+        if not isfolder(PlaceFolder) then
+            pcall(makefolder, PlaceFolder)
+        end
+        return PlaceFolder
+    end
+
+    Library.GetConfigPath = function(self, ConfigName)
+        local Clean = tostring(ConfigName or ""):gsub("%.json$", ""):match("[^/\\]+$") or tostring(ConfigName or "")
+        if Clean == "" then
+            return nil
+        end
+        return Library:GetConfigFolder() .. "/" .. Clean .. ".json"
+    end
+
     Library.GetConfig = function(self)
-        local Config = {}
+        local Config = {
+            PlaceId = Library:GetPlaceId(),
+            Values = {}
+        }
         Library:SafeCall(function()
             for FlagName, Value in pairs(Library.Flags) do
                 if type(Value) == "table" then
                     if Value.Key then
-                        Config[FlagName] = {
+                        Config.Values[FlagName] = {
                             Key = tostring(Value.Key),
                             Mode = Value.Mode
                         }
@@ -974,15 +1000,15 @@ local Library do
                         if not Hex and Value.Color then
                             pcall(function() Hex = Value.Color:ToHex() end)
                         end
-                        Config[FlagName] = {
+                        Config.Values[FlagName] = {
                             Color = Hex and ("#" .. tostring(Hex):gsub("#", "")) or "#FFFFFF",
                             Alpha = Value.Alpha or 1
                         }
                     else
-                        Config[FlagName] = Value
+                        Config.Values[FlagName] = Value
                     end
                 else
-                    Config[FlagName] = Value
+                    Config.Values[FlagName] = Value
                 end
             end
         end)
@@ -992,7 +1018,7 @@ local Library do
         return ok and encoded or "{}"
     end
 
-    Library.LoadConfig = function(self, JsonString)
+    Library.LoadConfig = function(self, JsonString, Force)
         if type(JsonString) ~= "string" or JsonString == "" then
             return false, "empty config"
         end
@@ -1000,8 +1026,25 @@ local Library do
         if not success or type(decoded) ~= "table" then
             return false, "Invalid JSON: " .. tostring(decoded)
         end
+
+        -- support new {PlaceId, Values} and legacy flat flag tables
+        local Values = decoded
+        local SavedPlace = nil
+        if decoded.Values and type(decoded.Values) == "table" then
+            Values = decoded.Values
+            SavedPlace = decoded.PlaceId and tostring(decoded.PlaceId) or nil
+        end
+
+        local CurrentPlace = Library:GetPlaceId()
+        if SavedPlace and SavedPlace ~= CurrentPlace and not Force then
+            return false, "wrong place (config is for PlaceId " .. SavedPlace .. ", current is " .. CurrentPlace .. ")"
+        end
+
         local ok = Library:SafeCall(function()
-            for FlagName, Value in pairs(decoded) do
+            for FlagName, Value in pairs(Values) do
+                if FlagName == "PlaceId" or FlagName == "Values" then
+                    continue
+                end
                 local Setter = Library.SetFlags[FlagName]
                 if not Setter then
                     continue
@@ -1033,17 +1076,13 @@ local Library do
     end
 
     Library.ImportConfig = function(self, Json)
-        return Library:LoadConfig(Json)
+        return Library:LoadConfig(Json, false)
     end
 
     Library.DeleteConfig = function(self, ConfigName)
-        if not ConfigName or ConfigName == "" then
-            return
-        end
-        local Clean = tostring(ConfigName):gsub("%.json$", ""):match("[^/\\]+$") or tostring(ConfigName)
-        local FullPath = Library.Folders.Configs .. "/" .. Clean .. ".json"
-        if isfile(FullPath) then
-            pcall(delfile, FullPath)
+        local Path = Library:GetConfigPath(ConfigName)
+        if Path and isfile(Path) then
+            pcall(delfile, Path)
         end
     end
 
@@ -1051,11 +1090,9 @@ local Library do
         if not Element or not Element.Refresh then
             return
         end
-        if not isfolder(Library.Folders.Configs) then
-            pcall(makefolder, Library.Folders.Configs)
-        end
+        local Folder = Library:GetConfigFolder()
         local Configs = {}
-        local ok, files = pcall(listfiles, Library.Folders.Configs)
+        local ok, files = pcall(listfiles, Folder)
         if ok and type(files) == "table" then
             for _, FullPath in ipairs(files) do
                 local Name = tostring(FullPath):match("[^/\\]+$") or ""
@@ -1072,7 +1109,7 @@ local Library do
     end
 
     Library.GetAutoLoadConfig = function(self)
-        local Path = Library.Folders.Configs .. "/autoload.txt"
+        local Path = Library:GetConfigFolder() .. "/autoload.txt"
         if isfile(Path) then
             local ok, Name = pcall(readfile, Path)
             if ok and Name and Name ~= "" then
@@ -1087,7 +1124,7 @@ local Library do
             return false
         end
         local Clean = tostring(ConfigName):gsub("%.json$", ""):match("[^/\\]+$") or tostring(ConfigName)
-        local Path = Library.Folders.Configs .. "/autoload.txt"
+        local Path = Library:GetConfigFolder() .. "/autoload.txt"
         local ok = pcall(function()
             writefile(Path, Clean)
         end)
@@ -1095,7 +1132,7 @@ local Library do
     end
 
     Library.RemoveAutoLoadConfig = function(self)
-        local Path = Library.Folders.Configs .. "/autoload.txt"
+        local Path = Library:GetConfigFolder() .. "/autoload.txt"
         if isfile(Path) then
             local ok, Name = pcall(readfile, Path)
             local Removed = ok and Name and tostring(Name):gsub("%s+", "") or nil
@@ -1110,8 +1147,8 @@ local Library do
         if not Name then
             return
         end
-        local Path = Library.Folders.Configs .. "/" .. Name .. ".json"
-        if not isfile(Path) then
+        local Path = Library:GetConfigPath(Name)
+        if not Path or not isfile(Path) then
             self:RemoveAutoLoadConfig()
             return
         end
@@ -1119,10 +1156,14 @@ local Library do
         if not okRead then
             return
         end
-        local ok = self:LoadConfig(Content)
+        local ok, err = self:LoadConfig(Content, false)
         if ok and Library.Notification then
             pcall(function()
                 Library:Notification({Title = "Success", Description = "Autoloaded config: " .. Name, Duration = 5})
+            end)
+        elseif not ok and Library.Notification then
+            pcall(function()
+                Library:Notification({Title = "Config", Description = "Skipped autoload: " .. tostring(err), Duration = 5})
             end)
         end
     end
@@ -8201,9 +8242,7 @@ local Library do
             local ConfigName = ""
             local ConfigSelected = ""
 
-            if not isfolder(Library.Folders.Configs) then
-                pcall(makefolder, Library.Folders.Configs)
-            end
+            Library:GetConfigFolder()
 
             local ConfigsDropdown = ConfigsSection:Listbox({
                 Flag = "ConfigsList",
@@ -8254,8 +8293,8 @@ local Library do
                         return
                     end
                     local Clean = tostring(NameInput):gsub("[%s%./\\\\]+", "_"):gsub("%.json$", "")
-                    local Path = Library.Folders.Configs .. "/" .. Clean .. ".json"
-                    if isfile(Path) then
+                    local Path = Library:GetConfigPath(Clean)
+                    if Path and isfile(Path) then
                         if Library.Notification then
                             Library:Notification({Title = "Error", Description = "Config already exists: " .. Clean, Duration = 4})
                         end
@@ -8292,7 +8331,7 @@ local Library do
                         return
                     end
                     local Clean = tostring(Target):gsub("%.json$", ""):match("[^/\\]+$") or tostring(Target)
-                    local Path = Library.Folders.Configs .. "/" .. Clean .. ".json"
+                    local Path = Library:GetConfigPath(Clean)
                     local ok, err = pcall(function()
                         writefile(Path, Library:GetConfig())
                     end)
@@ -8319,7 +8358,7 @@ local Library do
                         return
                     end
                     local Clean = tostring(ConfigSelected):gsub("%.json$", ""):match("[^/\\]+$") or tostring(ConfigSelected)
-                    local Path = Library.Folders.Configs .. "/" .. Clean .. ".json"
+                    local Path = Library:GetConfigPath(Clean)
                     if not isfile(Path) then
                         if Library.Notification then
                             Library:Notification({Title = "Error", Description = "Config not found: " .. Clean, Duration = 4})
