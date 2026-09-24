@@ -8213,7 +8213,7 @@ local Library do
                 Flag = "ConfigsName",
                 Placeholder = "Config name",
                 Numeric = false,
-                Finished = true,
+                Finished = false,
                 Callback = function(Value)
                     ConfigName = Value
                 end
@@ -8222,13 +8222,20 @@ local Library do
             ConfigsSection:Button({
                 Name = "Create",
                 Callback = function()
-                    if not ConfigName or ConfigName == "" then
+                    local NameInput = ConfigName
+                    if (not NameInput or NameInput == "") and Library.Flags["ConfigsName"] then
+                        NameInput = Library.Flags["ConfigsName"]
+                    end
+                    if type(NameInput) == "string" then
+                        NameInput = NameInput:match("^%s*(.-)%s*$") or NameInput
+                    end
+                    if not NameInput or NameInput == "" then
                         if Library.Notification then
                             Library:Notification({Title = "Error", Description = "Enter a config name", Duration = 4})
                         end
                         return
                     end
-                    local Clean = tostring(ConfigName):gsub("[%s%./\\\\]+", "_"):gsub("%.json$", "")
+                    local Clean = tostring(NameInput):gsub("[%s%./\\\\]+", "_"):gsub("%.json$", "")
                     local Path = Library.Folders.Configs .. "/" .. Clean .. ".json"
                     if isfile(Path) then
                         if Library.Notification then
@@ -8255,9 +8262,16 @@ local Library do
             ConfigsSection:Button({
                 Name = "Save",
                 Callback = function()
+                    local NameInput = ConfigName
+                    if (not NameInput or NameInput == "") and Library.Flags["ConfigsName"] then
+                        NameInput = Library.Flags["ConfigsName"]
+                    end
+                    if type(NameInput) == "string" then
+                        NameInput = NameInput:match("^%s*(.-)%s*$") or NameInput
+                    end
                     local Target = ConfigSelected
-                    if (not Target or Target == "") and ConfigName and ConfigName ~= "" then
-                        Target = ConfigName
+                    if (not Target or Target == "") and NameInput and NameInput ~= "" then
+                        Target = NameInput
                     end
                     if not Target or Target == "" then
                         if Library.Notification then
