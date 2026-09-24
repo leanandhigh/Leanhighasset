@@ -959,19 +959,104 @@ local Library do
 		return `<font color="rgb({MathFloor(Color.R * 255)}, {MathFloor(Color.G * 255)}, {MathFloor(Color.B * 255)})">{Text}</font>`
 	end
 
+    -- Fully custom config paths. You set the folder yourself.
+    -- Example:
+    --   Library:SetConfigPath("MyCheat/Configs")
+    --   Library:SetConfigPath("MyCheat/Configs/BedWars")
+    Library.ConfigIgnore = Library.ConfigIgnore or {
+        ConfigsList = true,
+        ConfigsName = true,
+    }
+    if Library.ConfigCheckPlaceId == nil then
+        Library.ConfigCheckPlaceId = false
+    end
+
     Library.GetPlaceId = function(self)
         return tostring(game.PlaceId)
     end
 
+    -- One call: full path where .json configs are stored
+    Library.SetConfigPath = function(self, Path)
+        if type(Path) ~= "string" or Path == "" then
+            return false
+        end
+        Path = Path:gsub("\\", "/"):gsub("/+", "/"):gsub("^/", ""):gsub("/$", "")
+        self.Folders.ConfigPath = Path
+        -- keep Directory/Configs in sync for anything else that reads them
+        local root = Path:match("^([^/]+)") or Path
+        self.Folders.Directory = root
+        self.Folders.Configs = Path
+        self.Folders.ConfigSubFolder = nil
+        self:BuildConfigFolders()
+        return true
+    end
+
+    -- Optional: root + sub (if you prefer two steps)
+    Library.SetConfigFolder = function(self, Folder)
+        if type(Folder) ~= "string" or Folder == "" then
+            return false
+        end
+        Folder = Folder:gsub("\\", "/"):gsub("/+", "/"):gsub("^/", ""):gsub("/$", "")
+        self.Folders.Directory = Folder:match("^([^/]+)") or Folder
+        self.Folders.Configs = Folder
+        local sub = self.Folders.ConfigSubFolder
+        if type(sub) == "string" and sub ~= "" then
+            self.Folders.ConfigPath = Folder .. "/" .. sub
+        else
+            self.Folders.ConfigPath = Folder
+        end
+        self:BuildConfigFolders()
+        return true
+    end
+
+    Library.SetConfigSubFolder = function(self, SubFolder)
+        if SubFolder == nil or SubFolder == false or SubFolder == "" then
+            self.Folders.ConfigSubFolder = nil
+        else
+            self.Folders.ConfigSubFolder = tostring(SubFolder):gsub("\\", "/"):gsub("/+", "/"):gsub("^/", ""):gsub("/$", "")
+        end
+        local base = self.Folders.Configs or (self.Folders.Directory .. "/Configs")
+        if self.Folders.ConfigSubFolder then
+            self.Folders.ConfigPath = base .. "/" .. self.Folders.ConfigSubFolder
+        else
+            self.Folders.ConfigPath = base
+        end
+        self:BuildConfigFolders()
+        return true
+    end
+
+    Library.SetConfigName = Library.SetConfigSubFolder
+
+    Library.BuildConfigFolders = function(self)
+        local function ensure(path)
+            if not path or path == "" then return end
+            path = path:gsub("\\", "/")
+            local current = ""
+            for segment in path:gmatch("[^/]+") do
+                current = current == "" and segment or (current .. "/" .. segment)
+                if not isfolder(current) then
+                    pcall(makefolder, current)
+                end
+            end
+        end
+        ensure(self.Folders.Directory)
+        ensure(self.Folders.Configs)
+        if self.Folders.Assets then
+            ensure(self.Folders.Assets)
+        end
+        ensure(self:GetConfigFolder())
+    end
+
     Library.GetConfigFolder = function(self)
-        local PlaceFolder = Library.Folders.Configs .. "/" .. Library:GetPlaceId()
-        if not isfolder(Library.Folders.Configs) then
-            pcall(makefolder, Library.Folders.Configs)
+        if type(self.Folders.ConfigPath) == "string" and self.Folders.ConfigPath ~= "" then
+            return self.Folders.ConfigPath
         end
-        if not isfolder(PlaceFolder) then
-            pcall(makefolder, PlaceFolder)
+        local base = self.Folders.Configs or (self.Folders.Directory .. "/Configs")
+        local sub = self.Folders.ConfigSubFolder
+        if type(sub) == "string" and sub ~= "" then
+            return base .. "/" .. sub
         end
-        return PlaceFolder
+        return base
     end
 
     Library.GetConfigPath = function(self, ConfigName)
@@ -979,16 +1064,20 @@ local Library do
         if Clean == "" then
             return nil
         end
-        return Library:GetConfigFolder() .. "/" .. Clean .. ".json"
+        return self:GetConfigFolder() .. "/" .. Clean .. ".json"
     end
 
     Library.GetConfig = function(self)
         local Config = {
-            PlaceId = Library:GetPlaceId(),
+            PlaceId = self:GetPlaceId(),
+            Folder = self:GetConfigFolder(),
             Values = {}
         }
         Library:SafeCall(function()
             for FlagName, Value in pairs(Library.Flags) do
+                if self.ConfigIgnore[FlagName] then
+                    continue
+                end
                 if type(Value) == "table" then
                     if Value.Key then
                         Config.Values[FlagName] = {
@@ -1027,7 +1116,6 @@ local Library do
             return false, "Invalid JSON: " .. tostring(decoded)
         end
 
-        -- support new {PlaceId, Values} and legacy flat flag tables
         local Values = decoded
         local SavedPlace = nil
         if decoded.Values and type(decoded.Values) == "table" then
@@ -1035,14 +1123,19 @@ local Library do
             SavedPlace = decoded.PlaceId and tostring(decoded.PlaceId) or nil
         end
 
-        local CurrentPlace = Library:GetPlaceId()
-        if SavedPlace and SavedPlace ~= CurrentPlace and not Force then
-            return false, "wrong place (config is for PlaceId " .. SavedPlace .. ", current is " .. CurrentPlace .. ")"
+        if self.ConfigCheckPlaceId and not Force then
+            local CurrentPlace = self:GetPlaceId()
+            if SavedPlace and SavedPlace ~= CurrentPlace then
+                return false, "wrong place (config is for PlaceId " .. SavedPlace .. ", current is " .. CurrentPlace .. ")"
+            end
         end
 
         local ok = Library:SafeCall(function()
             for FlagName, Value in pairs(Values) do
-                if FlagName == "PlaceId" or FlagName == "Values" then
+                if FlagName == "PlaceId" or FlagName == "Values" or FlagName == "Folder" then
+                    continue
+                end
+                if self.ConfigIgnore[FlagName] then
                     continue
                 end
                 local Setter = Library.SetFlags[FlagName]
@@ -1090,7 +1183,8 @@ local Library do
         if not Element or not Element.Refresh then
             return
         end
-        local Folder = Library:GetConfigFolder()
+        self:BuildConfigFolders()
+        local Folder = self:GetConfigFolder()
         local Configs = {}
         local ok, files = pcall(listfiles, Folder)
         if ok and type(files) == "table" then
@@ -1106,10 +1200,12 @@ local Library do
         end
         table.sort(Configs)
         Element:Refresh(Configs)
+        return Configs
     end
 
     Library.GetAutoLoadConfig = function(self)
-        local Path = Library:GetConfigFolder() .. "/autoload.txt"
+        self:BuildConfigFolders()
+        local Path = self:GetConfigFolder() .. "/autoload.txt"
         if isfile(Path) then
             local ok, Name = pcall(readfile, Path)
             if ok and Name and Name ~= "" then
@@ -1123,8 +1219,9 @@ local Library do
         if not ConfigName or ConfigName == "" then
             return false
         end
+        self:BuildConfigFolders()
         local Clean = tostring(ConfigName):gsub("%.json$", ""):match("[^/\\]+$") or tostring(ConfigName)
-        local Path = Library:GetConfigFolder() .. "/autoload.txt"
+        local Path = self:GetConfigFolder() .. "/autoload.txt"
         local ok = pcall(function()
             writefile(Path, Clean)
         end)
@@ -1132,7 +1229,7 @@ local Library do
     end
 
     Library.RemoveAutoLoadConfig = function(self)
-        local Path = Library:GetConfigFolder() .. "/autoload.txt"
+        local Path = self:GetConfigFolder() .. "/autoload.txt"
         if isfile(Path) then
             local ok, Name = pcall(readfile, Path)
             local Removed = ok and Name and tostring(Name):gsub("%s+", "") or nil
@@ -1147,7 +1244,7 @@ local Library do
         if not Name then
             return
         end
-        local Path = Library:GetConfigPath(Name)
+        local Path = self:GetConfigPath(Name)
         if not Path or not isfile(Path) then
             self:RemoveAutoLoadConfig()
             return
@@ -1167,6 +1264,10 @@ local Library do
             end)
         end
     end
+
+    pcall(function()
+        Library:BuildConfigFolders()
+    end)
 
     Library.ChangeItemTheme = function(self, Item, Properties)
         Item = Item.Instance or Item
