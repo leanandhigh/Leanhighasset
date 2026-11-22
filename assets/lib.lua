@@ -5030,7 +5030,7 @@ local Library do
                 AnchorPoint = Vector2New(0.5, 1),
                 Position = UDim2New(0.5, 0, 1, -80),
                 BorderColor3 = FromRGB(12, 12, 12),
-                Size = UDim2New(0, 268, 0, 96),
+                Size = UDim2New(0, 250, 0, 78),
                 BorderSizePixel = 2,
                 BackgroundColor3 = FromRGB(14, 17, 15),
                 Visible = false,
@@ -5045,7 +5045,7 @@ local Library do
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
             }):AddToTheme({Color = "Outline"})
 
-            -- accent top liner
+            -- thin accent line only (no glow)
             Items["Liner"] = Instances:Create("Frame", {
                 Parent = Items["TargetHUD"].Instance,
                 Name = "\0",
@@ -5055,151 +5055,51 @@ local Library do
                 BackgroundColor3 = FromRGB(0, 255, 152),
             })  Items["Liner"]:AddToTheme({BackgroundColor3 = "Accent"})
 
-            -- soft accent glow under liner
-            Items["Glow"] = Instances:Create("Frame", {
-                Parent = Items["TargetHUD"].Instance,
-                Name = "\0",
-                Position = UDim2New(0, 0, 0, 2),
-                Size = UDim2New(1, 0, 0, 18),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(0, 255, 152),
-                BackgroundTransparency = 0.88,
-            })  Items["Glow"]:AddToTheme({BackgroundColor3 = "Accent"})
-            Instances:Create("UIGradient", {
-                Parent = Items["Glow"].Instance,
-                Name = "\0",
-                Rotation = 90,
-                Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, 0),
-                    NumberSequenceKeypoint.new(1, 1),
-                }),
-            })
-
-            -- inner content panel
-            Items["Inner"] = Instances:Create("Frame", {
-                Parent = Items["TargetHUD"].Instance,
-                Name = "\0",
-                Position = UDim2New(0, 8, 0, 10),
-                Size = UDim2New(1, -16, 1, -18),
-                BorderColor3 = FromRGB(42, 49, 45),
-                BorderSizePixel = 1,
-                BackgroundColor3 = FromRGB(20, 24, 21),
-            })  Items["Inner"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Outline"})
-
-            Instances:Create("UIStroke", {
-                Parent = Items["Inner"].Instance,
-                Name = "\0",
-                Color = FromRGB(12, 12, 12),
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            }):AddToTheme({Color = "Border"})
-
-            -- avatar with accent ring
-            Items["AvatarRing"] = Instances:Create("Frame", {
-                Parent = Items["Inner"].Instance,
-                Name = "\0",
-                Position = UDim2New(0, 8, 0, 8),
-                Size = UDim2New(0, 54, 0, 54),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(0, 255, 152),
-            })  Items["AvatarRing"]:AddToTheme({BackgroundColor3 = "Accent"})
-
+            -- avatar
             Items["Avatar"] = Instances:Create("ImageLabel", {
-                Parent = Items["AvatarRing"].Instance,
+                Parent = Items["TargetHUD"].Instance,
                 Name = "\0",
-                AnchorPoint = Vector2New(0.5, 0.5),
-                Position = UDim2New(0.5, 0, 0.5, 0),
-                Size = UDim2New(1, -4, 1, -4),
+                Position = UDim2New(0, 10, 0, 12),
+                Size = UDim2New(0, 48, 0, 48),
                 BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(14, 17, 15),
+                BackgroundColor3 = FromRGB(20, 24, 21),
                 Image = "",
                 ScaleType = Enum.ScaleType.Crop,
-            })  Items["Avatar"]:AddToTheme({BackgroundColor3 = "Background"})
+            })  Items["Avatar"]:AddToTheme({BackgroundColor3 = "Inline"})
+
+            Instances:Create("UIStroke", {
+                Parent = Items["Avatar"].Instance,
+                Name = "\0",
+                Color = FromRGB(42, 49, 45),
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            }):AddToTheme({Color = "Outline"})
 
             -- name
             Items["Name"] = Instances:Create("TextLabel", {
-                Parent = Items["Inner"].Instance,
+                Parent = Items["TargetHUD"].Instance,
                 Name = "\0",
                 FontFace = Library.Font,
                 TextColor3 = FromRGB(235, 235, 235),
                 BorderColor3 = FromRGB(0, 0, 0),
                 Text = "No Target",
-                Position = UDim2New(0, 72, 0, 8),
-                Size = UDim2New(1, -80, 0, 14),
+                Position = UDim2New(0, 68, 0, 12),
+                Size = UDim2New(1, -120, 0, 14),
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextTruncate = Enum.TextTruncate.AtEnd,
-                TextSize = 13,
+                TextSize = 12,
             })  Items["Name"]:AddToTheme({TextColor3 = "Text"})
             Items["Name"]:TextBorder()
 
-            -- distance badge
-            Items["DistBadge"] = Instances:Create("Frame", {
-                Parent = Items["Inner"].Instance,
-                Name = "\0",
-                Position = UDim2New(0, 72, 0, 26),
-                Size = UDim2New(0, 0, 0, 15),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(14, 17, 15),
-            })  Items["DistBadge"]:AddToTheme({BackgroundColor3 = "Background"})
-
-            Instances:Create("UIStroke", {
-                Parent = Items["DistBadge"].Instance,
-                Name = "\0",
-                Color = FromRGB(42, 49, 45),
-                Thickness = 1,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            }):AddToTheme({Color = "Outline"})
-
-            Instances:Create("UIPadding", {
-                Parent = Items["DistBadge"].Instance,
-                Name = "\0",
-                PaddingLeft = UDimNew(0, 5),
-                PaddingRight = UDimNew(0, 5),
-            })
-
-            Items["DistText"] = Instances:Create("TextLabel", {
-                Parent = Items["DistBadge"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(0, 255, 152),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "0m",
-                Size = UDim2New(0, 0, 1, 0),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                TextSize = 11,
-            })  Items["DistText"]:AddToTheme({TextColor3 = "Accent"})
-            Items["DistText"]:TextBorder()
-
-            -- tool label
-            Items["Tool"] = Instances:Create("TextLabel", {
-                Parent = Items["Inner"].Instance,
-                Name = "\0",
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(180, 180, 180),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "None",
-                Position = UDim2New(0, 72, 0, 44),
-                Size = UDim2New(1, -80, 0, 12),
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextTruncate = Enum.TextTruncate.AtEnd,
-                TextSize = 11,
-            })  Items["Tool"]:AddToTheme({TextColor3 = "Text"})
-            Items["Tool"]:TextBorder()
-
-            -- status pill (right side of name row)
+            -- status pill top right
             Items["Status"] = Instances:Create("Frame", {
-                Parent = Items["Inner"].Instance,
+                Parent = Items["TargetHUD"].Instance,
                 Name = "\0",
                 AnchorPoint = Vector2New(1, 0),
-                Position = UDim2New(1, -8, 0, 8),
-                Size = UDim2New(0, 0, 0, 15),
+                Position = UDim2New(1, -10, 0, 12),
+                Size = UDim2New(0, 0, 0, 14),
                 AutomaticSize = Enum.AutomaticSize.X,
                 BorderSizePixel = 0,
                 BackgroundColor3 = FromRGB(0, 255, 152),
@@ -5209,14 +5109,14 @@ local Library do
             Instances:Create("UICorner", {
                 Parent = Items["Status"].Instance,
                 Name = "\0",
-                CornerRadius = UDimNew(0, 3),
+                CornerRadius = UDimNew(0, 2),
             })
 
             Instances:Create("UIPadding", {
                 Parent = Items["Status"].Instance,
                 Name = "\0",
-                PaddingLeft = UDimNew(0, 6),
-                PaddingRight = UDimNew(0, 6),
+                PaddingLeft = UDimNew(0, 5),
+                PaddingRight = UDimNew(0, 5),
             })
 
             Items["StatusText"] = Instances:Create("TextLabel", {
@@ -5233,16 +5133,51 @@ local Library do
                 TextSize = 10,
             })
 
-            -- health bar track
-            Items["HealthBG"] = Instances:Create("Frame", {
-                Parent = Items["Inner"].Instance,
+            -- distance
+            Items["DistText"] = Instances:Create("TextLabel", {
+                Parent = Items["TargetHUD"].Instance,
                 Name = "\0",
-                Position = UDim2New(0, 8, 1, -14),
-                Size = UDim2New(1, -16, 0, 8),
+                FontFace = Library.Font,
+                TextColor3 = FromRGB(0, 255, 152),
+                BorderColor3 = FromRGB(0, 0, 0),
+                Text = "0m",
+                Position = UDim2New(0, 68, 0, 28),
+                Size = UDim2New(1, -78, 0, 12),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextSize = 11,
+            })  Items["DistText"]:AddToTheme({TextColor3 = "Accent"})
+            Items["DistText"]:TextBorder()
+
+            -- tool
+            Items["Tool"] = Instances:Create("TextLabel", {
+                Parent = Items["TargetHUD"].Instance,
+                Name = "\0",
+                FontFace = Library.Font,
+                TextColor3 = FromRGB(170, 170, 170),
+                BorderColor3 = FromRGB(0, 0, 0),
+                Text = "None",
+                Position = UDim2New(0, 68, 0, 42),
+                Size = UDim2New(1, -78, 0, 12),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextSize = 11,
+            })  Items["Tool"]:AddToTheme({TextColor3 = "Text"})
+            Items["Tool"]:TextBorder()
+
+            -- health bar
+            Items["HealthBG"] = Instances:Create("Frame", {
+                Parent = Items["TargetHUD"].Instance,
+                Name = "\0",
+                Position = UDim2New(0, 10, 0, 64),
+                Size = UDim2New(1, -20, 0, 6),
                 BorderColor3 = FromRGB(42, 49, 45),
                 BorderSizePixel = 1,
-                BackgroundColor3 = FromRGB(14, 17, 15),
-            })  Items["HealthBG"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Outline"})
+                BackgroundColor3 = FromRGB(20, 24, 21),
+            })  Items["HealthBG"]:AddToTheme({BackgroundColor3 = "Inline", BorderColor3 = "Outline"})
 
             Items["HealthFill"] = Instances:Create("Frame", {
                 Parent = Items["HealthBG"].Instance,
@@ -5251,17 +5186,6 @@ local Library do
                 BorderSizePixel = 0,
                 BackgroundColor3 = FromRGB(0, 255, 152),
             })  Items["HealthFill"]:AddToTheme({BackgroundColor3 = "Accent"})
-
-            -- subtle gradient on fill
-            Instances:Create("UIGradient", {
-                Parent = Items["HealthFill"].Instance,
-                Name = "\0",
-                Rotation = 0,
-                Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, FromRGB(255, 255, 255)),
-                    ColorSequenceKeypoint.new(1, FromRGB(200, 200, 200)),
-                }),
-            })
 
             Items["HealthText"] = Instances:Create("TextLabel", {
                 Parent = Items["HealthBG"].Instance,
@@ -5273,7 +5197,7 @@ local Library do
                 Size = UDim2New(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
-                TextSize = 10,
+                TextSize = 9,
                 ZIndex = 2,
             })  Items["HealthText"]:AddToTheme({TextColor3 = "Text"})
             Items["HealthText"]:TextBorder()
